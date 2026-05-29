@@ -46,8 +46,10 @@ contract JobEscrow is ReentrancyGuard {
         uint40 claimedAt; // timestamp of claim (for the claim timeout)
         uint40 submittedAt; // timestamp of submission (for the dispute window)
         State state;
-        bytes32 inputHash; // commitment to the prompt/input
+        bytes32 inputHash; // commitment to the input = keccak256(input)
         bytes32 resultHash; // commitment to the result (set on submit)
+        bytes input; // cleartext prompt the worker fulfills (on-chain for the MVP;
+            // mainnet would store only inputHash + an off-chain blob ref)
         bytes result; // cleartext result (revealed on submit)
     }
 
@@ -68,7 +70,7 @@ contract JobEscrow is ReentrancyGuard {
     uint256 public nextJobId;
     mapping(uint256 => Job) public jobs;
 
-    event JobPosted(uint256 indexed id, address indexed buyer, uint96 payment, bytes32 inputHash);
+    event JobPosted(uint256 indexed id, address indexed buyer, uint96 payment, bytes input);
     event JobClaimed(uint256 indexed id, address indexed worker, uint96 bond);
     event JobSubmitted(uint256 indexed id, bytes32 resultHash, bytes result);
     event JobReleased(uint256 indexed id, address indexed worker, uint96 payment, uint256 reward);
@@ -96,9 +98,11 @@ contract JobEscrow is ReentrancyGuard {
     // Buyer: post a job
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// @notice Post a job, locking `payment` ag3nt in escrow. Buyer must have
-    ///         approved this contract for at least `payment` first.
-    function postJob(uint96 payment, bytes32 inputHash) external nonReentrant returns (uint256 id) {
+    /// @notice Post a job, locking `payment` ag3nt in escrow. The cleartext
+    ///         `input` (the prompt the worker fulfills) is stored on-chain and
+    ///         emitted so any worker can pick it up with no side channel. Buyer
+    ///         must have approved this contract for at least `payment` first.
+    function postJob(uint96 payment, bytes calldata input) external nonReentrant returns (uint256 id) {
         if (payment == 0) revert ZeroPayment();
         token.safeTransferFrom(msg.sender, address(this), payment);
 
@@ -106,10 +110,11 @@ contract JobEscrow is ReentrancyGuard {
         Job storage j = jobs[id];
         j.buyer = msg.sender;
         j.payment = payment;
-        j.inputHash = inputHash;
+        j.inputHash = keccak256(input);
+        j.input = input;
         j.state = State.Posted;
 
-        emit JobPosted(id, msg.sender, payment, inputHash);
+        emit JobPosted(id, msg.sender, payment, input);
     }
 
     /// @notice Cancel a job that no worker has claimed yet; refunds the payment.

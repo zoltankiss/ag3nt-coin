@@ -19,7 +19,8 @@ contract JobEscrowTest is Test {
     uint96 constant BOND = 10 ether;
     uint96 constant WORKER_SEED = 1_000 ether;
 
-    bytes32 constant INPUT_HASH = keccak256("ticket body to title");
+    bytes INPUT = bytes("User reports the app logs them out every time they switch tabs on Safari");
+    bytes32 INPUT_HASH = keccak256(INPUT);
     bytes RESULT = bytes("Fix login redirect loop on Safari");
 
     function setUp() public {
@@ -46,7 +47,7 @@ contract JobEscrowTest is Test {
 
     function _post() internal returns (uint256 id) {
         vm.prank(buyer);
-        id = escrow.postJob(PAYMENT, INPUT_HASH);
+        id = escrow.postJob(PAYMENT, INPUT);
     }
 
     function _postAndClaim(address worker) internal returns (uint256 id) {
@@ -80,7 +81,7 @@ contract JobEscrowTest is Test {
     function test_RevertWhen_PostZeroPayment() public {
         vm.prank(buyer);
         vm.expectRevert(JobEscrow.ZeroPayment.selector);
-        escrow.postJob(0, INPUT_HASH);
+        escrow.postJob(0, INPUT);
     }
 
     function test_CancelJob_RefundsBuyer() public {
