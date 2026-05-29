@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ag3nt MVP — Build Plan (Path B, full e2e)</title>
+<style>
+  :root {
+    --ink:#161616; --soft:#3a3a3a; --muted:#6b6b6b; --line:#e6e6e6; --bg:#fafafa; --paper:#fff;
+    --code:#f5f5f5; --accent:#0a6; --link:#0066cc;
+    --info-bg:#eef6ff; --info-bd:#4a90e2; --warn-bg:#fff8e1; --warn-bd:#e8a900;
+    --ok-bg:#e8f5e9; --ok-bd:#43a047; --bad-bg:#ffebee; --bad-bd:#e53935; --neu-bg:#f4f4f5; --neu-bd:#9e9e9e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+       color:var(--ink);background:var(--bg);line-height:1.62;font-size:16px}
+  .wrap{max-width:880px;margin:0 auto;padding:48px 24px 120px}
+  h1{font-size:33px;margin:0 0 4px;letter-spacing:-.01em;line-height:1.15}
+  .sub{color:var(--muted);font-size:17px;margin:0 0 20px}
+  h2{font-size:23px;margin:52px 0 14px;padding-top:16px;border-top:1px solid var(--line);letter-spacing:-.01em}
+  h3{font-size:17px;margin:28px 0 6px}
+  h4{font-size:13px;margin:18px 0 4px;color:var(--soft);text-transform:uppercase;letter-spacing:.05em}
+  p{margin:11px 0}
+  a{color:var(--link)}
+  code{background:var(--code);padding:1.5px 5px;border-radius:4px;font-size:13.5px;
+       font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre{background:var(--code);padding:14px 16px;border-radius:8px;overflow:auto;font-size:13px;line-height:1.55;
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--line)}
+  pre code{background:none;padding:0}
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+        padding:3px 10px;border-radius:999px;vertical-align:middle}
+  .pill.b{background:var(--info-bg);color:#1c5aa6;border:1px solid var(--info-bd)}
+  .pill.ok{background:var(--ok-bg);color:#2e7d32;border:1px solid var(--ok-bd)}
+  .pill.warn{background:var(--warn-bg);color:#8a6d00;border:1px solid var(--warn-bd)}
+  .pill.bad{background:var(--bad-bg);color:#c62828;border:1px solid var(--bad-bd)}
+  .pill.neu{background:var(--neu-bg);color:#555;border:1px solid var(--neu-bd)}
+  .card{border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:16px 0;background:var(--paper)}
+  .note{border-left:4px solid var(--info-bd);background:var(--info-bg);padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+  .warn{border-left:4px solid var(--warn-bd);background:var(--warn-bg);padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+  .bad{border-left:4px solid var(--bad-bd);background:var(--bad-bg);padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+  .ok{border-left:4px solid var(--ok-bd);background:var(--ok-bg);padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+  table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--code);font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft)}
+  td code{font-size:12.5px}
+  .step{display:flex;gap:14px;margin:14px 0;align-items:flex-start}
+  .step .n{flex:0 0 28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;font-weight:700;
+           display:flex;align-items:center;justify-content:center;font-size:14px}
+  .step .body{flex:1}
+  .step .body h3{margin:2px 0 4px}
+  .tree{font-family:ui-monospace,Menlo,monospace;font-size:13px;background:var(--code);border:1px solid var(--line);
+        border-radius:8px;padding:14px 16px;white-space:pre;overflow:auto}
+  hr{border:none;border-top:1px solid var(--line);margin:32px 0}
+  .meta{color:var(--muted);font-size:13px}
+  .kbd{font-family:ui-monospace,Menlo,monospace;background:#fff;border:1px solid var(--neu-bd);border-bottom-width:2px;
+       border-radius:5px;padding:1px 6px;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="meta">ag3nt-coin · build plan · 2026-05-29</p>
+  <h1>ag3nt MVP — Build Plan</h1>
+  <p class="sub">Path B (Base + smart contracts), full end-to-end. The <em>how we actually ship it today</em> companion to <a href="mvp-base.html">mvp-base.html</a>.</p>
+
+  <p>
+    <span class="pill b">Path&nbsp;B&nbsp;chosen</span>
+    <span class="pill b">scope:&nbsp;full&nbsp;e2e</span>
+    <span class="pill warn">1&nbsp;manual&nbsp;blocker</span>
+    <span class="pill ok">consumer&nbsp;identified</span>
+  </p>
+
+  <div class="note">
+    <strong>What this document is.</strong> <a href="mvp-base.html">mvp-base.html</a> is the conceptual spec + crypto primer. <strong>This</strong> is the implementation plan: decisions locked, the build order, what I can build unattended vs. what blocks on you, and the one reality-check that changes the plan.
+  </div>
+
+  <!-- ───────────────────────────── REALITY CHECK ───────────────────────────── -->
+  <h2>0 · Reality check (read this first)</h2>
+
+  <div class="ok">
+    <strong>"TixSwarm" is real — it's <code>add-native-ticket-tracker</code></strong> (GitHub <code>add-ticket-tracker</code>; Bun + SAM/Lambda). It was just under a different name. The integration seam is exact and already isolated:
+    <pre style="margin:8px 0 0"><code>// src/tickets/title-generator.ts
+export async function generateTitle(description: string): Promise&lt;string&gt; {
+  // today: calls Claude Haiku in-process
+  // later: post a job to JobEscrow, await Hermes' result — same return type
+}</code></pre>
+  </div>
+
+  <p><strong>We still build a thin Agent&nbsp;A buyer stand-in for day 1</strong> (you approved this) rather than modifying the production ticket tracker immediately. The stand-in posts the exact job <code>generateTitle</code> would ("title this ticket body") through the exact on-chain interface. That keeps the live product untouched while we prove the loop. Swapping in the real consumer later is a one-function change to <code>generateTitle</code> — zero contract or daemon rework. <strong>The e2e is genuinely real today</strong>: real contracts, real Base Sepolia, real Claude doing the work, real settlement.</p>
+
+  <div class="warn">
+    <strong>Verification-hardness caveat (your own May 24 flag).</strong> A job marketplace only works when the buyer can <em>cheaply verify</em> the worker's output without redoing the work. For most LLM tasks, verifying ≈ solving — fatal. <strong>Title generation is verification-cheap</strong> (the buyer eyeballs / best-of-N judges in a 60s dispute window), which is exactly why it's the first job type. The MVP does not claim to solve verification in general; it picks a task where verification is easy.
+  </div>
+
+  <!-- ───────────────────────────── TOOLCHAIN ───────────────────────────── -->
+  <h2>1 · Toolchain (what's here, what I install)</h2>
+  <table>
+    <tr><th>Tool</th><th>Status</th><th>Use</th></tr>
+    <tr><td><code>node v22.18</code></td><td><span class="pill ok">present</span></td><td>runtime</td></tr>
+    <tr><td><code>bun 1.3.9</code></td><td><span class="pill ok">present</span></td><td>Hermes daemon + Agent A (fast TS, viem)</td></tr>
+    <tr><td><code>claude 2.1.157</code></td><td><span class="pill ok">present</span></td><td><code>claude -p</code> headless — Hermes does the work</td></tr>
+    <tr><td>Foundry (<code>forge</code>/<code>cast</code>)</td><td><span class="pill warn">install</span></td><td>compile/test/deploy contracts; <code>cast wallet</code> for keys</td></tr>
+  </table>
+  <p>Foundry install is a one-liner I'll run (<code>curl -L https://foundry.paradigm.xyz | bash &amp;&amp; foundryup</code>). Everything else is ready.</p>
+
+  <!-- ───────────────────────────── ARCHITECTURE ───────────────────────────── -->
+  <h2>2 · Architecture (today's version)</h2>
+  <svg viewBox="0 0 820 360" width="100%" style="border:1px solid var(--line);border-radius:10px;background:#fff;margin:14px 0">
+    <defs>
+      <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+        <path d="M0,0 L7,3 L0,6 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <style>
+      .bx{fill:#fff;stroke:#444;stroke-width:1.5}
+      .actor{fill:#e8f5e9;stroke:#43a047;stroke-width:1.5}
+      .chain{fill:#fff3d6;stroke:#b27a00;stroke-width:2}
+      .ext{fill:#eef6ff;stroke:#4a90e2;stroke-width:1.5}
+      .l{font:600 13px -apple-system,sans-serif;fill:#161616}
+      .s{font:11px -apple-system,sans-serif;fill:#6b6b6b}
+      .e{fill:none;stroke:#444;stroke-width:1.5;marker-end:url(#ar)}
+      .el{font:11px -apple-system,sans-serif;fill:#444}
+    </style>
+    <!-- Agent A -->
+    <rect class="actor" x="24" y="40" width="180" height="84" rx="8"/>
+    <text class="l" x="36" y="66">Agent A — buyer</text>
+    <text class="s" x="36" y="84">stand-in for TixSwarm</text>
+    <text class="s" x="36" y="100">posts job, judges result</text>
+    <text class="s" x="36" y="116">local Bun service</text>
+    <!-- Chain -->
+    <rect class="chain" x="320" y="24" width="190" height="120" rx="10"/>
+    <text class="l" x="334" y="50">Base Sepolia</text>
+    <text class="s" x="334" y="70">Ag3nt.sol (ERC-20, 21M)</text>
+    <text class="s" x="334" y="88">JobEscrow.sol</text>
+    <text class="s" x="334" y="110">chainId 84532</text>
+    <text class="s" x="334" y="128">rpc: sepolia.base.org</text>
+    <!-- Hermes 64 -->
+    <rect class="actor" x="620" y="24" width="176" height="76" rx="8"/>
+    <text class="l" x="632" y="48">Hermes-64</text>
+    <text class="s" x="632" y="66">macmini64 · Bun daemon</text>
+    <text class="s" x="632" y="84">watches + claims jobs</text>
+    <!-- Hermes 24 -->
+    <rect class="actor" x="620" y="118" width="176" height="64" rx="8"/>
+    <text class="l" x="632" y="142">Hermes-24</text>
+    <text class="s" x="632" y="160">macmini24 · competing worker</text>
+    <!-- Claude -->
+    <rect class="ext" x="620" y="208" width="176" height="60" rx="8"/>
+    <text class="l" x="632" y="232">Claude</text>
+    <text class="s" x="632" y="250">claude -p (headless)</text>
+    <!-- edges -->
+    <path class="e" d="M204,74 L318,74"/>
+    <text class="el" x="218" y="66">postJob()</text>
+    <path class="e" d="M510,64 L618,58"/>
+    <text class="el" x="516" y="44">JobPosted</text>
+    <path class="e" d="M618,148 L512,108"/>
+    <text class="el" x="520" y="150">claim/submit</text>
+    <path class="e" d="M708,100 L708,206"/>
+    <text class="el" x="714" y="160">do work</text>
+    <path class="e" d="M318,120 L206,108"/>
+    <text class="el" x="214" y="128">JobSubmitted → judge</text>
+    <text class="s" x="24" y="320">Figure — Agent A posts a title-generation job; both Hermes daemons race to claim it; the winner runs Claude,</text>
+    <text class="s" x="24" y="338">submits the title, escrow releases ag3nt after the 60s dispute window (or buyer accepts early).</text>
+  </svg>
+
+  <!-- ───────────────────────────── CONTRACTS ───────────────────────────── -->
+  <h2>3 · Contracts <span class="pill neu">~120 lines Solidity</span></h2>
+  <p>Two contracts, deployed once to Base Sepolia, immutable. Full source is in <a href="mvp-base.html#contracts">mvp-base.html</a>; the shapes are locked:</p>
+  <table>
+    <tr><th>Contract</th><th>Responsibility</th><th>Key params</th></tr>
+    <tr><td><code>Ag3nt.sol</code></td><td>ERC-20 token. 21M hard cap. Mint authority lives on the escrow only.</td><td><code>MAX_SUPPLY 21M</code>, <code>preMint 1M</code> → Agent A</td></tr>
+    <tr><td><code>JobEscrow.sol</code></td><td>Per-job state machine <code>Posted→Claimed→Submitted→Released/Disputed</code>. Custodies payment + worker bond.</td><td><code>DISPUTE_WINDOW 60s</code></td></tr>
+  </table>
+  <p>Foundry tests cover the happy path + each guard (cap enforcement, only-marketplace mint, only-buyer dispute, double-claim revert, release-before-window revert). <strong>No live deploy until tests are green.</strong></p>
+
+  <!-- ───────────────────────────── HERMES ───────────────────────────── -->
+  <h2>4 · Hermes worker daemon <span class="pill neu">Bun + viem</span></h2>
+  <pre><code>// the loop, in spirit
+watch JobPosted →
+  if profitable &amp;&amp; idle: claim(jobId)   // stakes a small bond
+  on JobClaimed(me):
+    title = await claude(`-p`, jobBody)  // the actual work
+    submit(jobId, hash(title), title)
+  // escrow releases payment after 60s window or buyer's early accept</code></pre>
+  <p>Idempotent and crash-safe: state is re-derived from chain events on boot, so a restart never double-claims or loses a job. One codebase runs on both Mac minis with different keys — they genuinely compete.</p>
+
+  <!-- ───────────────────────────── KEYS ───────────────────────────── -->
+  <h2>5 · Keys &amp; wallets</h2>
+  <p>Four EOAs via <code>cast wallet new</code>. Private keys live only in per-machine <code>.env</code> (never git, never transit). Sepolia ETH has no real value, so <code>.env</code> is fine here.</p>
+  <table>
+    <tr><th>Wallet</th><th>Lives</th><th>Role</th><th>Needs ETH?</th></tr>
+    <tr><td>Deployer</td><td>this MacBook <code>.env</code></td><td>deploys contracts; initial 1M ag3nt holder</td><td><span class="pill warn">yes — funded by you</span></td></tr>
+    <tr><td>Agent A</td><td>this MacBook <code>.env</code></td><td>buyer; posts jobs (gets ag3nt from deployer)</td><td>a little (gas to post)</td></tr>
+    <tr><td>Hermes-64</td><td>macmini64 <code>.env</code></td><td>worker</td><td>a little (gas to claim/submit)</td></tr>
+    <tr><td>Hermes-24</td><td>macmini24 <code>.env</code></td><td>competing worker</td><td>a little</td></tr>
+  </table>
+
+  <!-- ───────────────────────────── BLOCKER ───────────────────────────── -->
+  <h2>6 · The one manual blocker <span class="pill warn">you</span></h2>
+  <div class="warn">
+    <strong>Base Sepolia ETH from a faucet.</strong> Contract deploys need gas. The faucet drips to a wallet address, and I can't claim it for you (captcha / wallet-connect). After I generate the deployer address, you grab free testnet ETH:
+    <ul style="margin:8px 0 0">
+      <li><a href="https://faucet.quicknode.com/base/sepolia">faucet.quicknode.com/base/sepolia</a> — 0.05 ETH/day, plenty for thousands of txns.</li>
+      <li>Alternatives: Alchemy, Coinbase Developer Platform faucets.</li>
+    </ul>
+    I'll print the exact address and the faucet link when we get there. Everything <em>before</em> deploy I build unattended.
+  </div>
+
+  <!-- ───────────────────────────── BUILD ORDER ───────────────────────────── -->
+  <h2>7 · Build order</h2>
+
+  <div class="step"><div class="n">1</div><div class="body">
+    <h3>Scaffold <span class="pill ok">unattended</span></h3>
+    <p>Install Foundry. Create <code>contracts/</code> (Foundry) and <code>agent/</code> (Bun: Hermes + Agent A share viem bindings). Init a git repo at project root, push to a private GitHub repo.</p>
+  </div></div>
+  <div class="step"><div class="n">2</div><div class="body">
+    <h3>Contracts + tests <span class="pill ok">unattended</span></h3>
+    <p>Write <code>Ag3nt.sol</code> + <code>JobEscrow.sol</code>, full Foundry test suite, all green locally. This is the load-bearing part — no deploy until it passes.</p>
+  </div></div>
+  <div class="step"><div class="n">3</div><div class="body">
+    <h3>Keys + Agent A + Hermes <span class="pill ok">unattended</span></h3>
+    <p>Generate 4 wallets. Build the Agent A buyer (post-job + judge) and the Hermes daemon. Prove the full loop against a <strong>local Anvil chain</strong> first — no testnet, no faucet, instant.</p>
+  </div></div>
+  <div class="step"><div class="n">4</div><div class="body">
+    <h3>Fund + deploy to Base Sepolia <span class="pill warn">blocks on you</span></h3>
+    <p>I print the deployer address; you hit the faucet. Then I deploy both contracts live and seed Agent A with 1M ag3nt.</p>
+  </div></div>
+  <div class="step"><div class="n">5</div><div class="body">
+    <h3>e2e on testnet <span class="pill ok">unattended after fund</span></h3>
+    <p>Agent A posts a real job → local Hermes claims → Claude writes a title → submits → settles. Watch it on <a href="https://sepolia.basescan.org">sepolia.basescan.org</a>.</p>
+  </div></div>
+  <div class="step"><div class="n">6</div><div class="body">
+    <h3>Ship Hermes to the Mac minis <span class="pill warn">light touch</span></h3>
+    <p>rsync the daemon to macmini64 + macmini24, each with its own funded key, run as a launchd service. Now two real machines compete for jobs over the public testnet. <strong>That's the shipped MVP.</strong></p>
+  </div></div>
+  <div class="step"><div class="n">7</div><div class="body">
+    <h3>Real consumer <span class="pill neu">later</span></h3>
+    <p>Swap the stand-in for the live ticket tracker: rewrite <code>generateTitle()</code> in <code>add-native-ticket-tracker</code> to post a job and await Hermes' result instead of calling Haiku in-process. Same contract, same interface — drop-in.</p>
+  </div></div>
+
+  <!-- ───────────────────────────── DECISIONS ───────────────────────────── -->
+  <h2>8 · Decisions locked</h2>
+  <table>
+    <tr><th>Question</th><th>Decision</th></tr>
+    <tr><td>Cosmos chain (<code>chain/</code>)?</td><td>Left untouched. Not shelved, not extended. Reputation primitives may migrate to contracts later.</td></tr>
+    <tr><td>Where does the EVM work live?</td><td>New top-level <code>contracts/</code> + <code>agent/</code> dirs, alongside <code>chain/</code>. Both kept.</td></tr>
+    <tr><td>First consumer?</td><td>Day 1: thin Agent A stand-in. Real consumer is <code>add-native-ticket-tracker</code> — integrate at <code>title-generator.ts::generateTitle()</code> once the loop is proven.</td></tr>
+    <tr><td>First job type?</td><td>Ticket-title generation — verification-cheap, dodges the verification-hardness trap.</td></tr>
+    <tr><td>Network?</td><td>Base Sepolia (chainId 84532). Local Anvil for dev. Network config in env, no hardcoded refs.</td></tr>
+    <tr><td>Worker runtime?</td><td>Bun + viem; work done via <code>claude -p</code> headless.</td></tr>
+  </table>
+
+  <!-- ───────────────────────────── TREE ───────────────────────────── -->
+  <h2>9 · Target file tree</h2>
+  <div class="tree">ag3nt-coin/
+  contracts/                 # Foundry project
+    src/Ag3nt.sol
+    src/JobEscrow.sol
+    test/Ag3nt.t.sol
+    test/JobEscrow.t.sol
+    script/Deploy.s.sol
+    foundry.toml
+  agent/                     # Bun — buyer + worker share bindings
+    src/abi.ts               # generated from forge build
+    src/chain.ts             # viem clients, addresses from env
+    src/agent-a.ts           # buyer stand-in (posts job, judges result)
+    src/hermes.ts            # worker daemon (watch → claim → claude -p → submit)
+    package.json
+    .env.example
+  chain/                     # existing Cosmos chain — untouched
+  docs/
+    mvp-base.html            # conceptual spec + crypto primer
+    mvp-build-plan.html      # ← this file</div>
+
+  <hr>
+  <p class="meta">Next action on approval: install Foundry, scaffold <code>contracts/</code> + <code>agent/</code>, write the two contracts and their tests. First human checkpoint is step&nbsp;4 (faucet). Reply <span class="kbd">go</span> and I start at step&nbsp;1.</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ag3nt MVP — Base + Smart Contracts</title>
+<style>
+:root {
+  --ink: #1a1a1a;
+  --ink-soft: #3a3a3a;
+  --muted: #6b6b6b;
+  --line: #e5e5e5;
+  --bg: #fafafa;
+  --paper: #ffffff;
+  --code-bg: #f5f5f5;
+  --accent: #0a6;
+  --link: #0066cc;
+  --info-bg: #eef6ff;
+  --info-border: #4a90e2;
+  --warn-bg: #fff8e1;
+  --warn-border: #e8a900;
+  --success-bg: #e8f5e9;
+  --success-border: #43a047;
+  --danger-bg: #ffebee;
+  --danger-border: #e53935;
+  --neutral-bg: #f4f4f5;
+  --neutral-border: #9e9e9e;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.65;
+  font-size: 16px;
+}
+.shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 40px;
+}
+nav.toc {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 32px 0 32px 24px;
+  border-right: 1px solid var(--line);
+  font-size: 14px;
+}
+nav.toc h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin: 24px 0 8px;
+}
+nav.toc ol { list-style: none; padding: 0; margin: 0; counter-reset: nav; }
+nav.toc ol li { margin: 2px 0; counter-increment: nav; }
+nav.toc a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  display: block;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+nav.toc a:hover { background: var(--code-bg); color: var(--ink); }
+nav.toc a::before { content: counter(nav) ". "; color: var(--muted); }
+nav.toc .sub { padding-left: 18px; font-size: 12px; }
+nav.toc .sub a::before { content: "· "; }
+main {
+  padding: 48px 32px 96px 0;
+  max-width: 820px;
+}
+h1 {
+  font-size: 34px;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.subtitle {
+  color: var(--muted);
+  font-size: 17px;
+  margin: 0 0 16px;
+}
+h2 {
+  font-size: 24px;
+  margin: 56px 0 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  letter-spacing: -0.01em;
+}
+h3 {
+  font-size: 18px;
+  margin: 32px 0 8px;
+}
+h4 {
+  font-size: 14px;
+  margin: 20px 0 4px;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+p { margin: 12px 0; }
+a { color: var(--link); }
+.pill {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.pill.proposed { background: #fff3d6; color: #8a5a00; }
+.pill.done { background: #e8f5e9; color: #2e7d32; }
+.pill.skipped { background: #efefef; color: #757575; }
+.pill.day1 { background: #ffebee; color: #c62828; }
+.pill.week1 { background: #fff8e1; color: #b27a00; }
+.pill.week2 { background: #f3e5f5; color: #7b1fa2; }
+.pill.later { background: #eef6ff; color: #1976d2; }
+.pill.testnet { background: #ede7f6; color: #4527a0; }
+.pill.mainnet { background: #e0f7fa; color: #006064; }
+.meta {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0 32px;
+  align-items: center;
+  font-size: 14px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+.callout {
+  border-left: 4px solid;
+  padding: 14px 18px;
+  margin: 20px 0;
+  border-radius: 4px;
+}
+.callout.info    { background: var(--info-bg);    border-color: var(--info-border); }
+.callout.warn    { background: var(--warn-bg);    border-color: var(--warn-border); }
+.callout.success { background: var(--success-bg); border-color: var(--success-border); }
+.callout.danger  { background: var(--danger-bg);  border-color: var(--danger-border); }
+.callout.neutral { background: var(--neutral-bg); border-color: var(--neutral-border); }
+.callout h4 {
+  margin: 0 0 6px;
+  color: var(--ink);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+.callout p:last-child { margin-bottom: 0; }
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  background: var(--code-bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid #e8e8e8;
+}
+pre {
+  background: var(--code-bg);
+  padding: 16px 20px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid var(--line);
+}
+pre code { background: transparent; padding: 0; border: 0; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+}
+th, td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+th {
+  background: var(--code-bg);
+  font-weight: 600;
+  font-size: 13px;
+}
+.figure {
+  margin: 32px 0;
+  text-align: center;
+}
+.figure svg {
+  max-width: 100%;
+  height: auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 16px;
+}
+.figure figcaption {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.glossary dt {
+  font-weight: 600;
+  margin-top: 16px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 14px;
+}
+.glossary dd {
+  margin: 4px 0 0 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+.tldr {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px 28px;
+  margin: 24px 0 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.tldr h3 { margin-top: 0; }
+.tldr ul { margin: 8px 0 0; padding-left: 20px; }
+.tldr li { margin: 6px 0; }
+.actor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0 24px;
+}
+.actor-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+.actor-card h4 { margin: 0 0 4px; color: var(--ink); }
+.actor-card .role { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+.kbd {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+.cost-table td:nth-child(2),
+.cost-table td:nth-child(3),
+.cost-table td:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
+.footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (max-width: 880px) {
+  .shell { grid-template-columns: 1fr; gap: 0; }
+  nav.toc { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 16px; }
+  main { padding: 24px 16px 64px; }
+  .actor-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#tldr">TL;DR</a></li>
+    <li><a href="#premise">The Premise</a></li>
+    <li><a href="#primer">Crypto Primer</a>
+      <ol class="sub">
+        <li><a href="#primer-chains">Chains, L1 vs L2</a></li>
+        <li><a href="#primer-tokens">Tokens vs Gas</a></li>
+        <li><a href="#primer-contracts">Smart Contracts</a></li>
+        <li><a href="#primer-wallets">Wallets & Keys</a></li>
+        <li><a href="#primer-events">Events & Listening</a></li>
+      </ol>
+    </li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#contracts">Smart Contracts</a>
+      <ol class="sub">
+        <li><a href="#contract-ag3nt">Ag3nt.sol</a></li>
+        <li><a href="#contract-escrow">JobEscrow.sol</a></li>
+      </ol>
+    </li>
+    <li><a href="#hermes">Hermes Worker</a></li>
+    <li><a href="#tixswarm">Tixswarm Integration</a></li>
+    <li><a href="#flow">End-to-End Flow</a></li>
+    <li><a href="#skip">What We Skip (Day 1)</a></li>
+    <li><a href="#risks">Risks &amp; Gotchas</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#glossary">Glossary</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1>ag3nt MVP — Base + Smart Contracts</h1>
+<p class="subtitle">Trustless settlement for agent work, end-to-end in one focused day.</p>
+<div class="meta">
+  <span class="pill proposed">Proposed</span>
+  <span class="pill testnet">Base Sepolia</span>
+  <span>2026-05-24</span>
+  <span>·</span>
+  <span>Pivot proposal — supersedes the Cosmos appchain direction in <code>SPEC.html</code></span>
+</div>
+
+<div class="tldr" id="tldr">
+  <h3>TL;DR</h3>
+  <ul>
+    <li><strong>Goal:</strong> Tixswarm pays Hermes workers (running on your Mac minis) in <code>ag3nt</code> to generate ticket titles via Claude — fully on-chain settlement, end-to-end in one day.</li>
+    <li><strong>Why this works economically:</strong> Tixswarm currently pays Anthropic <em>per call</em> for title generation. Hermes workers run on flat-rate Claude Pro subscriptions — marginal cost ≈ $0. You own both sides; you capture the arbitrage as a closed-loop demo.</li>
+    <li><strong>Where it runs:</strong> Base Sepolia — a free testnet that is a real Ethereum-compatible chain (L2). Same code, same wallets, same tools as mainnet; no real money at risk.</li>
+    <li><strong>What we build:</strong> (1) an <code>Ag3nt</code> ERC-20 token contract with a hard cap of 21M, (2) a <code>JobEscrow</code> contract that holds payment until work is delivered, (3) the <code>hermes</code> Node daemon that watches the chain and does the work, (4) the Tixswarm code that posts jobs.</li>
+    <li><strong>What we explicitly defer:</strong> jury / disputes, EAS vouches, PageRank reputation, on-chain mining, smart-contract wallets, mainnet. Each has a clear future home in the roadmap.</li>
+  </ul>
+</div>
+
+<h2 id="premise">The Premise</h2>
+
+<p>This whole MVP exists to demonstrate one specific dynamic: <strong>agents can pay other agents to do LLM work, with the chain providing trustless settlement.</strong> Until that loop runs end-to-end with real on-chain value moving, everything else (reputation, jury, mining curves) is theory.</p>
+
+<p>The smallest setup that proves the dynamic is one you already own:</p>
+
+<table>
+  <thead><tr><th>Role</th><th>Identity</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Agent A</strong> (buyer)</td><td>Tixswarm backend</td><td>Has long descriptions, wants short titles. Holds <code>ag3nt</code>, posts paid jobs.</td></tr>
+    <tr><td><strong>Agent B</strong> (worker)</td><td><code>hermes</code> on macmini64</td><td>Has a Claude Pro subscription (marginal cost ~$0). Watches the chain, claims jobs, returns titles, earns <code>ag3nt</code>.</td></tr>
+    <tr><td><strong>Agent B<sub>2</sub></strong> (competitor)</td><td><code>hermes</code> on macmini24</td><td>Same as above, different wallet. Adds the "two competing workers" dynamic that turns a payment demo into a market demo.</td></tr>
+    <tr><td><strong>The chain</strong></td><td>Base Sepolia</td><td>Holds the <code>ag3nt</code> token contract and the <code>JobEscrow</code> contract. Provides settlement, transparency, and verifiable history.</td></tr>
+  </tbody>
+</table>
+
+<div class="callout success">
+  <h4>Why this beats a "real" multi-party demo</h4>
+  <p>Both sides being your own infrastructure means: no external dependencies, no recruiting workers, no token distribution problem, no real-world UX to debug. The arbitrage is real (you're literally paying Anthropic today for work you could do with idle Pro capacity), so the demo isn't a toy — it's a small but genuine cost-reduction loop.</p>
+</div>
+
+<h2 id="primer">Crypto Primer</h2>
+
+<p>If you've ignored crypto for a few years, here's a 5-minute orientation. Every concept here will appear later in the spec.</p>
+
+<h3 id="primer-chains">1. Chains, L1 vs L2</h3>
+
+<p>A <strong>blockchain</strong> is a public database that lots of independent computers maintain copies of. Every change requires every computer to agree. This is slow and expensive, but it means no single party controls the state — useful when two parties don't trust each other.</p>
+
+<p><strong>Ethereum</strong> is the most popular general-purpose blockchain — it runs <em>programs</em> (smart contracts), not just balance transfers. Ethereum's runtime is called the <strong>EVM</strong> (Ethereum Virtual Machine). Programs are written in <strong>Solidity</strong> and compiled to EVM bytecode.</p>
+
+<p>Ethereum mainnet ("L1") is expensive — each transaction costs $1–$50 depending on congestion. <strong>L2s</strong> (layer 2s) like <strong>Base</strong>, <strong>Arbitrum</strong>, and <strong>Optimism</strong> are separate chains that batch up many transactions, post a single proof to Ethereum, and inherit Ethereum's security. Transactions on Base cost roughly $0.01–$0.10 — 100–1000× cheaper. From a developer's perspective, Base is just "Ethereum with cheap fees" — same Solidity, same wallets, same tools.</p>
+
+<p><strong>Testnet</strong> = a parallel copy of the chain, with no real money, used for development. <strong>Base Sepolia</strong> is Base's testnet. You get free testnet ETH from a <strong>faucet</strong>. Your contracts deploy and run identically — only the network ID and the dollar value of the tokens change.</p>
+
+<div class="callout info">
+  <h4>Why Base specifically</h4>
+  <p>Three reasons: (1) cheap gas, so transaction costs don't drown the demo; (2) standard EVM, so we get the entire Ethereum ecosystem of tools, audited contracts, and infrastructure; (3) Coinbase backs it, so it has staying power. The same MVP would work on Arbitrum or Optimism with no code changes.</p>
+</div>
+
+<h3 id="primer-tokens">2. Tokens vs Gas — the most important distinction</h3>
+
+<div class="callout warn">
+  <h4>Common confusion: <code>ETH</code> vs <code>ag3nt</code></h4>
+  <p>These are <strong>two different things</strong> and you need both:</p>
+  <ul>
+    <li><strong>ETH</strong> = the <em>fuel</em> for the chain itself. Every transaction (sending a token, calling a contract, anything) costs a tiny amount of ETH as <strong>gas</strong>. Think of it as postage on a letter. You need ETH in your wallet to <em>do anything</em> on the chain. On testnet, ETH is free from a faucet. On mainnet, you buy it.</li>
+    <li><strong>ag3nt</strong> = the <em>currency for agent work</em>. Our brand new token, defined by our contract. It's worth what we say it's worth (initially nothing, eventually whatever the market decides). It's used to pay for jobs.</li>
+  </ul>
+  <p><strong>Concretely:</strong> Tixswarm pays a Hermes worker <em>10 ag3nt</em> for a title. The transaction itself costs Tixswarm <em>~0.0001 ETH</em> in gas. Both have to be in Tixswarm's wallet.</p>
+</div>
+
+<p>A <strong>token</strong> in Ethereum-land is a smart contract that maintains a balance map: <code>address → uint256</code>. The <strong>ERC-20</strong> standard is a small set of functions every well-behaved token contract has (<code>balanceOf</code>, <code>transfer</code>, <code>approve</code>, etc.). Wallets, exchanges, and other contracts all know how to interact with any ERC-20 because the interface is identical. Our <code>ag3nt</code> token will be an ERC-20.</p>
+
+<p>"Hard cap" means the contract's logic prevents the total supply from ever exceeding a fixed number — in our case, 21,000,000 ag3nt, following Bitcoin's precedent. The cap is enforced by the contract's <code>_mint</code> function reverting if a mint would push total supply above the cap. Once the contract is deployed and the owner key is removed, the cap is mathematically guaranteed.</p>
+
+<h3 id="primer-contracts">3. Smart Contracts</h3>
+
+<p>A <strong>smart contract</strong> is a program deployed to the EVM. Once deployed, its code is public, its state is public, and anyone can call its functions (subject to whatever access rules the contract itself enforces). You can think of it as a tiny stateful HTTP server that lives on the blockchain — but with three big differences:</p>
+
+<ul>
+  <li><strong>Every function call costs gas.</strong> The caller pays. Cost depends on how much computation and storage the call uses.</li>
+  <li><strong>State changes are persistent and public.</strong> Every state variable is readable by anyone. Privacy is opt-in (via off-chain commitments).</li>
+  <li><strong>The code is usually immutable.</strong> Once deployed, you can't change a contract's bytecode (unless you built upgradability in, which has trade-offs). For our MVP, both contracts are immutable after deploy.</li>
+</ul>
+
+<p>A contract has <strong>read functions</strong> (free, called <code>view</code> or <code>pure</code>) and <strong>write functions</strong> (cost gas, change state). It emits <strong>events</strong> — log entries that are cheap to write and easy for off-chain code to listen to.</p>
+
+<h3 id="primer-wallets">4. Wallets &amp; Keys</h3>
+
+<p>An <strong>address</strong> (e.g. <code>0x742d35...</code>) is the public identifier of an account. Anyone can send ag3nt or ETH to your address. Spending <em>from</em> your address requires the <strong>private key</strong> — a 256-bit secret. The private key signs transactions; the chain verifies the signature against the address.</p>
+
+<p>There are two kinds of accounts:</p>
+<ul>
+  <li><strong>EOA</strong> (Externally Owned Account) — controlled directly by a private key. Simple. What we'll use for the MVP.</li>
+  <li><strong>Contract Account</strong> — code, no private key. Acts when called. <strong>ERC-4337 smart wallets</strong> (Week 2+) are a hybrid: a contract account that uses a private key to authorize itself, with extras like spending limits, paymasters (so you can pay gas in ag3nt instead of ETH), and session keys. Powerful but more complex.</li>
+</ul>
+
+<p>For the MVP, each actor is one EOA, with its private key in a <code>.env</code> file. We'll generate four keypairs:</p>
+
+<div class="actor-grid">
+  <div class="actor-card">
+    <h4>Deployer</h4>
+    <div class="role">Local dev machine</div>
+    Deploys the contracts. Initial holder of the 1M pre-minted ag3nt.
+  </div>
+  <div class="actor-card">
+    <h4>Tixswarm</h4>
+    <div class="role">AWS Lambda env var</div>
+    Agent A. Holds the operating ag3nt balance. Posts jobs.
+  </div>
+  <div class="actor-card">
+    <h4>Hermes-64</h4>
+    <div class="role">macmini64 .env</div>
+    Agent B. Claims jobs, submits results, accumulates ag3nt.
+  </div>
+  <div class="actor-card">
+    <h4>Hermes-24</h4>
+    <div class="role">macmini24 .env</div>
+    Agent B<sub>2</sub>. Same as Hermes-64; competes for jobs.
+  </div>
+</div>
+
+<div class="callout danger">
+  <h4>Key handling</h4>
+  <p>Private keys live in <code>.env</code> files, never in git. Each <code>.env</code> is generated on the target machine and never transits. For mainnet, we'd move to hardware-backed keys (Lambda's KMS, hardware wallets, or AWS Nitro) — but for Sepolia, <code>.env</code> is fine because there's no money at risk.</p>
+</div>
+
+<h3 id="primer-events">5. Events &amp; Listening</h3>
+
+<p>When a contract function fires, it can emit <strong>events</strong>. Events are searchable log entries — cheap to write, easy to query. Off-chain programs subscribe to event streams via RPC and react. This is how Hermes will know a new job is available: it subscribes to the <code>JobPosted</code> event on the escrow contract.</p>
+
+<pre><code>// Solidity side
+event JobPosted(uint256 indexed jobId, address indexed buyer, uint256 payment, bytes32 inputHash);
+
+// TypeScript side (viem)
+escrow.watchEvent.JobPosted({}, {
+  onLogs: (logs) => logs.forEach(handleNewJob)
+});</code></pre>
+
+<p>Events are how the "real world" hooks onto the chain. Without them, off-chain workers would need to poll every block — slow and expensive.</p>
+
+<h2 id="architecture">Architecture</h2>
+
+<div class="figure">
+  <svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#444"/>
+      </marker>
+      <marker id="arrL" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 10 0 L 0 5 L 10 10 z" fill="#444"/>
+      </marker>
+    </defs>
+    <style>
+      .box { fill: #fff; stroke: #444; stroke-width: 1.5; rx: 6; }
+      .chain { fill: #fff3d6; stroke: #b27a00; stroke-width: 2; rx: 8; }
+      .actor { fill: #e8f5e9; stroke: #43a047; stroke-width: 1.5; rx: 6; }
+      .external { fill: #eef6ff; stroke: #4a90e2; stroke-width: 1.5; rx: 6; }
+      .lbl { font: 600 13px -apple-system, sans-serif; fill: #1a1a1a; }
+      .sub { font: 11px -apple-system, sans-serif; fill: #6b6b6b; }
+      .edge { fill: none; stroke: #444; stroke-width: 1.5; }
+      .edge-lbl { font: 11px -apple-system, sans-serif; fill: #444; }
+    </style>
+
+    <!-- User -->
+    <rect class="external" x="20" y="40" width="100" height="60"/>
+    <text class="lbl" x="70" y="65" text-anchor="middle">User</text>
+    <text class="sub" x="70" y="82" text-anchor="middle">opens ticket</text>
+
+    <!-- Tixswarm (A) -->
+    <rect class="actor" x="170" y="20" width="160" height="100"/>
+    <text class="lbl" x="250" y="48" text-anchor="middle">Tixswarm (Agent A)</text>
+    <text class="sub" x="250" y="68" text-anchor="middle">AWS Lambda</text>
+    <text class="sub" x="250" y="84" text-anchor="middle">api.tixswarm.com</text>
+    <text class="sub" x="250" y="100" text-anchor="middle">holds ag3nt, posts jobs</text>
+
+    <!-- Chain -->
+    <rect class="chain" x="290" y="170" width="180" height="110"/>
+    <text class="lbl" x="380" y="195" text-anchor="middle">Base Sepolia</text>
+    <text class="sub" x="380" y="213" text-anchor="middle">Ag3nt.sol  (ERC-20)</text>
+    <text class="sub" x="380" y="229" text-anchor="middle">JobEscrow.sol</text>
+    <text class="sub" x="380" y="252" text-anchor="middle">RPC: sepolia.base.org</text>
+    <text class="sub" x="380" y="268" text-anchor="middle">chainId: 84532</text>
+
+    <!-- Hermes 64 -->
+    <rect class="actor" x="540" y="20" width="170" height="80"/>
+    <text class="lbl" x="625" y="46" text-anchor="middle">Hermes (Agent B)</text>
+    <text class="sub" x="625" y="64" text-anchor="middle">macmini64 · Node daemon</text>
+    <text class="sub" x="625" y="80" text-anchor="middle">watches + claims jobs</text>
+
+    <!-- Hermes 24 -->
+    <rect class="actor" x="540" y="120" width="170" height="80"/>
+    <text class="lbl" x="625" y="146" text-anchor="middle">Hermes (Agent B₂)</text>
+    <text class="sub" x="625" y="164" text-anchor="middle">macmini24 · Node daemon</text>
+    <text class="sub" x="625" y="180" text-anchor="middle">competing worker</text>
+
+    <!-- Claude -->
+    <rect class="external" x="540" y="300" width="170" height="60"/>
+    <text class="lbl" x="625" y="325" text-anchor="middle">Claude</text>
+    <text class="sub" x="625" y="343" text-anchor="middle">via claude --headless</text>
+
+    <!-- Edges -->
+    <!-- user -> tixswarm -->
+    <path class="edge" d="M 120 70 L 170 70" marker-end="url(#arr)"/>
+    <text class="edge-lbl" x="145" y="62" text-anchor="middle">HTTPS</text>
+
+    <!-- tixswarm <-> chain -->
+    <path class="edge" d="M 250 120 L 360 170" marker-end="url(#arr)"/>
+    <text class="edge-lbl" x="284" y="146">postJob()</text>
+
+    <!-- chain -> hermes64 (event) -->
+    <path class="edge" d="M 470 200 Q 540 130 540 60" marker-end="url(#arr)"/>
+    <text class="edge-lbl" x="515" y="135">JobPosted event</text>
+
+    <!-- chain -> hermes24 -->
+    <path class="edge" d="M 470 220 L 540 160" marker-end="url(#arr)"/>
+
+    <!-- hermes64 -> chain (claim/submit) -->
+    <path class="edge" d="M 540 95 Q 480 130 460 170" marker-end="url(#arr)"/>
+    <text class="edge-lbl" x="465" y="115">claim() · submit()</text>
+
+    <!-- hermes64 -> claude -->
+    <path class="edge" d="M 625 100 L 625 300" marker-end="url(#arr)"/>
+    <text class="edge-lbl" x="640" y="200">do work</text>
+
+    <!-- chain -> tixswarm (event) -->
+    <path class="edge" d="M 320 170 Q 250 145 250 122" marker-end="url(#arr)"/>
+    <text class="edge-lbl" x="245" y="160">JobSubmitted</text>
+  </svg>
+  <figcaption>Figure 1 — High-level architecture. Tixswarm posts jobs; both Hermes daemons race to claim and fulfill them; the chain holds state and settles payment.</figcaption>
+</div>
+
+<h2 id="contracts">Smart Contracts</h2>
+
+<p>Two contracts, both deployed once to Base Sepolia, both immutable after deploy. Total Solidity ≈ 120 lines.</p>
+
+<h3 id="contract-ag3nt">Ag3nt.sol — the token <span class="pill day1">Day 1</span></h3>
+
+<p>A standard ERC-20 with a 21M hard cap and a single privileged minter (the escrow contract). The cap is enforced inside <code>mintForJob</code>; once total supply reaches it, no further mints succeed.</p>
+
+<pre><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract Ag3nt is ERC20 {
+    uint256 public constant MAX_SUPPLY = 21_000_000 ether;  // 21M * 10^18
+    address public immutable marketplace;
+
+    constructor(address _marketplace, address initialHolder, uint256 preMint)
+        ERC20("ag3nt", "AGNT")
+    {
+        require(preMint &lt;= MAX_SUPPLY, "pre-mint exceeds cap");
+        marketplace = _marketplace;
+        _mint(initialHolder, preMint);   // seed Tixswarm with operating balance
+    }
+
+    /// @notice Called by the JobEscrow when a job settles successfully.
+    function mintForJob(address worker, uint256 reward) external {
+        require(msg.sender == marketplace, "only marketplace");
+        require(totalSupply() + reward &lt;= MAX_SUPPLY, "cap");
+        _mint(worker, reward);
+    }
+}</code></pre>
+
+<table>
+  <thead><tr><th>Param</th><th>Day-1 value</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td><code>name / symbol</code></td><td>ag3nt / AGNT</td><td>Token shown in wallets and block explorers.</td></tr>
+    <tr><td><code>MAX_SUPPLY</code></td><td>21,000,000 × 10<sup>18</sup></td><td>Bitcoin-style cap. 18 decimals is the ERC-20 default.</td></tr>
+    <tr><td><code>preMint</code></td><td>1,000,000 AGNT</td><td>Seed Tixswarm with enough operating balance to run thousands of demo jobs.</td></tr>
+    <tr><td><code>marketplace</code></td><td>Address of <code>JobEscrow</code></td><td>Only contract allowed to mint additional supply.</td></tr>
+  </tbody>
+</table>
+
+<div class="callout info">
+  <h4>Why is mint authority on the escrow, not the deployer?</h4>
+  <p>Two reasons. (1) Credible neutrality: from day one, nobody — including you — can mint outside the rules. (2) Forward compatibility: when we add the Bitcoin-style halving curve, it lives inside the escrow's <code>mintForJob</code> call, with no upgrade needed on the token contract itself.</p>
+</div>
+
+<h3 id="contract-escrow">JobEscrow.sol — the marketplace <span class="pill day1">Day 1</span></h3>
+
+<p>The state machine for a single job: <em>Posted → Claimed → Submitted → Released (or Disputed)</em>. The contract holds the buyer's ag3nt in custody from <code>postJob</code> until <code>release</code>, so neither side can rug the other mid-trade.</p>
+
+<pre><code>contract JobEscrow {
+    enum State { None, Posted, Claimed, Submitted, Released, Disputed }
+
+    struct Job {
+        address buyer;       // Tixswarm
+        address worker;      // Hermes (set on claim)
+        uint96  payment;     // ag3nt the worker receives on release
+        uint96  workerBond;  // ag3nt the worker stakes when claiming
+        uint40  submittedAt; // timestamp of result submission
+        State   state;
+        bytes32 inputHash;   // commitment to the prompt
+        bytes32 resultHash;  // commitment to the result (set on submit)
+        bytes   result;      // cleartext title (revealed on submit)
+    }
+
+    uint256 public constant DISPUTE_WINDOW = 60 seconds;
+    Ag3nt   public immutable token;
+    uint256 public nextJobId;
+    mapping(uint256 =&gt; Job) public jobs;
+
+    event JobPosted   (uint256 indexed id, address buyer, uint96 payment, bytes32 inputHash);
+    event JobClaimed  (uint256 indexed id, address worker);
+    event JobSubmitted(uint256 indexed id, bytes32 resultHash, bytes result);
+    event JobReleased (uint256 indexed id, address worker, uint96 payment);
+    event JobDisputed (uint256 indexed id);
+
+    function postJob(uint96 payment, bytes32 inputHash) external returns (uint256 id) {
+        token.transferFrom(msg.sender, address(this), payment);
+        id = ++nextJobId;
+        jobs[id] = Job(msg.sender, address(0), payment, 0, 0,
+                       State.Posted, inputHash, 0, "");
+        emit JobPosted(id, msg.sender, payment, inputHash);
+    }
+
+    function claimJob(uint256 id, uint96 bond) external {
+        Job storage j = jobs[id];
+        require(j.state == State.Posted, "not open");
+        token.transferFrom(msg.sender, address(this), bond);
+        j.worker = msg.sender;
+        j.workerBond = bond;
+        j.state = State.Claimed;
+        emit JobClaimed(id, msg.sender);
+    }
+
+    function submitResult(uint256 id, bytes32 resultHash, bytes calldata result) external {
+        Job storage j = jobs[id];
+        require(j.state == State.Claimed && msg.sender == j.worker, "not yours");
+        j.resultHash   = resultHash;
+        j.result       = result;
+        j.submittedAt  = uint40(block.timestamp);
+        j.state        = State.Submitted;
+        emit JobSubmitted(id, resultHash, result);
+    }
+
+    function release(uint256 id) external {
+        Job storage j = jobs[id];
+        require(j.state == State.Submitted, "not submitted");
+        require(block.timestamp &gt;= j.submittedAt + DISPUTE_WINDOW
+                || msg.sender == j.buyer, "wait or be buyer");
+        j.state = State.Released;
+        token.transfer(j.worker, j.payment + j.workerBond);
+        emit JobReleased(id, j.worker, j.payment);
+    }
+
+    function dispute(uint256 id) external {
+        Job storage j = jobs[id];
+        require(j.state == State.Submitted && msg.sender == j.buyer, "no");
+        require(block.timestamp &lt; j.submittedAt + DISPUTE_WINDOW, "too late");
+        j.state = State.Disputed;
+        // Day-1 resolution: buyer refunded, worker's bond slashed back to buyer.
+        token.transfer(j.buyer, j.payment + j.workerBond);
+        emit JobDisputed(id);
+    }
+}</code></pre>
+
+<div class="figure">
+  <svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#444"/>
+      </marker>
+    </defs>
+    <style>
+      .st { fill: #fff; stroke: #444; stroke-width: 1.5; rx: 24; }
+      .stOk { fill: #e8f5e9; stroke: #43a047; }
+      .stBad { fill: #ffebee; stroke: #e53935; }
+      .stLbl { font: 600 13px -apple-system, sans-serif; fill: #1a1a1a; text-anchor: middle; }
+      .stEdge { fill: none; stroke: #444; stroke-width: 1.5; }
+      .stEdgeLbl { font: 11px -apple-system, sans-serif; fill: #444; }
+    </style>
+    <rect class="st" x="20"  y="80" width="100" height="48"/>
+    <text class="stLbl" x="70"  y="108">Posted</text>
+    <rect class="st" x="170" y="80" width="100" height="48"/>
+    <text class="stLbl" x="220" y="108">Claimed</text>
+    <rect class="st" x="320" y="80" width="100" height="48"/>
+    <text class="stLbl" x="370" y="108">Submitted</text>
+    <rect class="st stOk" x="500" y="20" width="100" height="48"/>
+    <text class="stLbl" x="550" y="48">Released</text>
+    <rect class="st stBad" x="500" y="140" width="100" height="48"/>
+    <text class="stLbl" x="550" y="168">Disputed</text>
+
+    <path class="stEdge" d="M 120 104 L 170 104" marker-end="url(#arr2)"/>
+    <text class="stEdgeLbl" x="145" y="98" text-anchor="middle">claimJob</text>
+    <path class="stEdge" d="M 270 104 L 320 104" marker-end="url(#arr2)"/>
+    <text class="stEdgeLbl" x="295" y="98" text-anchor="middle">submitResult</text>
+    <path class="stEdge" d="M 420 95 Q 460 50 500 44" marker-end="url(#arr2)"/>
+    <text class="stEdgeLbl" x="460" y="60">release (after 60s or buyer)</text>
+    <path class="stEdge" d="M 420 115 Q 460 158 500 164" marker-end="url(#arr2)"/>
+    <text class="stEdgeLbl" x="460" y="138">dispute (within 60s)</text>
+  </svg>
+  <figcaption>Figure 2 — JobEscrow state machine. The single subjective decision (worker did it right / wrong) is the buyer's, with the dispute window forcing them to make it within 60 seconds.</figcaption>
+</div>
+
+<div class="callout warn">
+  <h4>What "optimistic settlement" means in practice</h4>
+  <p>The buyer doesn't have to do anything for the worker to get paid — payment auto-releases 60 seconds after submission. The buyer only intervenes if something's wrong. This makes the happy path zero-effort (which it should be: 99% of jobs will be fine) and makes the unhappy path explicit (the buyer must affirmatively click "dispute"). On day one, the dispute is the buyer's unilateral call. Future versions (MVP-2) replace this with a stake-weighted jury so the buyer can't grief the worker.</p>
+</div>
+
+<h2 id="hermes">Hermes Worker <span class="pill day1">Day 1</span></h2>
+
+<p>A Node.js daemon, one instance per Mac mini. It subscribes to <code>JobPosted</code> events, claims jobs it can do, executes them by spawning <code>claude --headless</code>, and submits the result on-chain.</p>
+
+<pre><code>// hermes/src/index.ts
+import { createPublicClient, createWalletClient, http, webSocket } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { baseSepolia } from "viem/chains";
+import { spawn } from "node:child_process";
+import { keccak256, toBytes } from "viem";
+
+const account = privateKeyToAccount(process.env.HERMES_KEY as `0x${string}`);
+const wallet  = createWalletClient({ account, chain: baseSepolia, transport: http() });
+const reader  = createPublicClient   ({ chain: baseSepolia, transport: webSocket() });
+const escrow  = { address: process.env.ESCROW_ADDR, abi: escrowAbi } as const;
+
+reader.watchContractEvent({
+  ...escrow,
+  eventName: "JobPosted",
+  onLogs: (logs) =&gt; logs.forEach(handleJob)
+});
+
+async function handleJob(log) {
+  const { id, payment, inputHash } = log.args;
+
+  // 1. Try to claim. First wallet to land their tx wins; the rest revert.
+  try {
+    await wallet.writeContract({
+      ...escrow, functionName: "claimJob", args: [id, BOND]
+    });
+  } catch { return; }   // someone else claimed first — fine, move on
+
+  // 2. Fetch the prompt off-chain (Tixswarm exposed it at a URL keyed by inputHash).
+  const prompt = await fetchPromptByHash(inputHash);
+
+  // 3. Do the work via Claude.
+  const title = await runClaude(prompt);
+
+  // 4. Submit result.
+  await wallet.writeContract({
+    ...escrow,
+    functionName: "submitResult",
+    args: [id, keccak256(toBytes(title)), toBytes(title)]
+  });
+}
+
+function runClaude(prompt: string): Promise&lt;string&gt; {
+  return new Promise((resolve, reject) =&gt; {
+    const p = spawn("claude", ["--headless", "--prompt", `Make a title (max 80 chars) for: ${prompt}`]);
+    let out = "";
+    p.stdout.on("data", (d) =&gt; (out += d));
+    p.on("close", (c) =&gt; (c === 0 ? resolve(out.trim()) : reject()));
+  });
+}</code></pre>
+
+<p>Deployment uses your existing <code>home-cluster-deploy</code> skill: rsync, <code>launchctl</code> as a user-level service, port 0 (no HTTP — this is purely outbound). Both Mac minis run identical code, only their <code>HERMES_KEY</code> differs.</p>
+
+<div class="callout info">
+  <h4>Why pull the prompt off-chain instead of putting it in the event?</h4>
+  <p>Calldata costs gas. A long ticket description could be many KB; putting it on-chain would cost real money on mainnet. Instead, Tixswarm posts <em>only the hash</em> on-chain (proves the prompt is canonical), and exposes the cleartext at a URL like <code>https://api.tixswarm.com/job-prompt/{inputHash}</code>. Hermes fetches the prompt over HTTPS once it has the hash. This is the standard pattern (it's how IPFS-pinned NFT metadata works too).</p>
+</div>
+
+<h2 id="tixswarm">Tixswarm Integration <span class="pill day1">Day 1</span></h2>
+
+<p>Three changes to tixswarm's existing code:</p>
+
+<ol>
+  <li><strong>Replace the direct Anthropic API call</strong> in the title-generation handler with a <code>postJob</code> transaction. Surface the <code>jobId</code> in the response so the frontend can subscribe to its lifecycle.</li>
+  <li><strong>Add a prompt-resolution endpoint</strong> at <code>GET /job-prompt/{inputHash}</code> that returns the cleartext prompt for Hermes to fetch (rate-limit it; nothing sensitive on day 1).</li>
+  <li><strong>Listen for <code>JobSubmitted</code> events</strong> in a long-lived process (Lambda doesn't fit this — needs an EC2/ECS or a Mac-mini sidecar). When a submission arrives, write the title to the ticket, surface the 60-second auto-release countdown in the admin UI with a "Dispute" button.</li>
+</ol>
+
+<div class="callout warn">
+  <h4>Lambda doesn't watch websockets</h4>
+  <p>Tixswarm's API is on Lambda (per your <code>deploy-spa-lambda-supabase</code> pattern). Lambda can <em>post</em> to the chain (a short request) but can't <em>listen</em> for events long-term. Cleanest fix: run the event-listening sidecar on macmini64 alongside Hermes. The sidecar writes incoming job-submission events to the tixswarm Supabase DB, and the Lambda frontend reads from there. This is a small but real piece of infra — call it ~30 minutes inside the day's budget.</p>
+</div>
+
+<h2 id="flow">End-to-End Flow</h2>
+
+<p>Time flows top to bottom. Each arrow is a real interaction.</p>
+
+<div class="figure">
+<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#444"/>
+    </marker>
+  </defs>
+  <style>
+    .col { font: 600 12px -apple-system, sans-serif; fill: #1a1a1a; text-anchor: middle; }
+    .colSub { font: 11px -apple-system, sans-serif; fill: #6b6b6b; text-anchor: middle; }
+    .life { stroke: #bbb; stroke-width: 1; stroke-dasharray: 3 3; }
+    .msg { font: 11px -apple-system, sans-serif; fill: #1a1a1a; }
+    .msgSub { font: 10px -apple-system, sans-serif; fill: #6b6b6b; }
+    .edge { stroke: #444; stroke-width: 1.5; fill: none; }
+    .colBox { fill: #f5f5f5; stroke: #888; stroke-width: 1; rx: 4; }
+  </style>
+
+  <!-- column headers -->
+  <rect class="colBox" x="40"  y="10" width="100" height="38"/>
+  <text class="col"    x="90"  y="28">User</text>
+  <text class="colSub" x="90"  y="42">browser</text>
+  <rect class="colBox" x="180" y="10" width="120" height="38"/>
+  <text class="col"    x="240" y="28">Tixswarm (A)</text>
+  <text class="colSub" x="240" y="42">Lambda + sidecar</text>
+  <rect class="colBox" x="340" y="10" width="120" height="38"/>
+  <text class="col"    x="400" y="28">JobEscrow</text>
+  <text class="colSub" x="400" y="42">Base Sepolia</text>
+  <rect class="colBox" x="500" y="10" width="120" height="38"/>
+  <text class="col"    x="560" y="28">Hermes (B)</text>
+  <text class="colSub" x="560" y="42">macmini64</text>
+  <rect class="colBox" x="660" y="10" width="120" height="38"/>
+  <text class="col"    x="720" y="28">Claude</text>
+  <text class="colSub" x="720" y="42">--headless</text>
+
+  <line class="life" x1="90"  y1="48" x2="90"  y2="590"/>
+  <line class="life" x1="240" y1="48" x2="240" y2="590"/>
+  <line class="life" x1="400" y1="48" x2="400" y2="590"/>
+  <line class="life" x1="560" y1="48" x2="560" y2="590"/>
+  <line class="life" x1="720" y1="48" x2="720" y2="590"/>
+
+  <!-- 1. user types description -->
+  <line class="edge" x1="90" y1="80" x2="240" y2="80" marker-end="url(#arr3)"/>
+  <text class="msg" x="95" y="74">1. POST /tickets {description}</text>
+
+  <!-- 2. tixswarm posts job -->
+  <line class="edge" x1="240" y1="120" x2="400" y2="120" marker-end="url(#arr3)"/>
+  <text class="msg"    x="245" y="114">2. postJob(10 AGNT, hash(prompt))</text>
+  <text class="msgSub" x="245" y="130">    locks 10 ag3nt in escrow</text>
+
+  <!-- 3. event -->
+  <line class="edge" x1="400" y1="160" x2="560" y2="160" marker-end="url(#arr3)"/>
+  <text class="msg" x="405" y="154">3. JobPosted event</text>
+
+  <!-- 4. hermes claims -->
+  <line class="edge" x1="560" y1="200" x2="400" y2="200" marker-end="url(#arr3)"/>
+  <text class="msg"    x="405" y="194">4. claimJob(id, bond=2 AGNT)</text>
+  <text class="msgSub" x="405" y="210">    locks 2 ag3nt as worker bond</text>
+
+  <!-- 5. fetch prompt -->
+  <line class="edge" x1="560" y1="240" x2="240" y2="240" marker-end="url(#arr3)"/>
+  <text class="msg" x="245" y="234">5. GET /job-prompt/{hash}</text>
+
+  <!-- 6. call claude -->
+  <line class="edge" x1="560" y1="280" x2="720" y2="280" marker-end="url(#arr3)"/>
+  <text class="msg" x="565" y="274">6. claude --headless</text>
+
+  <!-- 7. response -->
+  <line class="edge" x1="720" y1="320" x2="560" y2="320" marker-end="url(#arr3)"/>
+  <text class="msg" x="565" y="314">7. "User auth broken on Safari"</text>
+
+  <!-- 8. submit -->
+  <line class="edge" x1="560" y1="360" x2="400" y2="360" marker-end="url(#arr3)"/>
+  <text class="msg" x="405" y="354">8. submitResult(id, hash, title)</text>
+
+  <!-- 9. JobSubmitted -->
+  <line class="edge" x1="400" y1="400" x2="240" y2="400" marker-end="url(#arr3)"/>
+  <text class="msg" x="245" y="394">9. JobSubmitted event</text>
+
+  <!-- 10. UI -->
+  <line class="edge" x1="240" y1="440" x2="90" y2="440" marker-end="url(#arr3)"/>
+  <text class="msg"    x="95"  y="434">10. UI shows title + 60s timer</text>
+  <text class="msgSub" x="95"  y="450">      admin can click Dispute</text>
+
+  <!-- 11. release -->
+  <line class="edge" x1="240" y1="500" x2="400" y2="500" marker-end="url(#arr3)"/>
+  <text class="msg"    x="245" y="494">11. release(id)   (auto, +60s)</text>
+
+  <line class="edge" x1="400" y1="540" x2="560" y2="540" marker-end="url(#arr3)"/>
+  <text class="msg"    x="405" y="534">12. transfer 12 AGNT (payment + bond)</text>
+  <text class="msgSub" x="405" y="550">      Hermes wallet now +10 net</text>
+
+  <text class="msg" x="170" y="582">done · total clock time ≈ 90s</text>
+</svg>
+<figcaption>Figure 3 — End-to-end sequence. Steps 1–12 are the full demo flow; total clock time ≈ 90 seconds dominated by the 60-second dispute window.</figcaption>
+</div>
+
+<h2 id="skip">What We Explicitly Skip (Day 1)</h2>
+
+<table>
+  <thead><tr><th>Feature</th><th>Status</th><th>Why deferred</th><th>Where it lands</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Jury / dispute resolution</td>
+      <td><span class="pill skipped">Skipped</span></td>
+      <td>Buyer-as-judge is sufficient for a single-buyer demo. Real jury needs &gt;1 buyer + stake distribution.</td>
+      <td>Week 2 — new <code>Jury.sol</code> contract</td>
+    </tr>
+    <tr>
+      <td>EAS vouches</td>
+      <td><span class="pill skipped">Skipped</span></td>
+      <td>Reputation needs comparison across multiple workers across many jobs.</td>
+      <td>Week 2 — alongside second Hermes</td>
+    </tr>
+    <tr>
+      <td>PageRank reputation</td>
+      <td><span class="pill skipped">Skipped</span></td>
+      <td>Needs a vouch graph to operate on.</td>
+      <td>Week 3 — off-chain indexer posts checkpoints</td>
+    </tr>
+    <tr>
+      <td>On-chain mining curve</td>
+      <td><span class="pill skipped">Skipped</span></td>
+      <td>Pre-mint of 1M ag3nt is enough for thousands of demo jobs.</td>
+      <td>Week 2 — wire <code>mintForJob</code> with halving schedule</td>
+    </tr>
+    <tr>
+      <td>ERC-4337 smart wallets</td>
+      <td><span class="pill skipped">Skipped</span></td>
+      <td>EOAs work fine when each side owns its private key. Smart-wallet wins (gas in ag3nt, session keys) come later.</td>
+      <td>Week 2+</td>
+    </tr>
+    <tr>
+      <td>Mainnet deploy</td>
+      <td><span class="pill skipped">Skipped</span></td>
+      <td>Mainnet token is forever. Need iteration room on parameters first.</td>
+      <td>Week 2 — after audit + 100 successful Sepolia jobs</td>
+    </tr>
+    <tr>
+      <td>Verifiable-tasks lane (code + tests)</td>
+      <td><span class="pill skipped">Skipped</span></td>
+      <td>Title generation is the demand surface today. Verifiable-tasks adds a whole verifier infrastructure.</td>
+      <td>Week 3+ — once title flow is stable</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="risks">Risks &amp; Gotchas</h2>
+
+<h3>Latency</h3>
+<p>Each on-chain transaction takes ~2 seconds to confirm on Base. A full job is 4 transactions (post, claim, submit, release) plus a 60-second dispute window. That's ~70 seconds <em>minimum</em> per title. Tixswarm's user-facing UX needs the title <em>now</em>, not in 70 seconds.</p>
+<p><strong>Day-1 mitigation:</strong> optimistic UI. Render the title in the form as soon as the <code>JobSubmitted</code> event fires (step 9 above, ~15s in). Show a small badge: "settling on-chain… 45s remaining." Settlement happens in the background. If the buyer disputes, the title flips back to a placeholder; otherwise it's already correct.</p>
+
+<h3>Gas cost vs LLM cost</h3>
+<p>On Sepolia this is moot (everything's free). On mainnet, each transaction costs ~$0.02 in gas at typical Base prices:</p>
+<table class="cost-table">
+  <thead><tr><th>Per job</th><th>Sepolia</th><th>Base mainnet</th><th>Anthropic API</th></tr></thead>
+  <tbody>
+    <tr><td>4 transactions × gas</td><td>$0.00</td><td>~$0.08</td><td>—</td></tr>
+    <tr><td>LLM call</td><td>~$0.00 (Pro sub)</td><td>~$0.00 (Pro sub)</td><td>~$0.001</td></tr>
+    <tr><td><strong>Total to buyer</strong></td><td><strong>$0</strong></td><td><strong>$0.08</strong></td><td><strong>$0.001</strong></td></tr>
+  </tbody>
+</table>
+<p>Mainnet gas dwarfs the LLM cost by 80×. <strong>This is the most important post-MVP problem to solve.</strong> Solutions: batch many jobs into one transaction; use state channels; or shift to "off-chain coordination, on-chain checkpoint" where 1000 jobs settle in a single batch tx. None block the day-1 demo; all will be Week 3+ once the flow is real.</p>
+
+<h3>Worker availability</h3>
+<p>If both Mac minis are down, Tixswarm hangs forever waiting for a job to be claimed. Day-1 mitigation: a 30-second claim timeout in the buyer code that falls back to a direct Anthropic API call. Slightly more work in the integration but eliminates the most user-visible failure mode.</p>
+
+<h3>Title quality</h3>
+<p>Day 1 has no automated quality check. Hermes could submit "asdf" and earn ag3nt unless the admin clicks Dispute. This is fine for a demo (you control both sides) but obviously not viable for an open marketplace. The Week 2+ reputation stack is the answer; for now, just trust your own daemon.</p>
+
+<h3>Chain reorgs</h3>
+<p>L2s can reorganize blocks within a few seconds of submission. Hermes should wait for ~3 confirmations before treating a job as canonically claimed. Failure mode is benign: a duplicate-claim revert costs gas, not money.</p>
+
+<h2 id="roadmap">Roadmap</h2>
+
+<table>
+  <thead><tr><th>Milestone</th><th>Scope</th><th>Goal</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><span class="pill day1">Day 1</span> MVP</td>
+      <td>Two contracts on Sepolia + Hermes on macmini64 + Tixswarm integration</td>
+      <td>One ticket → one title → 10 ag3nt moves on-chain, end-to-end.</td>
+    </tr>
+    <tr>
+      <td><span class="pill week1">Week 1</span> Hardening</td>
+      <td>Hermes on macmini24 (second worker); optimistic UI in Tixswarm; reorg-safe Hermes; <code>slither</code> audit pass; private RPC (Alchemy or QuickNode).</td>
+      <td>Two competing workers; UI feels instant; contracts safe enough to consider mainnet.</td>
+    </tr>
+    <tr>
+      <td><span class="pill week2">Week 2</span> Reputation</td>
+      <td>EAS attestations for vouches; off-chain PageRank indexer; reputation surfaced on tixswarm admin.</td>
+      <td>"This worker has done 87 jobs with 2 disputes" visible per job.</td>
+    </tr>
+    <tr>
+      <td><span class="pill week2">Week 2</span> Mainnet</td>
+      <td>Deploy Ag3nt + JobEscrow to Base mainnet; pre-mint to new mainnet wallet; flip Tixswarm RPC.</td>
+      <td>Real ag3nt, real gas, real (tiny) dollar value.</td>
+    </tr>
+    <tr>
+      <td><span class="pill later">Week 3+</span> Jury</td>
+      <td><code>Jury.sol</code> with stake-weighted selection; replaces buyer-unilateral dispute resolution; couples to reputation.</td>
+      <td>Open the marketplace beyond your own infrastructure.</td>
+    </tr>
+    <tr>
+      <td><span class="pill later">Week 3+</span> Mining curve</td>
+      <td>Wire <code>mintForJob</code> halving schedule into the escrow's release path; deprecate pre-mint topup.</td>
+      <td>New ag3nt enters circulation only when work is verified done.</td>
+    </tr>
+    <tr>
+      <td><span class="pill later">Later</span> Verifiable-task lane</td>
+      <td>Second job type with deterministic on-chain verifier (e.g. code that must compile and pass tests).</td>
+      <td>Pure-trustless lane alongside the reputation-based lane.</td>
+    </tr>
+    <tr>
+      <td><span class="pill later">Later</span> ERC-4337 wallets</td>
+      <td>Smart wallets per agent. Paymaster lets agents pay gas in ag3nt instead of ETH. Session keys for delegated execution.</td>
+      <td>Agents can hold ag3nt without ever touching ETH — proper agent-native UX.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="glossary">Glossary</h2>
+
+<dl class="glossary">
+  <dt>address</dt>
+  <dd>20-byte public identifier of an EVM account, displayed as a hex string starting with <code>0x</code>. Derived from a public key (for EOAs) or from a contract's creation parameters (for contracts).</dd>
+
+  <dt>Base</dt>
+  <dd>An Ethereum L2 (layer 2) network built on the OP Stack and operated by Coinbase. Same EVM as Ethereum, ~100–1000× cheaper gas. "Base mainnet" is the production network; "Base Sepolia" is its testnet.</dd>
+
+  <dt>bytecode</dt>
+  <dd>The compiled EVM instructions of a smart contract. Solidity compiles down to bytecode that the EVM executes.</dd>
+
+  <dt>chain ID</dt>
+  <dd>Numeric identifier that distinguishes one EVM network from another. Ethereum = 1; Base mainnet = 8453; Base Sepolia = 84532. Prevents transactions signed for one network from being replayed on another.</dd>
+
+  <dt>commitment</dt>
+  <dd>A short hash of something larger that proves you knew the larger thing at a given time, without revealing it. Used here to log the prompt hash on-chain cheaply while keeping the cleartext off-chain.</dd>
+
+  <dt>contract / smart contract</dt>
+  <dd>A program deployed to the EVM. Has its own address, state, and a set of functions callable by users or other contracts.</dd>
+
+  <dt>EOA (Externally Owned Account)</dt>
+  <dd>An EVM account controlled directly by a private key, as opposed to a contract account. The simplest kind of wallet; what we use for the MVP.</dd>
+
+  <dt>ERC-20</dt>
+  <dd>Standard token interface on Ethereum. Defines <code>balanceOf</code>, <code>transfer</code>, <code>approve</code>, etc. Almost every fungible token on EVM chains is ERC-20. Our <code>ag3nt</code> is ERC-20.</dd>
+
+  <dt>ERC-4337</dt>
+  <dd>Account-abstraction standard. Lets a smart contract serve as a wallet, with custom signature logic, paymasters (third parties paying gas), session keys, and other features useful for autonomous agents. Future work.</dd>
+
+  <dt>EAS (Ethereum Attestation Service)</dt>
+  <dd>Standard infrastructure for on-chain attestations: "address A signs claim C about subject S at time T." Used here (in the future) as the substrate for vouches.</dd>
+
+  <dt>event</dt>
+  <dd>A log entry emitted by a smart contract. Cheaper than writing storage. Off-chain code subscribes to events via RPC to react to on-chain state changes.</dd>
+
+  <dt>EVM</dt>
+  <dd>Ethereum Virtual Machine. The runtime that executes smart-contract bytecode. Used identically on Ethereum, Base, Arbitrum, Optimism, and many other chains.</dd>
+
+  <dt>faucet</dt>
+  <dd>A free dispenser of testnet ETH. Required because every transaction (even on testnet) needs gas; faucets give you the gas tokens for free so you can test.</dd>
+
+  <dt>gas</dt>
+  <dd>The unit of computation cost on the EVM. Every operation has a gas price; the transaction's total cost = gas used × gas price, paid in ETH (or the chain's native token). "Postage on the envelope" — required to do anything on-chain.</dd>
+
+  <dt>hard cap</dt>
+  <dd>A maximum supply limit enforced inside a token contract. Our ag3nt has a hard cap of 21,000,000.</dd>
+
+  <dt>hash</dt>
+  <dd>A short fixed-length fingerprint of arbitrary data. We use <code>keccak256</code> (the EVM's standard hash). Two different inputs almost certainly produce different hashes.</dd>
+
+  <dt>immutable</dt>
+  <dd>A Solidity keyword meaning "set once in the constructor, never changed." Also a property of contracts themselves when they have no upgrade mechanism — the bytecode is permanent.</dd>
+
+  <dt>L1 / L2</dt>
+  <dd>Layer 1 = the base blockchain (Ethereum). Layer 2 = a chain built on top, inheriting L1's security while running cheaper and faster. Base, Arbitrum, Optimism are L2s.</dd>
+
+  <dt>mainnet / testnet</dt>
+  <dd>Mainnet = the production network with real economic value. Testnet = a parallel network with the same software but no real value, used for development. Sepolia is the current main Ethereum testnet; Base Sepolia is its Base counterpart.</dd>
+
+  <dt>mint</dt>
+  <dd>To create new tokens. Only functions inside the token contract can mint, and only under whatever rules the contract enforces.</dd>
+
+  <dt>nonce</dt>
+  <dd>A per-account transaction counter. Every transaction includes the sender's current nonce; this prevents replay attacks and enforces ordering.</dd>
+
+  <dt>optimistic settlement</dt>
+  <dd>A pattern where the happy path requires no action (default = accept), and the only intervention is a dispute. Used in our escrow's 60-second auto-release window.</dd>
+
+  <dt>private key / public key</dt>
+  <dd>Asymmetric crypto pair. The private key signs transactions; the public key (and its derived address) is shared openly. Whoever holds the private key controls the account, period.</dd>
+
+  <dt>revert</dt>
+  <dd>An EVM transaction failure. Reverts undo all state changes from the transaction but still consume gas. We use <code>require(...)</code> in Solidity to revert on bad inputs.</dd>
+
+  <dt>RPC</dt>
+  <dd>Remote procedure call — the HTTP/WebSocket interface to a chain node. Tools like viem and ethers wrap RPC calls. Examples: <code>https://sepolia.base.org</code>, <code>https://mainnet.base.org</code>.</dd>
+
+  <dt>Solidity</dt>
+  <dd>The dominant high-level language for writing EVM smart contracts. Compiles to EVM bytecode.</dd>
+
+  <dt>token / native token</dt>
+  <dd>Native token = the chain's built-in currency, used for gas (ETH on Ethereum and L2s). Other tokens are contracts deployed on top — ERC-20 tokens like ag3nt are not native, they live inside their own contract.</dd>
+
+  <dt>transaction</dt>
+  <dd>A signed message from an EOA that calls a function or transfers value. Costs gas, mined into a block, then visible publicly on the chain.</dd>
+
+  <dt>viem / ethers</dt>
+  <dd>JavaScript/TypeScript libraries for interacting with EVM chains from off-chain code. We use viem in Hermes.</dd>
+
+  <dt>wallet</dt>
+  <dd>Any tool — software or hardware — that holds a private key and signs transactions on its owner's behalf. Could be MetaMask, a hardware device, or a key in a <code>.env</code>.</dd>
+</dl>
+
+<div class="footer">
+  ag3nt-coin · <code>docs/mvp-base.html</code> · 2026-05-24 · Proposed direction for MVP-1
+</div>
+
+</main>
+</div>
+</body>
+</html>

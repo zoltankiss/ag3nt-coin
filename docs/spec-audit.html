@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ag3nt-coin · SPEC audit (TS prototype → Cosmos chain)</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c222b; --line:#2a3340;
+    --ink:#e6edf3; --muted:#8b98a7; --accent:#7ee787; --warn:#f0883e;
+    --bad:#ff7b72; --info:#79c0ff; --code-bg:#0b0f14;
+    --pill-yes:#1f6a3a; --pill-no:#7a2126; --pill-partial:#7a5a18; --pill-na:#3a4250;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;}
+  a{color:var(--info);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,pre{font-family:"SF Mono",Menlo,Monaco,Consolas,monospace}
+  code{background:var(--code-bg);padding:1px 5px;border-radius:4px;font-size:.92em;color:#d2a8ff}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:8px;
+    padding:14px 16px;overflow-x:auto;font-size:12.5px;line-height:1.5}
+  pre code{background:transparent;padding:0;color:var(--ink)}
+  .kw{color:#ff7b72} .str{color:#a5d6ff} .com{color:#8b98a7;font-style:italic}
+  .ty{color:#ffa657} .fn{color:#d2a8ff} .num{color:#79c0ff}
+
+  .layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  nav.toc{position:sticky;top:0;height:100vh;overflow-y:auto;
+    background:var(--panel);border-right:1px solid var(--line);padding:24px 20px}
+  nav.toc h1{font-size:13px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 14px}
+  nav.toc ol{list-style:none;margin:0;padding:0;counter-reset:n}
+  nav.toc li{margin:5px 0;font-size:14px}
+  nav.toc li::before{counter-increment:n;content:counter(n) ".";color:var(--muted);
+    display:inline-block;width:22px;text-align:right;margin-right:8px}
+  nav.toc a{color:var(--ink);opacity:.85}
+  nav.toc a:hover{opacity:1;color:var(--info)}
+  nav.toc .meta{margin-top:24px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--muted);line-height:1.7}
+  nav.toc .meta a{color:var(--muted)}
+
+  main{padding:48px 56px;max-width:1080px}
+  header.title{margin-bottom:36px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+  header.title h1{margin:0;font-size:32px;letter-spacing:-.02em}
+  header.title .sub{color:var(--muted);margin-top:6px;font-size:15px}
+  header.title .badges{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+
+  section{margin-bottom:48px;scroll-margin-top:24px}
+  section h2{font-size:22px;margin:0 0 12px;letter-spacing:-.01em}
+  section h2 .num{color:var(--muted);font-weight:400;margin-right:10px}
+  section h3{font-size:16px;margin:24px 0 10px;color:var(--accent)}
+  section p{margin:10px 0}
+  section ul, section ol{margin:10px 0;padding-left:22px}
+  section li{margin:4px 0}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:18px 20px;margin:16px 0}
+  .panel.warn{border-color:#553c1a;background:#241a0d}
+  .panel.bad{border-color:#5a1d22;background:#231114}
+  .panel.info{border-color:#1f3a5c;background:#0d1a2a}
+  .panel.good{border-color:#1f5a3a;background:#0d2316}
+  .panel .label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:6px}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;
+    border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--panel2);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  td code{font-size:13px}
+  td.match{text-align:center;white-space:nowrap;width:100px}
+
+  .pill{display:inline-block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:2px 9px;border-radius:999px;font-weight:600;line-height:1.7}
+  .pill.yes{background:var(--pill-yes);color:#caffd8}
+  .pill.no{background:var(--pill-no);color:#ffd0ce}
+  .pill.partial{background:var(--pill-partial);color:#ffe1a8}
+  .pill.na{background:var(--pill-na);color:#c2cad6}
+  .pill.jibe{background:#3a2660;color:#dbc4ff}
+
+  details{margin:10px 0;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+  summary{padding:10px 14px;cursor:pointer;color:var(--muted);font-size:13px;
+    list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸ ";color:var(--muted)}
+  details[open] summary::before{content:"▾ ";color:var(--ink)}
+  summary:hover{color:var(--ink)}
+  details[open] summary{border-bottom:1px solid var(--line);color:var(--ink)}
+  details pre{margin:14px;border:none}
+
+  .scorecard{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}
+  .scorecard .card{background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:18px;text-align:center}
+  .scorecard .card .n{font-size:32px;font-weight:700;letter-spacing:-.02em}
+  .scorecard .card .n.yes{color:var(--accent)}
+  .scorecard .card .n.no{color:var(--bad)}
+  .scorecard .card .n.partial{color:var(--warn)}
+  .scorecard .card .n.na{color:var(--muted)}
+  .scorecard .card .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);margin-top:6px}
+
+  .sxs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+  @media (max-width:900px){.sxs{grid-template-columns:1fr}}
+  .sxs .col{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:14px 18px}
+  .sxs .col.spec{border-left:3px solid var(--warn)}
+  .sxs .col.impl{border-left:3px solid var(--accent)}
+  .sxs .col h4{margin:0 0 8px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <h1>SPEC audit</h1>
+  <ol>
+    <li><a href="#summary">Summary</a></li>
+    <li><a href="#scorecard">Scorecard</a></li>
+    <li><a href="#flagged">Flagged issues</a></li>
+    <li><a href="#proto">Proto types</a></li>
+    <li><a href="#addresses">Addresses</a></li>
+    <li><a href="#wire">Wire format</a></li>
+    <li><a href="#batching">Block batching</a></li>
+    <li><a href="#block">Block format</a></li>
+    <li><a href="#state">State &amp; keeper</a></li>
+    <li><a href="#handlers">Message handlers</a></li>
+    <li><a href="#queries">Queries</a></li>
+    <li><a href="#constants">Constants</a></li>
+    <li><a href="#genesis">Genesis</a></li>
+    <li><a href="#api">API endpoints</a></li>
+    <li><a href="#nonce">Nonce (warts)</a></li>
+    <li><a href="#faucet-auth">Faucet auth</a></li>
+    <li><a href="#chain-id">Chain ID</a></li>
+    <li><a href="#recommendation">Recommendation</a></li>
+  </ol>
+  <div class="meta">
+    Run 2026-05-23.<br>
+    Compares the old <code>SPEC.md</code> (TS prototype) against the
+    Cosmos chain in <code>chain/</code>.<br><br>
+    <a href="../SPEC.html">← Back to SPEC</a><br>
+    <a href="proposed-future-state.html">→ Future state</a>
+  </div>
+</nav>
+
+<main>
+
+<header class="title">
+  <h1>SPEC audit</h1>
+  <div class="sub">Old SPEC.md (TS prototype) vs. current Cosmos chain implementation.</div>
+  <div class="badges">
+    <span class="pill no">Architecture: changed</span>
+    <span class="pill partial">Primitives: preserved</span>
+    <span class="pill jibe">PageRank: stub</span>
+  </div>
+</header>
+
+<section id="summary">
+  <h2><span class="num">1</span>Summary</h2>
+  <p>The old <code>SPEC.md</code> described a TS prototype with a custom Bun-served HTTP API,
+    JSON block files on disk, in-band signatures, one tx per block, and raw Ed25519 pubkeys as
+    addresses. The current implementation is a <strong>full Cosmos SDK chain</strong> with CometBFT
+    consensus, protobuf-wrapped txs, Bech32 addresses, and standard gRPC + REST surfaces.</p>
+  <p>The <strong>business logic was preserved</strong>: accounts, vouches (with upsert semantics),
+    one-shot faucet, transfers, and PageRank-driven reputation. The <strong>architecture changed
+    completely</strong>: wire format, address encoding, replay protection, and API protocol are all
+    Cosmos-standard now. Both that and the preservation are deliberate — moving to Cosmos was the
+    decision that kicked off this divergence; that's why we wrote this audit.</p>
+  <p>This document records the divergence so the rewritten
+    <a href="../SPEC.html">SPEC.html</a> can confidently throw away the prototype-era contract.</p>
+</section>
+
+<section id="scorecard">
+  <h2><span class="num">2</span>Scorecard</h2>
+  <p>Across the 18 audited categories below:</p>
+  <div class="scorecard">
+    <div class="card"><div class="n yes">5</div><div class="l">Match</div></div>
+    <div class="card"><div class="n partial">5</div><div class="l">Partial</div></div>
+    <div class="card"><div class="n no">12</div><div class="l">Diverged</div></div>
+    <div class="card"><div class="n na">6</div><div class="l">N/A</div></div>
+  </div>
+  <p style="color:var(--muted);font-size:13px;margin-top:8px">
+    Rows can score in more than one bucket — totals are by line, not by category.
+  </p>
+</section>
+
+<section id="flagged">
+  <h2><span class="num">3</span>Flagged issues</h2>
+  <p>The high-value findings, in priority order:</p>
+
+  <div class="panel bad">
+    <div class="label">1 · Vestigial <code>Account.nonce</code></div>
+    The TS prototype required a per-message <code>nonce</code> for replay protection.
+    The Cosmos chain inherits <code>AuthInfo.sequence</code> from <code>x/auth</code> instead,
+    so <code>Account.nonce</code> is stored but <strong>never read, written, or validated</strong>
+    by any handler. Either delete the field or repurpose it — leaving it is a footgun for the
+    next person who tries to use it. Tracked in <a href="../SPEC.html#openq">SPEC open questions</a>.
+  </div>
+
+  <div class="panel bad">
+    <div class="label">2 · ADD discovery (<code>/.well-known/add.json</code>) missing</div>
+    The TS prototype served this. The Cosmos node has no custom HTTP mux for it. Until
+    we either bolt on a sidecar or extend the node, the chain is not ADD-discoverable.
+    Bundled with the Ed25519↔Bech32 adapter for MVP-2.
+  </div>
+
+  <div class="panel bad">
+    <div class="label">3 · PageRank is a uniform stub</div>
+    <code>chain/x/agntcoin/keeper/pagerank.go</code> currently returns <code>1/N</code> for each
+    node. Reputation queries succeed but carry no signal. This is the first declared JIBE — it's
+    waiting on a hand-coded implementation, not broken.
+  </div>
+
+  <div class="panel warn">
+    <div class="label">4 · Wire-format divergence</div>
+    No client written against the old SPEC's JSON-with-<code>sig</code> tx format can talk
+    to this chain. All clients must build protobuf <code>sdk.Tx</code> messages and submit via
+    <code>/cosmos/tx/v1beta1/txs</code> (or use the CLI / SDKs). The old SPEC's wire format is
+    fully obsolete.
+  </div>
+
+  <div class="panel warn">
+    <div class="label">5 · Register idempotency flipped</div>
+    Old SPEC: re-registering is a silent no-op. New code: re-registering returns
+    <code>ErrInvalidRequest</code>. Harmless either way, but client code that relied on
+    no-op semantics will surface as an error now.
+  </div>
+
+  <div class="panel good">
+    <div class="label">Things that <em>did</em> survive the port cleanly</div>
+    Account fields (balance, registered, faucet_claimed), vouch upsert semantics by
+    <code>(from, to)</code>, faucet amount (10,000 microcoin), max vouch weight (100),
+    one-shot faucet semantics, the <code>agnt</code> address prefix, and the PageRank
+    contract (input shape + output shape, even though the body is a stub).
+  </div>
+</section>
+
+<section id="proto">
+  <h2><span class="num">4</span>Proto types</h2>
+  <p>Files under <code>chain/proto/agntcoin/agntcoin/v1/</code>:</p>
+  <table>
+    <thead><tr><th>File</th><th>Old SPEC</th><th>Implementation</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>account.proto</code></td>
+        <td>Account: balance, nonce, registered, faucetClaimed</td>
+        <td><code>Account{address, balance, nonce, registered, faucet_claimed}</code></td>
+        <td class="match"><span class="pill yes">yes</span></td>
+      </tr>
+      <tr>
+        <td><code>vouch.proto</code></td>
+        <td>Vouch: from, to, weight</td>
+        <td><code>Vouch{id, from_addr, to_addr, weight}</code> — adds <code>id</code></td>
+        <td class="match"><span class="pill partial">partial</span></td>
+      </tr>
+      <tr>
+        <td><code>tx.proto</code></td>
+        <td>4 tx types</td>
+        <td><code>MsgRegister, MsgFaucet, MsgTransfer, MsgCastvouch, MsgUpdateParams</code></td>
+        <td class="match"><span class="pill partial">partial</span></td>
+      </tr>
+      <tr>
+        <td><code>query.proto</code></td>
+        <td>not specified</td>
+        <td>6 RPCs (Params, GetAccount, ListAccount, GetVouch, ListVouch, Reputation)</td>
+        <td class="match"><span class="pill na">n/a</span></td>
+      </tr>
+      <tr>
+        <td><code>genesis.proto</code></td>
+        <td>not specified</td>
+        <td><code>GenesisState{params, account_map, vouch_list, vouch_count}</code></td>
+        <td class="match"><span class="pill na">n/a</span></td>
+      </tr>
+      <tr>
+        <td><code>params.proto</code></td>
+        <td>not specified</td>
+        <td><code>Params{}</code> — currently empty</td>
+        <td class="match"><span class="pill na">n/a</span></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="addresses">
+  <h2><span class="num">5</span>Addresses</h2>
+  <div class="sxs">
+    <div class="col spec">
+      <h4>Old SPEC</h4>
+      Raw Ed25519 pubkey, base64-encoded (~43 chars).<br>
+      Used directly as the key in <code>Map&lt;pubkey, AccountState&gt;</code>.
+    </div>
+    <div class="col impl">
+      <h4>Implementation</h4>
+      Bech32 with <code>agnt</code> prefix (e.g. <code>agnt1qy2…</code>).<br>
+      Derived: <code>bech32(ripemd160(sha256(pubkey)))</code>.<br>
+      Validated in every handler via <code>k.addressCodec.StringToBytes(msg.Creator)</code>.
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>Property</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>Encoding</td><td>base64 raw pubkey</td><td>Bech32</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Prefix</td><td><code>agnt</code> implicit</td><td><code>agnt</code> explicit (<code>app.go:56</code>)</td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>Field type</td><td>string</td><td>string</td><td class="match"><span class="pill partial">partial</span></td></tr>
+      <tr><td>Stored on Account</td><td>no (key only)</td><td>yes, as <code>address</code> field</td><td class="match"><span class="pill no">no</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="wire">
+  <h2><span class="num">6</span>Wire format</h2>
+  <div class="sxs">
+    <div class="col spec">
+      <h4>Old SPEC</h4>
+<pre><code><span class="kw">type</span> <span class="ty">Tx</span> =
+  | { <span class="str">"type"</span>: <span class="str">"register"</span>; pubkey, nonce: <span class="num">0</span>, sig }
+  | { <span class="str">"type"</span>: <span class="str">"faucet"</span>;   pubkey, nonce, sig }
+  | { <span class="str">"type"</span>: <span class="str">"transfer"</span>; from, to, amount, nonce, sig }
+  | { <span class="str">"type"</span>: <span class="str">"vouch"</span>;    from, to, weight, nonce, sig };</code></pre>
+      Canonical JSON (sorted keys, no whitespace) with <code>sig=""</code>
+      is the signed payload.
+    </div>
+    <div class="col impl">
+      <h4>Implementation</h4>
+      Protobuf <code>sdk.Tx</code> envelope:
+<pre><code><span class="ty">TxBody</span>     { messages, memo, timeout_height }
+<span class="ty">AuthInfo</span>   { signer_infos[], fee }
+<span class="ty">Signatures</span> bytes[]</code></pre>
+      <code>AuthInfo.signer_infos[].sequence</code> handles replay protection.
+      Signed payload is the protobuf <code>SignDoc</code>, not canonical JSON.
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>Aspect</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>Format</td><td>JSON</td><td>Protobuf binary</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Envelope</td><td>flat Tx</td><td>TxBody + AuthInfo + Signatures</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Signature</td><td>in-band (<code>sig</code> field)</td><td>out-of-band in AuthInfo</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Replay protection</td><td>user-supplied nonce</td><td>chain-tracked sequence</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Sign doc</td><td>canonical JSON sans sig</td><td>SignDoc protobuf</td><td class="match"><span class="pill no">no</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="batching">
+  <h2><span class="num">7</span>Block batching</h2>
+  <p>The old SPEC said "exactly one tx per block in MVP-1 — no mempool yet." The Cosmos chain
+    uses the standard CometBFT mempool and batches as many txs per block as fit.</p>
+  <div class="panel info">
+    <div class="label">Why this changed</div>
+    Cosmos / CometBFT are not configurable to one-tx-per-block at the consensus layer.
+    Forcing the 1:1 ratio would mean writing a custom mempool, which is a worse
+    investment than just accepting batching. The "one tx per block" line in the old SPEC
+    was about prototype simplicity, not a real invariant — it can go.
+  </div>
+</section>
+
+<section id="block">
+  <h2><span class="num">8</span>Block format</h2>
+  <table>
+    <thead><tr><th>Aspect</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>Serialization</td><td>custom JSON</td><td>CometBFT ABCI protobuf</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Storage</td><td><code>data/chain/000NNN.json</code> on disk</td><td>KV store via IAVL + CometBFT block store</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Block signature</td><td>single <code>sig</code> field</td><td><code>LastCommit</code> aggregated multi-sig</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Prev hash</td><td>explicit field</td><td>implicit in chain state</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Discovery</td><td>read JSON files</td><td>CometBFT RPC / gRPC</td><td class="match"><span class="pill no">no</span></td></tr>
+    </tbody>
+  </table>
+  <p>None of the old block format survives. CometBFT owns this entire concern now.</p>
+</section>
+
+<section id="state">
+  <h2><span class="num">9</span>State &amp; keeper</h2>
+  <details>
+    <summary>Keeper struct (<code>chain/x/agntcoin/keeper/keeper.go</code>)</summary>
+<pre><code><span class="kw">type</span> <span class="ty">Keeper</span> <span class="kw">struct</span> {
+    storeService corestore.<span class="ty">KVStoreService</span>
+    cdc          codec.<span class="ty">Codec</span>
+    addressCodec address.<span class="ty">Codec</span>
+    authority    []<span class="ty">byte</span>
+
+    Schema   collections.<span class="ty">Schema</span>
+    Params   collections.<span class="ty">Item</span>[types.<span class="ty">Params</span>]
+    Account  collections.<span class="ty">Map</span>[<span class="ty">string</span>, types.<span class="ty">Account</span>]
+    VouchSeq collections.<span class="ty">Sequence</span>
+    Vouch    collections.<span class="ty">Map</span>[<span class="ty">uint64</span>, types.<span class="ty">Vouch</span>]
+}</code></pre>
+  </details>
+
+  <table>
+    <thead><tr><th>Collection</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>Accounts</td><td><code>Map&lt;pubkey, AccountState&gt;</code></td><td><code>Map[string, Account]</code> keyed by Bech32</td><td class="match"><span class="pill partial">partial</span></td></tr>
+      <tr><td>Vouches</td><td>flat array, dedup by <code>(from,to)</code></td><td><code>Map[uint64, Vouch]</code> with auto-ID + walk-based upsert</td><td class="match"><span class="pill partial">partial</span></td></tr>
+      <tr><td>VouchSeq</td><td>n/a</td><td>monotonic sequence backing <code>Vouch.id</code></td><td class="match"><span class="pill na">n/a</span></td></tr>
+      <tr><td>Params</td><td>not in SPEC</td><td>currently empty <code>Item[Params]</code></td><td class="match"><span class="pill na">n/a</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="handlers">
+  <h2><span class="num">10</span>Message handlers</h2>
+
+  <h3>MsgRegister</h3>
+  <table>
+    <thead><tr><th>Aspect</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>Validation</td><td>Ed25519 pubkey</td><td>Bech32 via addressCodec</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Nonce</td><td>must be 0</td><td>not validated</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Idempotency</td><td>silent no-op</td><td>errors on re-register</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Initial balance</td><td>0</td><td>0</td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>Initial flags</td><td>registered:true, faucetClaimed:false</td><td>same</td><td class="match"><span class="pill yes">yes</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>MsgFaucet</h3>
+  <table>
+    <thead><tr><th>Aspect</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>Authorization</td><td>"agent signs, validator mints"</td><td>standard sdk.Tx signature</td><td class="match"><span class="pill partial">partial</span></td></tr>
+      <tr><td>One-shot</td><td>rejects if claimed</td><td>same</td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>Amount</td><td>10,000 microcoin</td><td><code>FaucetAmount = 10_000</code></td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>Mints into existence</td><td>yes</td><td>yes (<code>balance += FaucetAmount</code>)</td><td class="match"><span class="pill yes">yes</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>MsgTransfer</h3>
+  <table>
+    <thead><tr><th>Aspect</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>Signed by sender</td><td>yes</td><td>yes (sdk.Tx auth)</td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>Balance ≥ amount</td><td>required</td><td>required</td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>Nonce check</td><td>required</td><td>not validated (uses sequence)</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>No fees in MVP-1</td><td>yes</td><td>chain default has fees but agntcoin doesn't charge</td><td class="match"><span class="pill partial">partial</span></td></tr>
+      <tr><td>Self-transfer</td><td>not addressed</td><td>rejected explicitly</td><td class="match"><span class="pill na">n/a</span></td></tr>
+      <tr><td>Recipient must be registered</td><td>implicit</td><td>enforced</td><td class="match"><span class="pill partial">partial</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>MsgCastvouch</h3>
+  <table>
+    <thead><tr><th>Aspect</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>Upsert by <code>(from,to)</code></td><td>latest wins</td><td>walks vouches, updates existing or appends</td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>Weight range</td><td>1..100</td><td>enforced via <code>MaxVouchWeight = 100</code></td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>No coin movement</td><td>yes</td><td>yes</td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>Self-vouch</td><td>SPEC silent</td><td>rejected</td><td class="match"><span class="pill na">n/a</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="queries">
+  <h2><span class="num">11</span>Queries</h2>
+  <table>
+    <thead><tr><th>RPC</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>GetAccount</td><td>GET <code>/agents/:pubkey/balance</code> → <code>{balance, nonce}</code></td><td>gRPC + grpc-gateway, returns full Account</td><td class="match"><span class="pill partial">partial</span></td></tr>
+      <tr><td>Reputation</td><td>GET <code>/agents/:pubkey/reputation</code> → <code>{score}</code></td><td>gRPC + grpc-gateway; score is string-formatted float64</td><td class="match"><span class="pill partial">partial</span></td></tr>
+      <tr><td>Vouch / list / params</td><td>not in SPEC</td><td>full pagination support</td><td class="match"><span class="pill na">n/a</span></td></tr>
+    </tbody>
+  </table>
+  <details>
+    <summary>Reputation handler (excerpt from <code>query_reputation.go</code>)</summary>
+<pre><code>vouches := <span class="kw">make</span>([]types.<span class="ty">Vouch</span>, <span class="num">0</span>)
+q.k.Vouch.Walk(ctx, <span class="kw">nil</span>, <span class="kw">func</span>(_ <span class="ty">uint64</span>, v types.<span class="ty">Vouch</span>) (<span class="ty">bool</span>, <span class="ty">error</span>) {
+    vouches = <span class="kw">append</span>(vouches, v)
+    <span class="kw">return</span> <span class="kw">false</span>, <span class="kw">nil</span>
+})
+scores := <span class="fn">PageRank</span>(vouches)        <span class="com">// JIBE — uniform stub</span>
+score, ok := scores[req.Address]
+<span class="kw">return</span> &amp;types.<span class="ty">QueryReputationResponse</span>{
+    Score: strconv.<span class="fn">FormatFloat</span>(score, <span class="str">'f'</span>, -<span class="num">1</span>, <span class="num">64</span>),
+}, <span class="kw">nil</span></code></pre>
+  </details>
+</section>
+
+<section id="constants">
+  <h2><span class="num">12</span>Constants</h2>
+  <table>
+    <thead><tr><th>Constant</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>Faucet drip</td><td>10,000 microcoin</td><td><code>FaucetAmount = 10_000</code></td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>Max vouch weight</td><td>100</td><td><code>MaxVouchWeight = 100</code></td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>1 ag3nt-coin</td><td>1,000,000 microcoin</td><td>not defined as a constant; balances are uint64 microcoin</td><td class="match"><span class="pill partial">partial</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="genesis">
+  <h2><span class="num">13</span>Genesis</h2>
+  <table>
+    <thead><tr><th>Aspect</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>Format</td><td>JSON block files on disk</td><td>protobuf <code>GenesisState</code> in <code>genesis.json</code></td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Replay on boot</td><td>read JSON blocks</td><td>CometBFT state machine + IAVL</td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>Initial accounts</td><td>none</td><td>alice/bob from <code>config.yml</code> (Cosmos denoms, not agntcoin)</td><td class="match"><span class="pill na">n/a</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="api">
+  <h2><span class="num">14</span>API endpoints</h2>
+  <table>
+    <thead><tr><th>Endpoint</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>POST /agents</td><td>register</td><td>not exposed; use <code>MsgRegister</code> via <code>/cosmos/tx/v1beta1/txs</code></td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>GET /agents/:pk/balance</td><td>read</td><td><code>GET /zoltankiss/agntcoin/agntcoin/v1/account/{address}</code></td><td class="match"><span class="pill partial">partial</span></td></tr>
+      <tr><td>GET /agents/:pk/reputation</td><td>read</td><td><code>GET /zoltankiss/agntcoin/agntcoin/v1/reputation/{address}</code></td><td class="match"><span class="pill partial">partial</span></td></tr>
+      <tr><td>POST /faucet</td><td>drip</td><td>not exposed; use <code>MsgFaucet</code></td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>POST /transfers</td><td>transfer</td><td>not exposed; use <code>MsgTransfer</code></td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>POST /vouches</td><td>vouch</td><td>not exposed; use <code>MsgCastvouch</code></td><td class="match"><span class="pill no">no</span></td></tr>
+      <tr><td>GET /.well-known/add.json</td><td>discovery</td><td><strong>not served</strong></td><td class="match"><span class="pill no">no</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="nonce">
+  <h2><span class="num">15</span>Nonce <span class="pill no" style="margin-left:8px">vestigial</span></h2>
+  <div class="panel bad">
+    <div class="label">The wart</div>
+    <code>Account.nonce</code> exists in the proto, is set to <code>0</code> at registration,
+    and is <strong>never touched again</strong>. No handler reads or increments it. Cosmos
+    uses <code>AuthInfo.signer_infos[].sequence</code> (managed by <code>x/auth</code>) for
+    replay protection.
+  </div>
+  <p>Two reasonable resolutions:</p>
+  <ol>
+    <li><strong>Delete it</strong> — clean, but a proto field deletion is a breaking change.
+      Since we're pre-launch, this is cheap right now.</li>
+    <li><strong>Repurpose it</strong> — e.g. track per-account tx count for the agent-economy
+      primitives (could feed into demurrage / activity scoring in MVP-2).</li>
+  </ol>
+  <p>Decision deferred to MVP-2 design.</p>
+</section>
+
+<section id="faucet-auth">
+  <h2><span class="num">16</span>Faucet authorization</h2>
+  <div class="sxs">
+    <div class="col spec">
+      <h4>Old SPEC</h4>
+      "Signed by the agent themselves (not the validator). The validator mints into
+      existence on apply."
+    </div>
+    <div class="col impl">
+      <h4>Implementation</h4>
+      The agent signs the tx. Cosmos verifies the signature in <code>antehandler</code>
+      before the message reaches the handler. The handler then mints by incrementing
+      <code>Account.balance</code>. <strong>Same mechanism in spirit</strong>, different machinery.
+    </div>
+  </div>
+  <p>Status: <span class="pill partial">partial</span> — semantic match, structural difference.</p>
+</section>
+
+<section id="chain-id">
+  <h2><span class="num">17</span>Chain identity</h2>
+  <table>
+    <thead><tr><th>Property</th><th>SPEC</th><th>Impl</th><th class="match">Match</th></tr></thead>
+    <tbody>
+      <tr><td>App name</td><td>not specified</td><td><code>agntcoin</code> (<code>app.go:54</code>)</td><td class="match"><span class="pill na">n/a</span></td></tr>
+      <tr><td>Binary</td><td>not specified</td><td><code>agntcoind</code></td><td class="match"><span class="pill na">n/a</span></td></tr>
+      <tr><td>Address prefix</td><td><code>agnt</code> implicit</td><td><code>agnt</code> explicit</td><td class="match"><span class="pill yes">yes</span></td></tr>
+      <tr><td>Chain ID</td><td>not specified</td><td><code>agntcoin</code> in config.yml</td><td class="match"><span class="pill na">n/a</span></td></tr>
+      <tr><td>Coin type</td><td>not specified</td><td><code>118</code> (Cosmos default)</td><td class="match"><span class="pill na">n/a</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="recommendation">
+  <h2><span class="num">18</span>Recommendation</h2>
+  <div class="panel good">
+    <div class="label">Done</div>
+    The old <code>SPEC.md</code> has been replaced by <a href="../SPEC.html">SPEC.html</a>,
+    which describes the Cosmos reality. This audit is the historical bridge — keep it for
+    context, don't try to drag <code>SPEC.md</code> back to consistency. The TS prototype
+    still exists in <code>ts-reference/</code> and can be the spec-as-implemented for that
+    directory in isolation.
+  </div>
+  <p>Open items rolling into MVP-2 design:</p>
+  <ul>
+    <li>Decide what to do with <code>Account.nonce</code> (delete or repurpose).</li>
+    <li>Ed25519↔Bech32 adapter for ADD-native callers.</li>
+    <li><code>/.well-known/add.json</code> discovery (sidecar or mux extension).</li>
+    <li>Hand-implement PageRank (the JIBE).</li>
+  </ul>
+</section>
+
+</main>
+</div>
+</body>
+</html>

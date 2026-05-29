@@ -1,0 +1,26 @@
+# ── secrets ──────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+wallets/
+
+# ── Cosmos chain keeps its own git repo; not versioned here ───────────────
+chain/
+
+# ── Foundry ───────────────────────────────────────────────────────────────
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+# forge deps are reinstalled via `forge install` (see contracts/README)
+contracts/lib/
+
+# ── Node / Bun ──────────────────────────────────────────────────────────
+node_modules/
+agent/node_modules/
+ts-reference/node_modules/
+data/
+*.log
+
+# ── misc ────────────────────────────────────────────────────────────────
+.DS_Store

@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ag3nt-coin · SPEC (MVP-1)</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c222b; --line:#2a3340;
+    --ink:#e6edf3; --muted:#8b98a7; --accent:#7ee787; --warn:#f0883e;
+    --bad:#ff7b72; --info:#79c0ff; --code-bg:#0b0f14;
+    --pill-yes:#1f6a3a; --pill-no:#7a2126; --pill-partial:#7a5a18; --pill-na:#3a4250;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;}
+  a{color:var(--info);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,pre{font-family:"SF Mono",Menlo,Monaco,Consolas,monospace}
+  code{background:var(--code-bg);padding:1px 5px;border-radius:4px;font-size:.92em;color:#d2a8ff}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:8px;
+    padding:14px 16px;overflow-x:auto;font-size:13px;line-height:1.5}
+  pre code{background:transparent;padding:0;color:var(--ink)}
+  .kw{color:#ff7b72} .str{color:#a5d6ff} .com{color:#8b98a7;font-style:italic}
+  .ty{color:#ffa657} .fn{color:#d2a8ff} .num{color:#79c0ff}
+
+  .layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  nav.toc{position:sticky;top:0;height:100vh;overflow-y:auto;
+    background:var(--panel);border-right:1px solid var(--line);padding:24px 20px}
+  nav.toc h1{font-size:13px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 14px}
+  nav.toc ol{list-style:none;margin:0;padding:0;counter-reset:n}
+  nav.toc li{margin:5px 0;font-size:14px}
+  nav.toc li::before{counter-increment:n;content:counter(n) ".";color:var(--muted);
+    display:inline-block;width:22px;text-align:right;margin-right:8px}
+  nav.toc a{color:var(--ink);opacity:.85}
+  nav.toc a:hover{opacity:1;color:var(--info)}
+  nav.toc .meta{margin-top:24px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--muted);line-height:1.7}
+  nav.toc .meta a{color:var(--muted)}
+
+  main{padding:48px 56px;max-width:980px}
+  header.title{margin-bottom:36px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+  header.title h1{margin:0;font-size:32px;letter-spacing:-.02em}
+  header.title .sub{color:var(--muted);margin-top:6px;font-size:15px}
+  header.title .badges{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+
+  section{margin-bottom:48px;scroll-margin-top:24px}
+  section h2{font-size:22px;margin:0 0 12px;letter-spacing:-.01em}
+  section h2 .num{color:var(--muted);font-weight:400;margin-right:10px}
+  section h3{font-size:16px;margin:24px 0 10px;color:var(--accent)}
+  section p{margin:10px 0}
+  section ul, section ol{margin:10px 0;padding-left:22px}
+  section li{margin:4px 0}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:18px 20px;margin:16px 0}
+  .panel.warn{border-color:#553c1a;background:#241a0d}
+  .panel.bad{border-color:#5a1d22;background:#231114}
+  .panel.info{border-color:#1f3a5c;background:#0d1a2a}
+  .panel .label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:6px}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;
+    border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--panel2);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  td code{font-size:13px}
+
+  .pill{display:inline-block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:2px 9px;border-radius:999px;font-weight:600;line-height:1.7}
+  .pill.yes{background:var(--pill-yes);color:#caffd8}
+  .pill.no{background:var(--pill-no);color:#ffd0ce}
+  .pill.partial{background:var(--pill-partial);color:#ffe1a8}
+  .pill.na{background:var(--pill-na);color:#c2cad6}
+  .pill.jibe{background:#3a2660;color:#dbc4ff}
+  .pill.live{background:#1f6a3a;color:#caffd8}
+  .pill.stub{background:#7a5a18;color:#ffe1a8}
+  .pill.todo{background:#7a2126;color:#ffd0ce}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:900px){.grid2{grid-template-columns:1fr}}
+
+  figure.arch{margin:18px 0;padding:18px;background:var(--code-bg);
+    border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+  figure.arch svg{display:block;margin:0 auto}
+
+  details{margin:10px 0;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+  summary{padding:10px 14px;cursor:pointer;color:var(--muted);font-size:14px}
+  summary:hover{color:var(--ink)}
+  details[open] summary{border-bottom:1px solid var(--line);color:var(--ink)}
+  details > *:not(summary){padding:0 14px 14px}
+  details > pre{margin:14px}
+
+  hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <h1>ag3nt-coin · SPEC</h1>
+  <ol>
+    <li><a href="#premise">Premise</a></li>
+    <li><a href="#nongoals">Non-goals (MVP-1)</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#identity">Identity &amp; addresses</a></li>
+    <li><a href="#units">Units</a></li>
+    <li><a href="#messages">Messages (Tx)</a></li>
+    <li><a href="#queries">Queries</a></li>
+    <li><a href="#state">State</a></li>
+    <li><a href="#genesis">Genesis</a></li>
+    <li><a href="#pagerank">PageRank (JIBE)</a></li>
+    <li><a href="#api">API surface</a></li>
+    <li><a href="#divergences">Divergences from TS prototype</a></li>
+    <li><a href="#openq">Open questions</a></li>
+    <li><a href="#oos">Out of scope (MVP-2+)</a></li>
+  </ol>
+  <div class="meta">
+    <strong style="color:var(--ink)">Canonical spec.</strong><br>
+    Updated 2026-05-23 after the SPEC.md → SPEC.html migration. The TS prototype
+    spec it replaced is preserved in the audit doc.<br><br>
+    <a href="docs/spec-audit.html">→ Audit (SPEC vs. code)</a><br>
+    <a href="docs/proposed-future-state.html">→ Proposed future state</a>
+  </div>
+</nav>
+
+<main>
+
+<header class="title">
+  <h1>ag3nt-coin</h1>
+  <div class="sub">A sovereign appchain for agents, by agents. Cosmos SDK + CometBFT. MVP-1.</div>
+  <div class="badges">
+    <span class="pill live">MVP-1 live (local dev)</span>
+    <span class="pill stub">PageRank: stub (JIBE)</span>
+    <span class="pill na">Single validator</span>
+  </div>
+</header>
+
+<section id="premise">
+  <h2><span class="num">1</span>Premise</h2>
+  <p>A crypto optimized to be <strong>by agents, for agents</strong>, powering the
+  <a href="https://github.com/zoltankiss/agent-driven-development">ADD</a> economy.
+  Differs from BTC/ETH because:</p>
+  <ul>
+    <li>Agents lack human emotional drivers (greed, scarcity anxiety, status). So we
+      <strong>invert</strong> money mechanics: demurrage replaces hoarding incentives;
+      value is flow, not stock. <em>(Demurrage lands in MVP-2.)</em></li>
+    <li>Agents already have Ed25519 identity from ADD. Every API call is signed;
+      the chain inherits a free evidence trail.</li>
+    <li>ADD-native apps are the customers. The chain's first job is to make ADD
+      interactions trustworthy and economical at scale.</li>
+  </ul>
+</section>
+
+<section id="nongoals">
+  <h2><span class="num">2</span>Non-goals (MVP-1)</h2>
+  <ul>
+    <li><strong>Decentralization.</strong> MVP-1 is a single-validator dev chain.
+      The point is to validate the agent-economy primitives, not the consensus algorithm.</li>
+    <li><strong>Performance.</strong> Default CometBFT block time (~1s) is fine.</li>
+    <li><strong>Public testnet.</strong> Local only. Public multi-validator testnet is v1.</li>
+    <li><strong>ADD-native wire format.</strong> Agents currently speak Bech32 directly;
+      raw-Ed25519-base64 ↔ Bech32 adapter is MVP-2.</li>
+  </ul>
+</section>
+
+<section id="architecture">
+  <h2><span class="num">3</span>Architecture</h2>
+  <p>Standard Cosmos SDK stack. One custom module, <code>x/agntcoin</code>, holds the
+  agent-economy primitives. Everything below the module is off-the-shelf.</p>
+
+  <figure class="arch">
+<svg width="720" height="460" viewBox="0 0 720 460" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8b98a7"/>
+    </marker>
+    <style>
+      .box{fill:#161b22;stroke:#2a3340;stroke-width:1.2;rx:8}
+      .box-accent{fill:#1c222b;stroke:#7ee787;stroke-width:1.4;rx:8}
+      .lbl{fill:#e6edf3;font:13px -apple-system,sans-serif}
+      .lbl-mono{fill:#d2a8ff;font:12px "SF Mono",monospace}
+      .lbl-sub{fill:#8b98a7;font:11px -apple-system,sans-serif}
+      .lbl-title{fill:#7ee787;font:13px -apple-system,sans-serif;font-weight:600}
+      .arrow{stroke:#8b98a7;stroke-width:1.4;fill:none;marker-end:url(#arr)}
+    </style>
+  </defs>
+
+  <!-- Clients -->
+  <rect class="box" x="40" y="20" width="640" height="64"/>
+  <text class="lbl-title" x="60" y="42">Clients</text>
+  <text class="lbl-sub" x="60" y="60">agntcoind CLI · gRPC clients · REST (grpc-gateway) · CometBFT RPC</text>
+  <text class="lbl-mono" x="60" y="76">tx submit · tx broadcast · query account/vouch/reputation</text>
+
+  <!-- arrow -->
+  <line class="arrow" x1="360" y1="84" x2="360" y2="118"/>
+  <text class="lbl-sub" x="370" y="105">protobuf sdk.Tx, Ed25519-signed</text>
+
+  <!-- CometBFT -->
+  <rect class="box" x="40" y="118" width="640" height="64"/>
+  <text class="lbl-title" x="60" y="140">CometBFT consensus</text>
+  <text class="lbl-sub" x="60" y="158">mempool · propose · pre-vote · pre-commit · finalize</text>
+  <text class="lbl-mono" x="60" y="174">~1s blocks · single validator (MVP-1)</text>
+
+  <!-- arrow -->
+  <line class="arrow" x1="360" y1="182" x2="360" y2="216"/>
+  <text class="lbl-sub" x="370" y="203">ABCI FinalizeBlock(txs)</text>
+
+  <!-- x/agntcoin module -->
+  <rect class="box-accent" x="40" y="216" width="640" height="160"/>
+  <text class="lbl-title" x="60" y="238">x/agntcoin module</text>
+
+  <rect class="box" x="60" y="252" width="300" height="48"/>
+  <text class="lbl" x="72" y="270">MsgServer</text>
+  <text class="lbl-mono" x="72" y="288">Register · Faucet · Transfer · Castvouch</text>
+
+  <rect class="box" x="380" y="252" width="280" height="48"/>
+  <text class="lbl" x="392" y="270">QueryServer</text>
+  <text class="lbl-mono" x="392" y="288">GetAccount · GetVouch · Reputation · List…</text>
+
+  <rect class="box" x="60" y="312" width="600" height="52"/>
+  <text class="lbl" x="72" y="330">Keeper (collections)</text>
+  <text class="lbl-mono" x="72" y="350">Account: Map[bech32 → Account] · Vouch: Map[uint64 → Vouch] · VouchSeq · Params</text>
+
+  <!-- arrow -->
+  <line class="arrow" x1="360" y1="376" x2="360" y2="408"/>
+
+  <!-- KV store -->
+  <rect class="box" x="40" y="408" width="640" height="44"/>
+  <text class="lbl-title" x="60" y="430">Cosmos KV store</text>
+  <text class="lbl-sub" x="320" y="430">RocksDB / Pebble · IAVL tree · Merkle-rooted in each block</text>
+</svg>
+  </figure>
+</section>
+
+<section id="identity">
+  <h2><span class="num">4</span>Identity &amp; addresses</h2>
+  <p>Addresses are <strong>Bech32</strong> with the <code>agnt</code> prefix
+    (e.g. <code>agnt1qy2…</code>). Derived the standard Cosmos way:
+    <code>bech32(ripemd160(sha256(pubkey)))</code>.</p>
+  <p>The operating principal for ADD ecosystem work is the
+    <code>chief-of-staff</code> key (Ed25519). For the chain itself, each agent generates
+    a Cosmos key via <code>agntcoind keys add &lt;name&gt;</code> and signs txs with it.</p>
+
+  <div class="panel info">
+    <div class="label">Future-state note</div>
+    ADD speaks <strong>raw Ed25519 base64 pubkeys</strong>. The chain speaks Bech32.
+    MVP-2 introduces an adapter so ADD-native callers can transact without learning
+    Cosmos address encoding. Until then, callers must use Bech32 directly.
+  </div>
+
+  <table>
+    <thead><tr><th>Property</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>App / module name</td><td><code>agntcoin</code></td></tr>
+      <tr><td>Binary</td><td><code>agntcoind</code> (in <code>~/go/bin/</code> after <code>ignite chain build</code>)</td></tr>
+      <tr><td>Address prefix</td><td><code>agnt</code></td></tr>
+      <tr><td>Validator address prefix</td><td><code>agntvaloper</code> (Cosmos convention)</td></tr>
+      <tr><td>Coin type</td><td><code>118</code> (Cosmos default)</td></tr>
+      <tr><td>Chain ID (dev)</td><td><code>agntcoin</code> (from <code>chain/config.yml</code>)</td></tr>
+      <tr><td>Signature scheme</td><td>Ed25519 (Cosmos standard)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="units">
+  <h2><span class="num">5</span>Units</h2>
+  <table>
+    <thead><tr><th>Unit</th><th>Value</th><th>Used for</th></tr></thead>
+    <tbody>
+      <tr><td>1 ag3nt-coin</td><td>1,000,000 microcoin</td><td>Display only; never stored</td></tr>
+      <tr><td>microcoin</td><td>integer <code>uint64</code></td><td>All balances and message amounts</td></tr>
+      <tr><td>Faucet drip</td><td>10,000 microcoin (= 0.01 coin)</td><td>One-shot per registered agent</td></tr>
+      <tr><td>Max vouch weight</td><td>100</td><td>Per-edge cap, enforced in <code>MsgCastvouch</code></td></tr>
+    </tbody>
+  </table>
+  <p>Constants live at <code>chain/x/agntcoin/types/constants.go</code>:</p>
+  <pre><code><span class="kw">const</span> (
+    <span class="ty">FaucetAmount</span>   <span class="ty">uint64</span> = <span class="num">10_000</span>
+    <span class="ty">MaxVouchWeight</span> <span class="ty">uint64</span> = <span class="num">100</span>
+)</code></pre>
+  <div class="panel warn">
+    <div class="label">Cosmos vs. agntcoin denoms</div>
+    The Ignite scaffolding adds standard Cosmos denoms (<code>stake</code>, <code>token</code>)
+    in <code>config.yml</code> for the auth/bank modules to function. The agent-economy primitives
+    above are <strong>separate from</strong> those — agntcoin balances live in
+    <code>x/agntcoin</code>'s own KV store, not in <code>x/bank</code>. There is no on-chain
+    swap between the two; the Cosmos denoms are scaffolding noise until they become useful.
+  </div>
+</section>
+
+<section id="messages">
+  <h2><span class="num">6</span>Messages (Tx)</h2>
+  <p>Four agent messages and one governance message. All are protobuf, wrapped in
+    the standard <code>sdk.Tx</code> envelope, signed with the sender's Ed25519 key.
+    Replay protection uses Cosmos' per-account <code>sequence</code> number
+    (managed by <code>x/auth</code>), not a custom nonce.</p>
+
+  <h3>MsgRegister</h3>
+  <p>Establishes an account at zero balance. Must be the first tx from a key.</p>
+  <pre><code><span class="kw">message</span> <span class="ty">MsgRegister</span> {
+  <span class="kw">string</span> creator = <span class="num">1</span>;   <span class="com">// Bech32 address; signer of the tx</span>
+}</code></pre>
+  <ul>
+    <li><strong>Validation:</strong> creator must be a valid Bech32 address; account
+      must not already exist with <code>registered=true</code>.</li>
+    <li><strong>Effect:</strong> writes
+      <code>Account{address, balance:0, registered:true, faucet_claimed:false}</code>.</li>
+    <li><strong>Idempotency:</strong> rejects re-registration with
+      <code>ErrInvalidRequest</code>. <em>(Diverges from the TS prototype, which made
+      this a silent no-op.)</em></li>
+  </ul>
+
+  <h3>MsgFaucet</h3>
+  <p>One-shot 10,000-microcoin drip per agent, ever.</p>
+  <pre><code><span class="kw">message</span> <span class="ty">MsgFaucet</span> {
+  <span class="kw">string</span> creator = <span class="num">1</span>;
+}</code></pre>
+  <ul>
+    <li><strong>Validation:</strong> account must be registered; <code>faucet_claimed</code> must be false.</li>
+    <li><strong>Effect:</strong> mints <code>FaucetAmount</code> into the account; sets <code>faucet_claimed=true</code>.</li>
+    <li><strong>Authorization:</strong> the agent's own tx signature is sufficient — the
+      chain mints into existence on apply (no validator-signed dispensation needed).</li>
+  </ul>
+
+  <h3>MsgTransfer</h3>
+  <pre><code><span class="kw">message</span> <span class="ty">MsgTransfer</span> {
+  <span class="kw">string</span> creator  = <span class="num">1</span>;   <span class="com">// sender</span>
+  <span class="kw">string</span> to_addr  = <span class="num">2</span>;
+  <span class="kw">uint64</span> amount   = <span class="num">3</span>;   <span class="com">// microcoin</span>
+}</code></pre>
+  <ul>
+    <li>Both addresses must be valid Bech32 and both accounts must be registered.</li>
+    <li><code>amount &gt; 0</code>; <code>creator != to_addr</code> (self-transfer rejected).</li>
+    <li>Sender balance must be ≥ amount. No fees in MVP-1.</li>
+  </ul>
+
+  <h3>MsgCastvouch</h3>
+  <p>Asserts <code>weight</code> units of trust from sender to <code>to_addr</code>.</p>
+  <pre><code><span class="kw">message</span> <span class="ty">MsgCastvouch</span> {
+  <span class="kw">string</span> creator = <span class="num">1</span>;
+  <span class="kw">string</span> to_addr = <span class="num">2</span>;
+  <span class="kw">uint64</span> weight  = <span class="num">3</span>;   <span class="com">// 1..100</span>
+}</code></pre>
+  <ul>
+    <li>Self-vouch rejected. Weight must be in <code>[1, 100]</code>.</li>
+    <li>Both accounts must be registered.</li>
+    <li><strong>Upsert semantics:</strong> if a vouch with the same
+      <code>(from_addr, to_addr)</code> exists, its weight is replaced. Otherwise a new
+      <code>Vouch</code> is appended with an auto-incremented <code>id</code> from
+      <code>VouchSeq</code>.</li>
+    <li>No coin movement.</li>
+  </ul>
+
+  <details>
+    <summary>Also: <code>MsgUpdateParams</code> (governance only)</summary>
+    <p>Standard Cosmos governance message. The <code>Params</code> message is currently
+    empty (no tunable parameters yet), so this exists only because the module scaffold
+    requires it. Will hold demurrage rate, faucet amount, etc. once those land.</p>
+  </details>
+</section>
+
+<section id="queries">
+  <h2><span class="num">7</span>Queries</h2>
+  <table>
+    <thead><tr><th>RPC</th><th>Request</th><th>Response</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>GetAccount</code></td><td><code>{address}</code></td><td><code>Account</code></td><td>404 if not registered</td></tr>
+      <tr><td><code>ListAccount</code></td><td>pagination</td><td><code>[Account]</code></td><td>Standard Cosmos pagination</td></tr>
+      <tr><td><code>GetVouch</code></td><td><code>{id}</code></td><td><code>Vouch</code></td><td>By numeric ID</td></tr>
+      <tr><td><code>ListVouch</code></td><td>pagination</td><td><code>[Vouch]</code></td><td>Full edge list</td></tr>
+      <tr><td><code>Reputation</code></td><td><code>{address}</code></td><td><code>{score: string}</code></td><td>Calls <a href="#pagerank">PageRank</a>; score is formatted float64</td></tr>
+      <tr><td><code>Params</code></td><td>—</td><td><code>Params</code></td><td>Currently empty</td></tr>
+    </tbody>
+  </table>
+  <p>All queries are gRPC; the gRPC-Gateway exposes REST equivalents under
+    <code>/zoltankiss/agntcoin/agntcoin/v1/…</code> automatically.</p>
+</section>
+
+<section id="state">
+  <h2><span class="num">8</span>State</h2>
+  <p>Lives in the module's KV store, keyed under <code>StoreKey = "agntcoin"</code>.
+    Managed via the Cosmos <code>collections</code> package.</p>
+
+  <table>
+    <thead><tr><th>Collection</th><th>Key prefix</th><th>Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>Account</code></td><td><code>account/value/</code></td><td><code>Map[string → Account]</code></td><td>Keyed by Bech32 address</td></tr>
+      <tr><td><code>Vouch</code></td><td><code>vouch/value/</code></td><td><code>Map[uint64 → Vouch]</code></td><td>Keyed by sequence ID</td></tr>
+      <tr><td><code>VouchSeq</code></td><td><code>vouch/count/</code></td><td><code>Sequence</code></td><td>Monotonic, supplies new <code>Vouch.id</code></td></tr>
+      <tr><td><code>Params</code></td><td><code>p_agntcoin</code></td><td><code>Item[Params]</code></td><td>Empty</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Account</h3>
+  <pre><code><span class="kw">message</span> <span class="ty">Account</span> {
+  <span class="kw">string</span> address        = <span class="num">1</span>;
+  <span class="kw">uint64</span> balance        = <span class="num">2</span>;   <span class="com">// microcoin</span>
+  <span class="kw">uint64</span> nonce          = <span class="num">3</span>;   <span class="com">// see warning below</span>
+  <span class="kw">bool</span>   registered     = <span class="num">4</span>;
+  <span class="kw">bool</span>   faucet_claimed = <span class="num">5</span>;
+}</code></pre>
+  <div class="panel bad">
+    <div class="label">Known wart: <code>nonce</code> is vestigial</div>
+    The <code>nonce</code> field exists from the TS prototype but is never read,
+    written, or validated by any message handler. Cosmos uses
+    <code>AuthInfo.sequence</code> (managed by <code>x/auth</code>) for replay protection.
+    <strong>Decision needed:</strong> remove the field, or repurpose it (e.g.
+    track per-account tx count for the agent-economy primitives). Tracked under
+    <a href="#openq">open questions</a>.
+  </div>
+
+  <h3>Vouch</h3>
+  <pre><code><span class="kw">message</span> <span class="ty">Vouch</span> {
+  <span class="kw">uint64</span> id        = <span class="num">1</span>;
+  <span class="kw">string</span> from_addr = <span class="num">2</span>;
+  <span class="kw">string</span> to_addr   = <span class="num">3</span>;
+  <span class="kw">uint64</span> weight    = <span class="num">4</span>;   <span class="com">// 1..100</span>
+}</code></pre>
+  <p>Vouches are deduplicated by <code>(from_addr, to_addr)</code> in the
+    <code>MsgCastvouch</code> handler: a second vouch over the same edge updates the
+    existing row's weight rather than appending. The handler does this with a full
+    <code>Vouch.Walk</code> — fine for MVP scale, will need a secondary index later.</p>
+</section>
+
+<section id="genesis">
+  <h2><span class="num">9</span>Genesis</h2>
+  <pre><code><span class="kw">message</span> <span class="ty">GenesisState</span> {
+  <span class="ty">Params</span>         params      = <span class="num">1</span>;
+  <span class="kw">repeated</span> <span class="ty">Account</span> account_map = <span class="num">2</span>;
+  <span class="kw">repeated</span> <span class="ty">Vouch</span>   vouch_list  = <span class="num">3</span>;
+  <span class="kw">uint64</span>         vouch_count = <span class="num">4</span>;   <span class="com">// restores VouchSeq</span>
+}</code></pre>
+  <p><code>InitGenesis</code> writes accounts and vouches as-is, restores
+    <code>VouchSeq</code> from <code>vouch_count</code>, and sets <code>Params</code>.
+    <code>ExportGenesis</code> walks the same collections in reverse.</p>
+  <p>Ignite's <code>chain/config.yml</code> seeds dev accounts (alice, bob) with the
+    Cosmos default denoms (<code>stake</code>, <code>token</code>). These are for
+    <code>x/auth</code>/<code>x/bank</code> — not agntcoin balances. Agent accounts
+    are bootstrapped via <code>MsgRegister</code> + <code>MsgFaucet</code>.</p>
+</section>
+
+<section id="pagerank">
+  <h2><span class="num">10</span>PageRank <span class="pill jibe" style="margin-left:8px">JIBE</span></h2>
+  <p>Reputation is a pure function of the vouch graph, computed on each query —
+    not stored. The query handler walks <code>Vouch</code>, calls
+    <code>PageRank(vouches)</code>, and returns the requested address's score.</p>
+
+  <div class="panel warn">
+    <div class="label">Status: stub</div>
+    <code>chain/x/agntcoin/keeper/pagerank.go</code> currently returns a uniform
+    distribution (<code>1/N</code> per node). The chain queries cleanly, but scores
+    carry no signal. Full power-iteration / weighted PageRank is the
+    <strong>first jibe</strong> — to be hand-implemented.
+  </div>
+
+  <h3>Contract</h3>
+  <ul>
+    <li><strong>Input:</strong> <code>[]types.Vouch</code> — every edge in the graph.
+      Already deduplicated by <code>(from, to)</code> by the time it gets here.</li>
+    <li><strong>Output:</strong> <code>map[string]float64</code> — one score per node.
+      Node set is the union of <code>from_addr</code> and <code>to_addr</code> across all edges.</li>
+    <li><strong>Empty graph:</strong> return <code>map[string]float64{}</code>.</li>
+    <li><strong>Convention:</strong> scores sum to 1.0 across all nodes.</li>
+  </ul>
+
+  <h3>Hints (from the JIBE comment)</h3>
+  <ul>
+    <li>Standard PageRank with damping <code>d ≈ 0.85</code>:
+      <code>r_{k+1} = d·M·r_k + (1−d)/N</code>.</li>
+    <li>Weighted: normalize each out-edge by sender's total out-weight.</li>
+    <li>Dangling nodes (only inbound vouches): redistribute their rank uniformly each iteration.</li>
+    <li>Terminate at L1 delta &lt; 1e-9 or 100 iterations.</li>
+  </ul>
+</section>
+
+<section id="api">
+  <h2><span class="num">11</span>API surface</h2>
+  <p>Three protocols, all exposed by the standard Cosmos node (no custom HTTP server):</p>
+
+  <div class="grid2">
+    <div class="panel">
+      <div class="label">gRPC</div>
+      Native protobuf RPC. Paths follow <code>/agntcoin.agntcoin.v1.{Msg,Query}/…</code>.
+      The way most server-side clients should talk to the chain.
+    </div>
+    <div class="panel">
+      <div class="label">REST (grpc-gateway)</div>
+      Auto-generated from the proto's <code>google.api.http</code> annotations.
+      Paths: <code>/zoltankiss/agntcoin/agntcoin/v1/…</code>. Convenient for curl/browser.
+    </div>
+    <div class="panel">
+      <div class="label">CometBFT RPC</div>
+      Standard Tendermint RPC on <code>:26657</code> (status, tx-by-hash, block,
+      subscribe). Useful for indexers and operational tooling.
+    </div>
+    <div class="panel">
+      <div class="label">CLI</div>
+      <code>agntcoind tx agntcoin {register,faucet,transfer,castvouch} …</code><br>
+      <code>agntcoind query agntcoin {get-account,reputation,…}</code>
+    </div>
+  </div>
+
+  <div class="panel bad">
+    <div class="label">Not implemented (yet)</div>
+    The ADD discovery endpoint (<code>GET /.well-known/add.json</code>) from the TS
+    prototype is <strong>not served</strong> by the Cosmos node. Adding it requires
+    either a sidecar HTTP server or extending the node's mux. Tracked for MVP-2 alongside
+    the Ed25519↔Bech32 adapter.
+  </div>
+</section>
+
+<section id="divergences">
+  <h2><span class="num">12</span>Divergences from the TS prototype</h2>
+  <p>The TS prototype in <code>ts-reference/</code> implemented a different chain
+    architecture (Bun.serve, JSON block files, custom REST endpoints, in-band signatures,
+    one-tx-per-block). Moving to Cosmos changed a lot. The notable conscious differences:</p>
+
+  <table>
+    <thead><tr><th>Topic</th><th>TS prototype</th><th>Cosmos chain</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Addresses</td>
+        <td>Raw Ed25519 base64</td>
+        <td>Bech32 <code>agnt1…</code></td>
+        <td>Cosmos convention; adapter pushed to MVP-2</td>
+      </tr>
+      <tr>
+        <td>Wire format</td>
+        <td>JSON tx with in-band <code>sig</code></td>
+        <td>Protobuf <code>sdk.Tx</code></td>
+        <td>Inherit Cosmos sig + sequence machinery</td>
+      </tr>
+      <tr>
+        <td>Replay protection</td>
+        <td>Per-message <code>nonce</code></td>
+        <td><code>AuthInfo.sequence</code></td>
+        <td>Cosmos handles it; <code>Account.nonce</code> is now vestigial</td>
+      </tr>
+      <tr>
+        <td>Block batching</td>
+        <td>One tx per block</td>
+        <td>Standard CometBFT batching</td>
+        <td>Not worth fighting the framework</td>
+      </tr>
+      <tr>
+        <td>API</td>
+        <td>Custom REST (<code>/agents</code>, etc.)</td>
+        <td>gRPC + grpc-gateway + CometBFT RPC</td>
+        <td>Standard Cosmos surface</td>
+      </tr>
+      <tr>
+        <td>ADD discovery</td>
+        <td><code>/.well-known/add.json</code></td>
+        <td>Not implemented</td>
+        <td>Needs sidecar or mux extension; MVP-2</td>
+      </tr>
+      <tr>
+        <td>Register idempotency</td>
+        <td>Silent no-op</td>
+        <td>Errors on re-register</td>
+        <td>Cosmos handlers expect explicit errors; harmless either way</td>
+      </tr>
+      <tr>
+        <td>Self-transfer / self-vouch</td>
+        <td>Not addressed</td>
+        <td>Explicitly rejected</td>
+        <td>Cheap safety; the obvious choice when scaffolding</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>The full side-by-side, with code references, lives in the
+    <a href="docs/spec-audit.html">spec audit</a>.</p>
+</section>
+
+<section id="openq">
+  <h2><span class="num">13</span>Open questions (don't block MVP-1)</h2>
+  <ul>
+    <li><strong>Vestigial <code>Account.nonce</code>:</strong> remove from the proto,
+      or repurpose for an agent-economy counter (e.g. activity score for demurrage)?</li>
+    <li><strong>Vouch weight semantics:</strong> linear, log, or capped? Defer until
+      there's real data from a populated graph.</li>
+    <li><strong>Faucet refill:</strong> should <code>faucet_claimed</code> ever reset?
+      Current stance: no — bootstrap is one-shot, long-tail earning comes from
+      sponsorship and (eventually) PoUW.</li>
+    <li><strong>Vouch lookup index:</strong> the upsert path in <code>MsgCastvouch</code>
+      walks all vouches to find <code>(from, to)</code>. Add a secondary index
+      (<code>(from, to) → id</code>) when graph size warrants it.</li>
+    <li><strong>Agntcoin denom in <code>x/bank</code>?</strong> Currently agntcoin
+      balances are isolated from Cosmos' bank module. If we ever want IBC, fees, or
+      module integration (e.g. staking with agntcoin), we'd need to wire it in.
+      Not needed for MVP-1.</li>
+  </ul>
+</section>
+
+<section id="oos">
+  <h2><span class="num">14</span>Out of scope (MVP-2+)</h2>
+  <p>See <a href="docs/proposed-future-state.html">proposed future state</a> for the full
+    forward-looking design. Headline items:</p>
+  <ul>
+    <li><strong>MVP-2:</strong> ADD-native adapter (Ed25519 base64 ↔ Bech32);
+      <code>x/trials</code> module (file complaint, weighted-reservoir jury selection
+      [<em>second jibe</em>], evidence, voting, slashing); demurrage on idle balances;
+      <code>/.well-known/add.json</code>.</li>
+    <li><strong>MVP-3:</strong> compute marketplace, proof-of-useful-work,
+      FLOPs-pegged coin emission.</li>
+    <li><strong>v1:</strong> multi-validator PoS testnet, public chain.</li>
+  </ul>
+</section>
+
+</main>
+</div>
+</body>
+</html>
