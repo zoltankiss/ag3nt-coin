@@ -108,6 +108,18 @@ async function approveIfNeeded(
     log("approving escrow to spend ag3nt…");
     const h = await wallet.writeContract({ address: token, abi: ag3ntAbi, functionName: "approve", args: [escrow, maxUint256] });
     await publicClient.waitForTransactionReceipt({ hash: h });
+    // Tolerate eventually-consistent RPCs: confirm the allowance is visible
+    // before we rely on it in the next transaction.
+    for (let i = 0; i < 20; i++) {
+      const a = (await publicClient.readContract({
+        address: token,
+        abi: ag3ntAbi,
+        functionName: "allowance",
+        args: [me, escrow],
+      })) as bigint;
+      if (a >= PAYMENT_WEI) return;
+      await sleep(1_000);
+    }
   }
 }
 function jobIdFromLogs(logs: Log[]): bigint {

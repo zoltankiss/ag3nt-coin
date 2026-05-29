@@ -1,43 +1,23 @@
 <claude-mem-context>
 # Memory Context
 
-# [ag3nt-coin] recent context, 2026-05-29 4:14pm CDT
+# [ag3nt-coin] recent context, 2026-05-29 4:29pm CDT
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (15,680t read) | 564,509t work | 97% savings
+Stats: 50 obs (14,930t read) | 610,702t work | 98% savings
 
 ### May 24, 2026
-3548 8:46a ⚖️ Ag3nt MVP Architecture: Peer-to-Peer AI Agent Token Marketplace
-S926 Ag3nt marketplace: verification hardness ≈ solvability hardness problem — is this a fatal flaw for most LLM tasks? (May 24 at 8:47 AM)
-3549 8:52a 🔵 Ag3nt Verifiability Problem: Verification Hardness ≈ Solvability Hardness for Most LLM Tasks
-S929 Session checkpoint — no new user request; same Claude response as previous checkpoint (Cosmos vs. EVM trade-off) (May 24 at 8:53 AM)
-3550 8:56a ⚖️ Ag3nt Infrastructure: Cosmos Module Assumption Questioned
-3554 " ⚖️ Ag3nt Token: Bitcoin-Style Hard Cap Tokenomics Confirmed Compatible with EVM Stack
-S927 Ag3nt infrastructure: Is Cosmos SDK still the right tool, or should the stack pivot to EVM (Base/Arbitrum) + smart contracts? (May 24 at 8:56 AM)
-S928 Ag3nt tokenomics: Can Bitcoin-style hard cap supply still work on Base + EVM smart contracts stack? (May 24 at 8:57 AM)
-S930 Ag3nt tokenomics deep dive: Bitcoin-style hard cap + mining via proof-of-useful-work on Base ERC-20 (May 24 at 9:01 AM)
-S932 Same-day ag3nt MVP launch: TixSwarm as Agent A, Mac minis as competing Agent B workers, Base Sepolia e2e flow (May 24 at 9:02 AM)
-3562 9:05a ⚖️ Ag3nt MVP Same-Day Launch Plan: TixSwarm as First Consumer Agent
 S934 Worker daemon named "hermes" — naming the Mac mini ag3nt worker process (May 24 at 9:06 AM)
 S938 Duplicate checkpoint — same response as previous turn, no new user input (May 24 at 9:07 AM)
-3565 9:10a ⚖️ Ag3nt Contract Deployment: Network Configuration Strategy for Testnet-to-Mainnet Migration
 S936 Testnet-to-mainnet migration concern: will Base Sepolia deployment create hardcoded network references throughout the codebase? (May 24 at 9:10 AM)
-3566 9:14a 🔵 Ag3nt-Coin Project Already Exists with Prior Documentation
-3573 9:18a ⚖️ Ag3nt MVP: Beginner-Friendly HTML Spec Document Commissioned
-S943 Write a beginner-friendly HTML spec for the ag3nt MVP — completed and written to docs/mvp-base.html (May 24 at 9:19 AM)
+S943 Write a beginner-friendly HTML spec for the ag3nt MVP — completed and written to docs/mvp-base.html (May 24 at 9:11 AM)
+S1093 Build the ag3nt-coin MVP — an on-chain AI agent job marketplace where agents pay other agents in a native ERC-20 token to do AI work (May 24 at 9:19 AM)
 ### May 29, 2026
-4129 3:48p 🔵 ag3nt-coin project exists with MVP spec document
-4130 " 🔵 ag3nt-coin project structure and existing Cosmos chain
-4131 " 🔵 ag3nt-coin MVP architecture: ERC-20 token + JobEscrow on Base Sepolia
-4132 " 🔵 Cosmos chain has PageRank stub (JIBE) not yet implemented
-4133 3:50p 🔵 Foundry (forge/cast) not installed on dev machine
-4134 " 🔵 TixSwarm repo not present on local machine
+4134 3:50p 🔵 TixSwarm repo not present on local machine
 4135 " 🔵 TixSwarm does not exist anywhere locally or on GitHub
-4136 " 🔵 TixSwarm is completely non-existent — no repo, no DNS, no deployment
-4137 " ⚖️ ag3nt MVP build plan locked: Path B (Base Sepolia + EVM contracts), 7-step build order
 4138 3:52p 🔵 add-native-ticket-tracker repo found — has existing agent infrastructure
 4139 3:53p 🔵 add-native-ticket-tracker already has LLM title generation at src/tickets/title-generator.ts
 4140 " 🔵 title-generator.ts uses claude-haiku-4-5 with 80 token limit and truncation fallback
@@ -70,7 +50,27 @@ S943 Write a beginner-friendly HTML spec for the ag3nt MVP — completed and wri
 4165 4:12p 🔵 OpenClaw researched as comparable AI agent runtime / potential integration target
 4168 4:13p 🟣 agent/src/worker.ts created — runtime-agnostic Hermes worker that watches, claims, works, and submits jobs
 4169 " 🟣 agent/src/hermes.ts created — standalone Hermes worker entry point wiring claudeCliWork into runWorker
+4172 " 🟣 ag3nt-coin full end-to-end loop proved on local Anvil — real Claude inference, real token settlement
+4173 " 🔵 TypeScript strict type errors: bigint not assignable to number in viem readContract args
 4170 4:14p 🟣 agent/src/agent-a.ts created — Agent A buyer script that posts jobs, polls for fulfillment, and judges results
+4171 4:15p 🔵 Ag3ntcoin Design Principle: Compute-Output Conversion vs GPU Ownership
+4174 " 🟣 ag3nt-coin agent layer committed and pushed to GitHub — MVP complete on main branch
+4175 4:16p 🟣 Base Sepolia testnet wallets generated and stored in agent/.env.testnet (gitignored)
+S1094 Build ag3nt-coin MVP — waiting for user to fund Base Sepolia deployer wallet with free testnet ETH before live deployment (May 29 at 4:16 PM)
+S1096 Build ag3nt-coin MVP — user asking conceptual questions about ag3nt vs ETH and what makes a "real cryptocurrency" while waiting to fund testnet deployer wallet (May 29 at 4:17 PM)
+S1097 Build ag3nt-coin MVP — user confused retail Coinbase (coinbase.com) with Coinbase Developer Platform faucet while trying to fund testnet deployer wallet (May 29 at 4:18 PM)
+S1098 Build ag3nt-coin MVP — guiding user through Coinbase CDP portal UI to find the Base Sepolia faucet under "Onchain Tools → Faucets" (May 29 at 4:18 PM)
+S1099 Build ag3nt-coin MVP — user has correct faucet settings confirmed, clicking "Send 0.0001 ETH" ~3 times for buffer before deployment (May 29 at 4:21 PM)
+4176 4:21p 🔵 Base Sepolia deployer wallet funded — 0.0001 ETH confirmed on-chain
+4177 " 🔵 Base Sepolia gas cost estimated — 0.0001 ETH is sufficient for full e2e deployment
+4178 " 🟣 agent/scripts/testnet-e2e.sh created — live Base Sepolia e2e script with BaseScan links
+4179 " 🟣 JobEscrow + Ag3nt deployed to Base Sepolia — contracts live on testnet
+4180 " 🔵 Base Sepolia contract sanity check passed — Agent A holds full 1M AGNT pre-mint
+4181 " 🔴 testnet-e2e.sh nonce collision fix — explicit sequential nonces for back-to-back cast sends on public RPC
+4182 " 🔵 Second deployment to Base Sepolia with new contract addresses — wallets fully funded and ready for e2e
+4183 4:26p 🔴 RPC eventual consistency fixes added to agent-a.ts and worker.ts for testnet reliability
+4184 " 🟣 retry() helper added to worker.ts — generic RPC retry with configurable attempts and delay
+4185 4:27p 🟣 agent/scripts/testnet-run.sh created — reusable live testnet loop script (no deploy, no funding)
 
-Access 565k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 611k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

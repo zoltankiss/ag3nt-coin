@@ -15,11 +15,11 @@ export async function runWorker(doWork: DoWork): Promise<void> {
   const wallet = walletFor(hermesKey());
   const me = wallet.account.address;
   const escrow = ESCROW_ADDRESS;
-  const token = (await publicClient.readContract({
-    address: escrow,
-    abi: jobEscrowAbi,
-    functionName: "token",
-  })) as `0x${string}`;
+  // Retry: a freshly-deployed contract can be invisible for a few seconds on an
+  // eventually-consistent public RPC.
+  const token = (await retry(() =>
+    publicClient.readContract({ address: escrow, abi: jobEscrowAbi, functionName: "token" }),
+  )) as `0x${string}`;
 
   log(`worker = ${me}`);
   log(`escrow = ${escrow}`);
@@ -36,6 +36,10 @@ export async function runWorker(doWork: DoWork): Promise<void> {
     if (Number(job.state) !== POSTED) return; // already taken/closed
 
     log(`job #${id}: claiming (bond ${formatEther(BOND_WEI)} AGNT)…`);
+    // Win/lose is decided by the claim tx's receipt status — not by a follow-up
+    // state read (which can be stale on an eventually-consistent RPC and give a
+    // false "lost the race"). If claimJob reverted, someone beat us to it.
+    let won = false;
     try {
       const hash = await wallet.writeContract({
         address: escrow,
@@ -43,15 +47,13 @@ export async function runWorker(doWork: DoWork): Promise<void> {
         functionName: "claimJob",
         args: [id, BOND_WEI],
       });
-      await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      won = receipt.status === "success";
     } catch {
-      log(`job #${id}: lost the claim race — moving on`);
-      return;
+      won = false;
     }
-
-    const claimed = await getJob(id);
-    if (claimed.worker.toLowerCase() !== me.toLowerCase()) {
-      log(`job #${id}: another worker won the claim`);
+    if (!won) {
+      log(`job #${id}: lost the claim race — moving on`);
       return;
     }
 
@@ -136,7 +138,32 @@ async function ensureApproval(
       args: [escrow, maxUint256],
     });
     await publicClient.waitForTransactionReceipt({ hash });
+    // Wait until the allowance is visible before we try to claim against it.
+    for (let i = 0; i < 20; i++) {
+      const a = (await publicClient.readContract({
+        address: token,
+        abi: ag3ntAbi,
+        functionName: "allowance",
+        args: [me, escrow],
+      })) as bigint;
+      if (a >= BOND_WEI) break;
+      await new Promise((r) => setTimeout(r, 1_000));
+    }
   }
+}
+
+/// Retry a read against an eventually-consistent RPC.
+async function retry<T>(fn: () => Promise<T>, tries = 12, delayMs = 1_000): Promise<T> {
+  let last: unknown;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      last = e;
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw last;
 }
 
 function log(m: string) {
