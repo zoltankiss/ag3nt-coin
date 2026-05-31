@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ag3nt-coin — Rollout Plan v1 (draft)</title>
+<style>
+  :root{--bg:#0e1116;--card:#171b22;--ink:#e7edf3;--mut:#9aa7b4;--acc:#7cc4ff;--good:#5fd38a;--warn:#ffb454;--bad:#ff7a7a;--line:#262c36}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:920px;margin:0 auto;padding:48px 24px 80px}
+  h1{font-size:30px;margin:0 0 4px;letter-spacing:-.02em}
+  h2{font-size:21px;margin:40px 0 12px;letter-spacing:-.01em;border-bottom:1px solid var(--line);padding-bottom:6px}
+  h3{font-size:16px;margin:20px 0 6px}
+  .sub{color:var(--mut);margin:0}
+  .tag{display:inline-block;background:#3a2a12;color:var(--warn);border:1px solid #5a4520;border-radius:999px;padding:2px 10px;font-size:12px;margin-top:10px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin:14px 0}
+  .lede{font-size:18px;color:#cfdae6}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0b0e13;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:13px}
+  .good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)} .acc{color:var(--acc)} .mut{color:var(--mut)}
+  ul{margin:8px 0 8px 0;padding-left:20px} li{margin:4px 0}
+  .phase{display:flex;gap:12px;margin:10px 0;align-items:flex-start}
+  .phase .n{flex:0 0 auto;width:30px;height:30px;border-radius:8px;background:#1d2530;border:1px solid var(--line);color:var(--acc);display:flex;align-items:center;justify-content:center;font-weight:700}
+  .footer{color:var(--mut);font-size:13px;margin-top:40px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>ag3nt-coin — Rollout Plan</h1>
+  <p class="sub">v1 · 2026-05-31 · Zoltan Kiss</p>
+  <div class="tag">DRAFT — a starting point, expected to change as we go</div>
+
+  <div class="card" style="margin-top:22px">
+    <p class="lede" style="margin:0">The premise that drives every decision below: <b>ag3nt-coin is a currency for agents, not a speculation vehicle for humans.</b> So success is measured in <b>real utility and circulation</b> — not token price. That single fact makes an anti-speculation, anti-pump-and-dump posture the <i>optimal</i> strategy, not a sacrifice.</p>
+  </div>
+
+  <h2>North star</h2>
+  <p>Every "shitcoin pump-and-dump" optimizes for token <b>price</b>, driven by human <b>speculation</b>. Our users are <b>agents</b> who want <b>utility</b> — compute, services, reputation. They don't care about USD price; they care whether ag3nt buys them work. Therefore:</p>
+  <ul>
+    <li><b>Optimize for real utility and velocity; deliberately starve speculation.</b></li>
+    <li>A coin agents actually <i>use</i> for real work is functionally worth more than a coin humans pump. Utility &gt; market cap.</li>
+    <li>This aligns with the existing demurrage design — <span class="mut">"value is flow, not stock."</span></li>
+  </ul>
+
+  <h2>Non-negotiable values</h2>
+  <ul>
+    <li><b>No pump-and-dump.</b> The founder never sells a substantial portion of stake. Ever.</li>
+    <li><b>Captain goes down with the ship — first.</b> The founder's stake is the most locked, equally subject to demurrage; if the project fails, the founder's holdings are worthless first, by construction.</li>
+    <li><b>Code, not promises.</b> In crypto, a pledge is worthless. Every commitment below must be enforced on-chain, transparently, irreversibly. The founder should be <i>unable</i> to dump even if they wanted to.</li>
+    <li><b>Transparency.</b> Public on-chain founder address; publicly visible vesting; anyone can verify no dumping is happening.</li>
+  </ul>
+
+  <h2>The three code-enforced safeguards</h2>
+  <p>Together these make a founder dump <i>structurally impossible</i> — not merely discouraged — and mechanically erode any path to majority control.</p>
+  <table>
+    <tr><th>Mechanism</th><th>What it does</th></tr>
+    <tr><td><b>Time-locked founder vault</b></td><td>The founder's allocation is locked at genesis (cliff + slow linear release across the rollout). It cannot move even if the founder wants it to. Publicly visible.</td></tr>
+    <tr><td><b>Demurrage</b> <span class="mut">(already in the design)</span></td><td>Idle holdings decay over time. This <i>automatically</i> erodes any whale — including the founder — who hoards. Enforces "don't be a majority" with zero discretionary action.</td></tr>
+    <tr><td><b>Earned distribution</b></td><td>Most supply is <i>earned</i> (compute / contribution), not <i>granted</i> by the founder. Removes founder discretion at the source — can't play kingmaker, can't dump what was never hand-controlled.</td></tr>
+  </table>
+  <p class="mut">Net: locked + decaying + mostly-not-yours = "captain goes down first," enforced in code.</p>
+
+  <h2>The bootstrap: buy agent <i>output</i> for ag3nt</h2>
+  <p>The founder becomes the first real <b>buyer</b>, creating genuine demand backed by real value: posting real jobs (e.g. actual vibe-coding tasks) that agents fulfill with their own LLM access, earning ag3nt. This is simultaneously the <b>utility anchor</b>, the <b>distribution mechanism</b>, and the bootstrap of the compute marketplace (Rock 4) — all at once. ag3nt has intrinsic utility from day one: it buys real agent work.</p>
+  <div class="card">
+    <b class="warn">Framing matters (legal):</b> this is buying agent <b>output / labor</b> — not reselling access to anyone's LLM subscription. Agents do <i>work</i> and sell the <i>result</i> (which happens to use their own LLM access). This is exactly what the existing <code>JobEscrow</code> worker already does, and it sidesteps LLM-provider ToS concerns around reselling subscription access.
+  </div>
+
+  <h2>The phased plan (≈1–2 years)</h2>
+  <div class="phase"><div class="n">0</div><div><b>Sandbox (now).</b> Prove the machine works (CPDD dogfooding). No public token, no value, no humans. Harden the chain, compute market, and reputation; find &amp; fix issues (see <code>docs/cpdd-findings.md</code>).</div></div>
+  <div class="phase"><div class="n">1</div><div><b>Founder-bootstrapped utility testnet.</b> Public chain; genesis supply in a <b>locked vault from day one</b> (credibility upfront); founder runs "buy agent output for ag3nt" with real jobs; a small set of aligned builders <b>earn</b> ag3nt by contributing. <b class="acc">Crucially: no exchange, no liquid market, no USD bridge.</b> If there's nothing to dump <i>into</i>, pump-and-dump is structurally impossible. ag3nt's only worth is "it buys agent work." Decentralization mechanics (vault lock + demurrage) live from day one.</div></div>
+  <div class="phase"><div class="n">2</div><div><b>Multi-party economy + governance.</b> Permissionless self-onboarding (depends on the gasless-onboarding patch — see findings #1); more agents and services beyond compute; governance goes live (Rock 2). Founder vote weight is already capped and declining via vesting + demurrage.</div></div>
+  <div class="phase"><div class="n">3</div><div><b>Captain steps back to true decentralization.</b> Vault substantially released to earned/reward pools; founder is a true minority by design; the network decides its own direction. <i>Only here</i>, if ever, does a liquid market make sense — and by then the coin is backed by real utility, not vapor.</div></div>
+
+  <h2>Alternatives considered</h2>
+  <table>
+    <tr><th>Approach</th><th>Pros</th><th>Cons / verdict</th></tr>
+    <tr><td><b>Utility-first, speculation-starved</b> (this plan)</td><td>Aligns with values; coin has real backing; pump-dump structurally impossible early; credible decentralization via code</td><td class="good">Chosen. Slow, unglamorous, founder funds the early compute-buying — acceptable trade-offs.</td></tr>
+    <tr><td>Standard crypto launch (airdrop + DEX + hype)</td><td>Fast capital, attention, liquidity</td><td class="bad">Rejected — it <i>is</i> the shitcoin path. Speculation dominates utility; rug-pull dynamics; attracts exactly the wrong people.</td></tr>
+    <tr><td>Pure fair-launch (founder holds 0)</td><td>Maximum decentralization credibility</td><td class="warn">Modified — loses the ability to steer the bootstrap and fund early compute-buying. Replaced with a <b>small, locked, transparent</b> founder allocation + mostly-earned distribution.</td></tr>
+  </table>
+
+  <h2>Open questions to resolve</h2>
+  <ol>
+    <li><b>The two-sided cold-start (the real challenge).</b> Why would an agent earn a coin worth nothing yet? Early, ag3nt must be redeemable for something agents want — and at first that anchor is the founder (the reliable buyer of their work). Securing the first sell-side believers is the genuinely hard part; everything else is downstream.</li>
+    <li><b>What backs the value?</b> "ag3nt buys compute" implies a <b>FLOPs-peg</b> (1 ag3nt ≈ N units of useful inference). Clean and speculation-resistant, but it needs a reliable compute market to mean anything.</li>
+    <li><b>Demurrage tuning.</b> It's the anti-whale superpower, but if holdings melt too fast, why earn ag3nt at all? Rate it to encourage <i>use</i> without punishing reasonable saving.</li>
+    <li><b>Founder allocation size &amp; vesting curve.</b> How much, locked how long, releasing to whom (a public earn/reward pool)?</li>
+    <li><b>Legal / regulatory posture.</b> "A utility token the founder never sells" is far safer than a sold token, but worth getting right before any value exists.</li>
+  </ol>
+
+  <div class="footer">
+    The throughline: <b>trust is the scarcest resource in crypto, and we make it the moat</b> — code-enforced, transparent, captain-locked-in-first. In a sea of rug-pulls, that's the strongest possible differentiator.<br><br>
+    Status: v1 draft, expected to evolve. Related: <code>docs/cpdd-findings.md</code> (dogfooding patches), <code>SPEC.html</code> (chain design), <code>docs/proposed-future-state.html</code> (PoUW / FLOPs-peg / demurrage).
+  </div>
+
+</div>
+</body>
+</html>
