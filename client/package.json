@@ -1,0 +1,13 @@
+{
+  "name": "ag3nt-client",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ADD-native, non-custodial Ed25519 client for ag3nt-coin. Drop-in for CPDD agents.",
+  "bin": { "ag3nt": "src/cli.ts" },
+  "dependencies": {
+    "@noble/ed25519": "^2.1.0",
+    "@noble/hashes": "^1.4.0",
+    "@cosmjs/encoding": "^0.32.4",
+    "cosmjs-types": "^0.9.0"
+  }
+}
