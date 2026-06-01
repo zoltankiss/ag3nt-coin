@@ -119,6 +119,48 @@ func TestDisputeFreezes(t *testing.T) {
 	require.Equal(t, uint64(400), balanceOf(t, f, addrPayee))
 }
 
+// Lock auto-registers a brand-new payee so it can submit on its FIRST job
+// (closes "first job unprotectable"). addrNewee starts non-existent.
+func TestLockAutoRegistersPayeeForFirstJob(t *testing.T) {
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+	seedAccount(t, f, addrPayer, 1000)
+
+	_, err := f.keeper.Account.Get(f.ctx, addrNewee) // does not exist yet
+	require.Error(t, err)
+
+	ctx := setBlockTime(f.ctx, 100)
+	resp, err := ms.LockEscrow(ctx, &types.MsgLockEscrow{Creator: addrPayer, Payee: addrNewee, Amount: 400, Ref: "first", DisputeSeconds: 50})
+	require.NoError(t, err)
+
+	// payee now registered (zero balance — funds are in escrow, not credited)
+	acc, err := f.keeper.Account.Get(f.ctx, addrNewee)
+	require.NoError(t, err)
+	require.True(t, acc.Registered)
+	require.Equal(t, uint64(0), acc.Balance)
+
+	// and the brand-new payee can SUBMIT — its first job is now protectable
+	_, err = ms.SubmitEscrow(ctx, &types.MsgSubmitEscrow{Creator: addrNewee, Id: resp.Id})
+	require.NoError(t, err)
+	esc, _ := f.keeper.Escrow.Get(f.ctx, resp.Id)
+	require.Equal(t, types.EscrowStatusSubmitted, esc.Status)
+}
+
+// Sub-minimum escrow to a brand-new payee is rejected (spam guard); payer not debited.
+func TestLockToNewPayeeBelowMinRejected(t *testing.T) {
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+	seedAccount(t, f, addrPayer, 1000)
+	require.Greater(t, types.MinNewAccountCredit, uint64(1))
+
+	ctx := setBlockTime(f.ctx, 100)
+	_, err := ms.LockEscrow(ctx, &types.MsgLockEscrow{Creator: addrPayer, Payee: addrNewee, Amount: types.MinNewAccountCredit - 1, Ref: "x", DisputeSeconds: 50})
+	require.Error(t, err)
+	require.Equal(t, uint64(1000), balanceOf(t, f, addrPayer)) // not debited
+	_, err = f.keeper.Account.Get(f.ctx, addrNewee)
+	require.Error(t, err) // payee not created
+}
+
 func TestDisputeOnlyOnSubmittedByPayer(t *testing.T) {
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)

@@ -82,3 +82,37 @@ func (k Keeper) creditAccount(ctx context.Context, addrStr string, addrBytes []b
 	}
 	return nil
 }
+
+// ensureRegistered makes sure `addrStr` has a registered Account and an x/auth
+// BaseAccount WITHOUT crediting any balance. Used at escrow-LOCK time so a
+// brand-new payee can sign (e.g. escrow-submit) on its very first job, before
+// any funds have been released to it — closing the "first job is unprotectable"
+// hole. The same dust-spam guard applies: a brand-new payee is only created if
+// `guardAmount` (the escrow amount) is at least MinNewAccountCredit.
+func (k Keeper) ensureRegistered(ctx context.Context, addrStr string, addrBytes []byte, guardAmount uint64) error {
+	to, err := k.Account.Get(ctx, addrStr)
+	if err != nil {
+		if !errors.Is(err, collections.ErrNotFound) {
+			return errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+		}
+		if guardAmount < types.MinNewAccountCredit {
+			return errorsmod.Wrapf(
+				sdkerrors.ErrInvalidRequest,
+				"escrow to a brand-new payee must be at least %d", types.MinNewAccountCredit,
+			)
+		}
+		to = types.Account{Address: addrStr, Balance: 0, Nonce: 0, Registered: true, FaucetClaimed: false}
+	} else if !to.Registered {
+		to.Registered = true
+	}
+
+	recipientAddr := sdk.AccAddress(addrBytes)
+	if k.authKeeper != nil && !k.authKeeper.HasAccount(ctx, recipientAddr) {
+		acc := k.authKeeper.NewAccountWithAddress(ctx, recipientAddr)
+		k.authKeeper.SetAccount(ctx, acc)
+	}
+	if err := k.Account.Set(ctx, addrStr, to); err != nil {
+		return errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+	}
+	return nil
+}

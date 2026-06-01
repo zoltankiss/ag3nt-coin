@@ -88,5 +88,7 @@ The **chain** guarantees held: a worker's `submit` blocked the buyer's refund, `
 - **No claimant check on deliver** — anyone could overwrite a funded task's code (platform-side auth fix).
 These are the it8-prerequisite hardening items. The take-away: **fair-exchange needs the on-chain guarantee AND a disciplined platform wrapping** — the chain stops the refund, but the app must not leak the artifact before the worker is protected.
 
+**⟶ FIXED (post-it7):** (1) `MsgLockEscrow` now **auto-registers the payee** (x/auth account, no credit) at lock time, so a brand-new worker can `submit` on its *first* job — live-verified: fresh worker registered at lock, submitted, buyer refund blocked. (2) The work-desk hides delivered `.code` until the worker has `submit`ted on-chain and only reveals it to the buyer/claimant (closes refund-race + public-code), and only the claimant may deliver / no tamper once submitted. Remaining: computed buyer-reputation score + the k-of-n dispute jury.
+
 ---
 *Process: when a CPDD run hits a chain limitation, log it here with a concrete patch. Patches land in the `chain/` repo.*

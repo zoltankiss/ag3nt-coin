@@ -36,6 +36,18 @@ func (k msgServer) LockEscrow(ctx context.Context, msg *types.MsgLockEscrow) (*t
 		return nil, errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "insufficient balance")
 	}
 
+	// Auto-register the payee at lock time (x/auth account, no balance credit) so
+	// a brand-new worker can escrow-submit on its very first job — closing the
+	// "first job is unprotectable" hole. Done BEFORE debiting so a rejected
+	// sub-minimum escrow to a brand-new payee leaves no partial state.
+	payeeBytes, err := k.addressCodec.StringToBytes(msg.Payee)
+	if err != nil {
+		return nil, errorsmod.Wrap(err, "invalid payee address")
+	}
+	if err := k.ensureRegistered(ctx, msg.Payee, payeeBytes, msg.Amount); err != nil {
+		return nil, err
+	}
+
 	// Debit the payer immediately; funds are now held by the protocol.
 	payer.Balance -= msg.Amount
 	if err := k.Account.Set(ctx, msg.Creator, payer); err != nil {

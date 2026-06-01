@@ -119,14 +119,16 @@ func TestReleaseEscrowAutoRegistersNewPayee(t *testing.T) {
 	resp, err := ms.LockEscrow(ctx, &types.MsgLockEscrow{Creator: addrPayer, Payee: addrNewee, Amount: 400, Ref: "r", DisputeSeconds: 50})
 	require.NoError(t, err)
 
-	// payee does not exist yet.
-	_, err = f.keeper.Account.Get(f.ctx, addrNewee)
-	require.Error(t, err)
+	// payee is now auto-registered at LOCK time (zero balance — funds in escrow).
+	acc0, err := f.keeper.Account.Get(f.ctx, addrNewee)
+	require.NoError(t, err)
+	require.True(t, acc0.Registered)
+	require.Equal(t, uint64(0), acc0.Balance)
 
 	_, err = ms.ReleaseEscrow(ctx, &types.MsgReleaseEscrow{Creator: addrPayer, Id: resp.Id})
 	require.NoError(t, err)
 
-	// payee auto-registered with balance and x/auth account created.
+	// release credits the (already-registered) payee.
 	acc, err := f.keeper.Account.Get(f.ctx, addrNewee)
 	require.NoError(t, err)
 	require.True(t, acc.Registered)
