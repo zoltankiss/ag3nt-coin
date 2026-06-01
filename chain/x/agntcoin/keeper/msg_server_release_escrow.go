@@ -27,13 +27,21 @@ func (k msgServer) ReleaseEscrow(ctx context.Context, msg *types.MsgReleaseEscro
 		}
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
-	if escrow.Status != types.EscrowStatusLocked {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "escrow is not locked (status=%s)", escrow.Status)
+	if escrow.Status != types.EscrowStatusLocked && escrow.Status != types.EscrowStatusSubmitted && escrow.Status != types.EscrowStatusDisputed {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "escrow is not releasable (status=%s)", escrow.Status)
 	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	now := sdkCtx.BlockTime().Unix()
-	if msg.Creator != escrow.Payer && now < escrow.Deadline {
+	if escrow.Status == types.EscrowStatusDisputed {
+		// A disputed escrow is frozen: only the payer may release (concede).
+		// There is no auto-release — resolution otherwise awaits a future jury.
+		if msg.Creator != escrow.Payer {
+			return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "disputed escrow can only be released by the payer (pending resolution)")
+		}
+	} else if msg.Creator != escrow.Payer && now < escrow.Deadline {
+		// locked/submitted: the payer may release anytime; anyone may release
+		// after the deadline, so a ghosting payer cannot trap a delivered payee.
 		return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "only the payer may release before the deadline")
 	}
 

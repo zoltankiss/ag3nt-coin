@@ -39,6 +39,12 @@ service Msg {
   // RefundEscrow defines the RefundEscrow RPC.
   rpc RefundEscrow(MsgRefundEscrow) returns (MsgRefundEscrowResponse);
 
+  // SubmitEscrow: the payee marks the escrow delivered, locking out refund.
+  rpc SubmitEscrow(MsgSubmitEscrow) returns (MsgSubmitEscrowResponse);
+
+  // DisputeEscrow: the payer contests submitted work, freezing auto-release.
+  rpc DisputeEscrow(MsgDisputeEscrow) returns (MsgDisputeEscrowResponse);
+
   // Unvouch defines the Unvouch RPC.
   rpc Unvouch(MsgUnvouch) returns (MsgUnvouchResponse);
 }
@@ -153,3 +159,29 @@ message MsgRefundEscrow {
 
 // MsgRefundEscrowResponse defines the MsgRefundEscrowResponse message.
 message MsgRefundEscrowResponse {}
+
+// MsgSubmitEscrow: the payee marks a locked escrow as delivered/submitted, which
+// blocks the payer from refunding (only release, or post-deadline auto-release,
+// remain). Fair-exchange: the worker can reveal delivered work without the buyer
+// clawing the payment back.
+message MsgSubmitEscrow {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 id = 2;
+}
+
+// MsgSubmitEscrowResponse defines the MsgSubmitEscrowResponse message.
+message MsgSubmitEscrowResponse {}
+
+// MsgDisputeEscrow: the payer contests a SUBMITTED escrow (delivered work it
+// judges bad), freezing it — no auto-release, no refund. The payer may still
+// release (concede); otherwise it stays frozen pending resolution (a future
+// k-of-n jury). The deadlock plus buyer-reputation deters abuse by either side.
+message MsgDisputeEscrow {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 id = 2;
+}
+
+// MsgDisputeEscrowResponse defines the MsgDisputeEscrowResponse message.
+message MsgDisputeEscrowResponse {}

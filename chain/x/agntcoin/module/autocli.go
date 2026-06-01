@@ -117,6 +117,18 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:          "Refund an escrow to the payer",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
 				},
+				{
+					RpcMethod:      "SubmitEscrow",
+					Use:            "submit-escrow [id]",
+					Short:          "Payee: mark an escrow delivered (blocks refund)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
+				},
+				{
+					RpcMethod:      "DisputeEscrow",
+					Use:            "dispute-escrow [id]",
+					Short:          "Payer: contest submitted work (freeze, no auto-release)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
+				},
 			},
 		},
 	}

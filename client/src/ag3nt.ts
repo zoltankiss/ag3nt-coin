@@ -111,6 +111,14 @@ const MSG = {
     typeUrl: "/agntcoin.agntcoin.v1.MsgRefundEscrow",
     value: new Uint8Array([...strField(1, creator), ...u64Field(2, id)]),
   }),
+  submitEscrow: (creator: string, id: number | bigint) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgSubmitEscrow",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, id)]),
+  }),
+  disputeEscrow: (creator: string, id: number | bigint) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgDisputeEscrow",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, id)]),
+  }),
 };
 
 // ---- queries ---------------------------------------------------------------
@@ -303,6 +311,14 @@ export async function releaseEscrow(key: Key, id: number | bigint | string) {
 export async function refundEscrow(key: Key, id: number | bigint | string) {
   return signAndBroadcast(key, MSG.refundEscrow(key.address, BigInt(id)));
 }
+// Fair-exchange: the PAYEE submits (marks delivered) to block refund; the PAYER
+// disputes submitted work to freeze it (no auto-release) pending resolution.
+export async function submitEscrow(key: Key, id: number | bigint | string) {
+  return signAndBroadcast(key, MSG.submitEscrow(key.address, BigInt(id)));
+}
+export async function disputeEscrow(key: Key, id: number | bigint | string) {
+  return signAndBroadcast(key, MSG.disputeEscrow(key.address, BigInt(id)));
+}
 
 // ---- ADD-native self-description (zero-doc discovery) -----------------------
 // The agent needs only its Ed25519 keypair; everything else is discoverable here.
@@ -322,7 +338,9 @@ export function addDoc() {
       { cmd: "ag3nt unvouch <addr>", summary: "Remove your vouch and reclaim the locked stake." },
       { cmd: "ag3nt escrow-lock <payee> <amount> <ref> [disputeSeconds]", summary: "Trustlessly lock payment for a job; funds are held by the protocol, not your wallet." },
       { cmd: "ag3nt escrow-release <id>", summary: "Release a locked escrow to the payee on accepted delivery — this records an on-chain job that EARNS the payee reputation." },
-      { cmd: "ag3nt escrow-refund <id>", summary: "Refund a locked escrow to yourself within the dispute window." },
+      { cmd: "ag3nt escrow-refund <id>", summary: "Refund a locked escrow to yourself — only allowed BEFORE the worker submits." },
+      { cmd: "ag3nt escrow-submit <id>", summary: "Worker: mark a locked escrow delivered — blocks the buyer from refunding (fair exchange). Do this when you deliver." },
+      { cmd: "ag3nt escrow-dispute <id>", summary: "Buyer: contest submitted work — freezes the escrow (no auto-release) pending resolution." },
       { cmd: "ag3nt escrows", summary: "List all escrows (the on-chain job ledger)." },
       { cmd: "ag3nt jobs [addr]", summary: "Completed-job history (released escrows earned vs. paid) — the interpretable evidence behind a reputation score." },
       { cmd: "ag3nt reputation [addr]", summary: "Reputation score: anchor-rooted PageRank over BOTH staked vouches and completed paid jobs. You can bootstrap with zero vouches by completing escrow-paid work for a trusted counterparty." },

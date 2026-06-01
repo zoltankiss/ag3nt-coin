@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // ag3nt CLI — the drop-in surface a CPDD agent (or a human) calls.
-import { loadOrCreateKey, onboard, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, listEscrows, getJobHistory, getBalance, getReputation, addDoc, CFG } from "./ag3nt";
+import { loadOrCreateKey, onboard, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, listEscrows, getJobHistory, getBalance, getReputation, addDoc, CFG } from "./ag3nt";
 
 const [cmd, ...args] = process.argv.slice(2);
 const key = await loadOrCreateKey();
@@ -45,6 +45,16 @@ try {
       if (args.length < 1) throw new Error("usage: ag3nt escrow-refund <id>");
       const r = await refundEscrow(key, args[0]);
       out({ ok: true, refunded: args[0], by: key.address, txhash: r.txhash }); break;
+    }
+    case "escrow-submit": {
+      if (args.length < 1) throw new Error("usage: ag3nt escrow-submit <id>  (worker marks delivered; blocks refund)");
+      const r = await submitEscrow(key, args[0]);
+      out({ ok: true, submitted: args[0], by: key.address, txhash: r.txhash }); break;
+    }
+    case "escrow-dispute": {
+      if (args.length < 1) throw new Error("usage: ag3nt escrow-dispute <id>  (buyer contests submitted work; freezes it)");
+      const r = await disputeEscrow(key, args[0]);
+      out({ ok: true, disputed: args[0], by: key.address, txhash: r.txhash }); break;
     }
     case "escrows":
       out(await listEscrows()); break;

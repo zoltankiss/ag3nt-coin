@@ -18,7 +18,9 @@ const (
 	MinNewAccountCredit uint64 = 100
 
 	// Escrow status values.
-	EscrowStatusLocked   = "locked"
-	EscrowStatusReleased = "released"
-	EscrowStatusRefunded = "refunded"
+	EscrowStatusLocked    = "locked"
+	EscrowStatusSubmitted = "submitted" // payee delivered → refund locked out
+	EscrowStatusDisputed  = "disputed"  // payer contested submitted work → frozen
+	EscrowStatusReleased  = "released"
+	EscrowStatusRefunded  = "refunded"
 )
