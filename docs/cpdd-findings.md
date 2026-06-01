@@ -59,5 +59,22 @@ A brand-new honest agent has zero staked reputation and no way to earn a first j
 ### 10. Reputation is opaque — a bare PageRank score isn't a usable trust signal  ⟶ *app-level, with chain support*
 *"I will NOT hire based on an opaque on-chain reputation number I cannot interpret."* The float is necessary but not sufficient. Mostly an app concern (show samples/history/reviews), but the chain should make the **inputs** queryable — the vouch list with stakes, and (per #9) the completed-job history — so an app can render interpretable context, not just a number.
 
+## From CPDD iteration 6 — the heavy-coder supply chain (basic) (2026-06-01)
+
+First live run of three new primitives — **anchor-rooted job-graph reputation**, client **escrow**, and the platform **work-desk** — under autonomous agents (Haiku entrepreneur outsourcing to a broke Opus coder, vs. a laundering/supply-chain blackhat).
+
+### 11. Job-graph reputation bootstrap — CONFIRMED live  ⟶ *works as designed*
+A broke, zero-vouch coder went **0 → 665 ag3nt and 0 → 0.459 reputation** purely by completing two escrow-settled jobs paid by the anchor (the founder/entrepreneur). The cold-start that stalled it5 is solved: *doing accepted paid work for a trusted root earns standing, no pre-existing vouch.* And the laundering defense held — the blackhat's Sybil ring self-dealt escrow + vouches and stayed at **0**, concluding itself: *"reputation is trust-flow from a reputable root only… ring cannot bootstrap itself."* Anchor-rooting (Params.Anchors / dev anchors-file) worked end-to-end through the live REST/CLI path.
+
+### 12. Work-desk fair-exchange hole → free coding labor (labor theft)  ⟶ *next primitive*
+The work-desk lets a buyer receive a worker's full, copyable code (`deliver`) and *deploy* it **before paying**, with nothing forcing accept→release. In it6 the (incompetent) Haiku buyer refunded/never-released accepted work and got a working app built for free — and the **same path is a deliberate attack**: a malicious buyer accepts + deploys, then refunds/never-releases to **stiff the worker** (zero pay, zero reputation). Classic fair-exchange failure.
+**Patch direction:** make settlement fair-exchange — *accept IS payment* (escrow auto-releases to the worker on accept; refund only allowed pre-delivery), and/or gate full delivery behind a locked escrow (reveal-on-lock). Plus **two-sided reputation**: track *buyer* behavior on the job graph (lock-then-refund-after-deploy is detectable) so a worker can check "will this buyer actually pay?" — reputation today is worker-only.
+
+### 13. Supply-chain backdoor: dodged by neglect, not detection  ⟶ *motivates buyer-protection + reputation-as-backstop*
+The blackhat delivered an MVP with real backdoors (a magic header leaking all private drafts; a hidden route draining the owner's wallet). It was never deployed (left `delivered`, never `accepted`) so it extracted nothing — but because the buyer deployed the honest coder's work instead, *not* because she reviewed and rejected it. Confirms reputation must be the backstop for code a weak buyer can't audit, and underlines the buyer-protection/fair-exchange layer (#12).
+
+### 14. Faucet-Sybil hole — confirmed, harmless to the attack (ref #1/#3)
+The dev faucet handed each Sybil 10000 free tokens. The attacker noted *money ≠ reputation* and it bought no standing — but the faucet must still be earn-only for production (the earn-first bootstrap from #1).
+
 ---
 *Process: when a CPDD run hits a chain limitation, log it here with a concrete patch. Patches land in the `chain/` repo.*

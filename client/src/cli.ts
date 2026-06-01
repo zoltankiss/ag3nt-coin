@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // ag3nt CLI — the drop-in surface a CPDD agent (or a human) calls.
-import { loadOrCreateKey, onboard, pay, vouch, unvouch, getBalance, getReputation, addDoc, CFG } from "./ag3nt";
+import { loadOrCreateKey, onboard, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, listEscrows, getJobHistory, getBalance, getReputation, addDoc, CFG } from "./ag3nt";
 
 const [cmd, ...args] = process.argv.slice(2);
 const key = await loadOrCreateKey();
@@ -31,12 +31,31 @@ try {
       const r = await unvouch(key, args[0]);
       out({ ok: true, from: key.address, to: args[0], txhash: r.txhash }); break;
     }
+    case "escrow-lock": {
+      if (args.length < 3) throw new Error("usage: ag3nt escrow-lock <payee> <amount> <ref> [disputeSeconds]");
+      const r = await lockEscrow(key, args[0], BigInt(args[1]), args[2], args[3] ? BigInt(args[3]) : 3600n);
+      out({ ok: true, id: r.id, payer: key.address, payee: args[0], amount: args[1], ref: args[2], txhash: r.txhash }); break;
+    }
+    case "escrow-release": {
+      if (args.length < 1) throw new Error("usage: ag3nt escrow-release <id>");
+      const r = await releaseEscrow(key, args[0]);
+      out({ ok: true, released: args[0], by: key.address, txhash: r.txhash }); break;
+    }
+    case "escrow-refund": {
+      if (args.length < 1) throw new Error("usage: ag3nt escrow-refund <id>");
+      const r = await refundEscrow(key, args[0]);
+      out({ ok: true, refunded: args[0], by: key.address, txhash: r.txhash }); break;
+    }
+    case "escrows":
+      out(await listEscrows()); break;
+    case "jobs":
+      out({ address: args[0] || key.address, ...(await getJobHistory(args[0] || key.address)) }); break;
     case "reputation":
       out({ address: args[0] || key.address, score: await getReputation(args[0] || key.address) }); break;
     case "discover":
       out(addDoc()); break;
     default:
-      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | reputation [addr]");
+      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] | escrow-release <id> | escrow-refund <id> | escrows | jobs [addr] | reputation [addr]");
   }
 } catch (e: any) {
   console.error("error:", e.message);

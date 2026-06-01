@@ -99,6 +99,18 @@ const MSG = {
     typeUrl: "/agntcoin.agntcoin.v1.MsgUnvouch",
     value: new Uint8Array([...strField(1, creator), ...strField(2, to)]),
   }),
+  lockEscrow: (creator: string, payee: string, amount: number | bigint, ref: string, disputeSeconds: number | bigint) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgLockEscrow",
+    value: new Uint8Array([...strField(1, creator), ...strField(2, payee), ...u64Field(3, amount), ...strField(4, ref), ...u64Field(5, disputeSeconds)]),
+  }),
+  releaseEscrow: (creator: string, id: number | bigint) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgReleaseEscrow",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, id)]),
+  }),
+  refundEscrow: (creator: string, id: number | bigint) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgRefundEscrow",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, id)]),
+  }),
 };
 
 // ---- queries ---------------------------------------------------------------
@@ -124,6 +136,42 @@ export async function getReputation(address: string): Promise<string> {
   if (!r.ok) return "0";
   const j: any = await r.json();
   return String(j.score ?? j.Score ?? "0");
+}
+
+export type EscrowRecord = { id: string; payer: string; payee: string; amount: string; ref: string; status: string; deadline: string };
+
+function toEscrow(e: any): EscrowRecord {
+  return {
+    id: String(e.id ?? "0"), payer: e.payer ?? "", payee: e.payee ?? "",
+    amount: String(e.amount ?? "0"), ref: e.ref ?? "", status: e.status ?? "", deadline: String(e.deadline ?? "0"),
+  };
+}
+
+export async function listEscrows(): Promise<EscrowRecord[]> {
+  const r = await fetch(`${Q}/escrow`);
+  if (!r.ok) return [];
+  const j: any = await r.json();
+  return (j.escrow ?? j.Escrow ?? []).map(toEscrow);
+}
+
+export async function getEscrow(id: number | bigint | string): Promise<EscrowRecord | null> {
+  const r = await fetch(`${Q}/escrow/${id}`);
+  if (!r.ok) return null;
+  const j: any = await r.json();
+  const e = j.escrow ?? j.Escrow;
+  return e ? toEscrow(e) : null;
+}
+
+// Interpretable reputation inputs (the evidence behind the score): the
+// completed-job history (released escrows) an address earned vs. paid for. A
+// buyer can read the actual track record — who paid this agent, for how much —
+// instead of trusting a bare PageRank float.
+export async function getJobHistory(address: string): Promise<{ earned: EscrowRecord[]; paid: EscrowRecord[] }> {
+  const released = (await listEscrows()).filter((e) => e.status === "released");
+  return {
+    earned: released.filter((e) => e.payee === address),
+    paid: released.filter((e) => e.payer === address),
+  };
 }
 
 // ---- non-custodial sign + broadcast ----------------------------------------
@@ -215,6 +263,47 @@ export async function unvouch(key: Key, to: string) {
   return signAndBroadcast(key, MSG.unvouch(key.address, to));
 }
 
+// Pull a typed attribute out of a committed tx's events (REST returns plain or
+// base64 attrs depending on node version, so handle both).
+function eventAttr(resp: any, type: string, key: string): string | null {
+  const dec = (s: string) => { try { return new TextDecoder().decode(fromBase64(s)); } catch { return s; } };
+  for (const ev of resp?.events ?? []) {
+    if (ev.type !== type) continue;
+    for (const a of ev.attributes ?? []) {
+      const k = a.key === key ? key : dec(a.key ?? "");
+      if (k === key) {
+        const v = String(a.value ?? "");
+        return /^[0-9]+$/.test(v) ? v : dec(v);
+      }
+    }
+  }
+  return null;
+}
+
+// Escrow: trustless conditional payment. Lock funds for a payee against a job
+// ref; release on accepted delivery (→ becomes an on-chain job edge that earns
+// the payee reputation), or refund within the dispute window. disputeSeconds
+// is how long the payer is the only one who can release (after it, the payee
+// can self-release so a ghosting payer can't trap funds).
+export async function lockEscrow(key: Key, payee: string, amount: number | bigint, ref: string, disputeSeconds: number | bigint = 3600): Promise<{ id: string; txhash: string }> {
+  const r = await signAndBroadcast(key, MSG.lockEscrow(key.address, payee, amount, ref, disputeSeconds));
+  let id = eventAttr(r, "agntcoin_escrow_locked", "id");
+  if (!id) {
+    const mine = (await listEscrows())
+      .filter((e) => e.payer === key.address && e.payee === payee && e.ref === ref && e.status === "locked")
+      .sort((a, b) => Number(b.id) - Number(a.id));
+    id = mine.length ? mine[0].id : null;
+  }
+  if (!id) throw new Error("escrow locked but could not determine its id");
+  return { id, txhash: r.txhash };
+}
+export async function releaseEscrow(key: Key, id: number | bigint | string) {
+  return signAndBroadcast(key, MSG.releaseEscrow(key.address, BigInt(id)));
+}
+export async function refundEscrow(key: Key, id: number | bigint | string) {
+  return signAndBroadcast(key, MSG.refundEscrow(key.address, BigInt(id)));
+}
+
 // ---- ADD-native self-description (zero-doc discovery) -----------------------
 // The agent needs only its Ed25519 keypair; everything else is discoverable here.
 export function addDoc() {
@@ -231,7 +320,12 @@ export function addDoc() {
       { cmd: "ag3nt pay <addr> <amount>", summary: "Send ag3nt-coin to another agent." },
       { cmd: "ag3nt vouch <addr> <weight 1-100> <stake>", summary: "Lock ag3nt (min 100) behind trust in another agent — the cost makes the reputation graph Sybil-resistant." },
       { cmd: "ag3nt unvouch <addr>", summary: "Remove your vouch and reclaim the locked stake." },
-      { cmd: "ag3nt reputation [addr]", summary: "Reputation score (PageRank weighted by STAKED vouches)." },
+      { cmd: "ag3nt escrow-lock <payee> <amount> <ref> [disputeSeconds]", summary: "Trustlessly lock payment for a job; funds are held by the protocol, not your wallet." },
+      { cmd: "ag3nt escrow-release <id>", summary: "Release a locked escrow to the payee on accepted delivery — this records an on-chain job that EARNS the payee reputation." },
+      { cmd: "ag3nt escrow-refund <id>", summary: "Refund a locked escrow to yourself within the dispute window." },
+      { cmd: "ag3nt escrows", summary: "List all escrows (the on-chain job ledger)." },
+      { cmd: "ag3nt jobs [addr]", summary: "Completed-job history (released escrows earned vs. paid) — the interpretable evidence behind a reputation score." },
+      { cmd: "ag3nt reputation [addr]", summary: "Reputation score: anchor-rooted PageRank over BOTH staked vouches and completed paid jobs. You can bootstrap with zero vouches by completing escrow-paid work for a trusted counterparty." },
     ],
   };
 }

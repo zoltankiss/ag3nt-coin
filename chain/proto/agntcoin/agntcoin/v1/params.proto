@@ -10,4 +10,12 @@ option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
 message Params {
   option (amino.name) = "agntcoin/x/agntcoin/Params";
   option (gogoproto.equal) = true;
+
+  // anchors is the set of trust-root addresses for reputation. Reputation is a
+  // personalized PageRank teleporting to these anchors, so a node only accrues
+  // reputation insofar as it is reachable (via vouches or completed jobs) from
+  // an anchor. Seeded with the founder at genesis; expandable via governance as
+  // the trust graph matures (multi-anchor). If empty, reputation falls back to
+  // uniform (non-personalized) PageRank.
+  repeated string anchors = 1;
 }

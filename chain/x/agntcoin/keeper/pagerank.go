@@ -16,32 +16,79 @@ const pagerankMaxIter = 100
 // pagerankTolerance is the L1 convergence threshold.
 const pagerankTolerance = 1e-9
 
-// PageRank computes staked-trust PageRank scores for the directed vouch graph.
-//
-// Input:
-//   - vouches: every edge (from, to, stake). Stake is the uint64 amount of
-//     ag3nt locked behind the vouch (always >= MinVouchStake). The keeper
-//     deduplicates (from, to) pairs to the latest vouch, so each entry is
-//     treated as a unique edge.
-//
-// Output:
-//   - map[address]float64 — one score per node. Scores sum to ~1.0 across all
-//     nodes.
-//
-// The transition is stake-normalized: each node splits its influence across
-// its out-edges in proportion to the STAKE locked behind each vouch (not edge
-// count, and not the 1..100 weight). This makes reputation costly to
-// manufacture — a Sybil ring must lock real ag3nt across many vouches to move
-// the graph. Dangling nodes (no out-edges) redistribute their rank uniformly
-// each iteration. Node iteration order is sorted so results are deterministic
-// for consensus.
+// JobEdge is a completed, paid job: payer paid payee `amount` ag3nt for accepted
+// work (a released escrow). It is a directed trust edge payer→payee — being paid
+// for accepted work confers reputation, just like being vouched for, except a
+// job edge is backed by spent (not merely locked) ag3nt and a real counterparty
+// who chose to pay.
+type JobEdge struct {
+	Payer  string
+	Payee  string
+	Amount uint64
+}
+
+// repEdge is the unified internal edge: `weight` is the ag3nt a node has
+// committed toward another (vouch stake or job payment), all in the same units.
+type repEdge struct {
+	from   string
+	to     string
+	weight float64
+}
+
+// PageRank computes staked-trust PageRank over the vouch graph with uniform
+// teleport (no anchors). Retained for callers/tests that only have vouches.
 func PageRank(vouches []types.Vouch) map[string]float64 {
-	// Collect the node set from both endpoints; a vouched-for-only address
-	// still gets a rank.
-	nodeSet := map[string]struct{}{}
+	return Reputation(vouches, nil, nil)
+}
+
+// Reputation computes anchor-rooted (personalized) PageRank over the combined
+// trust graph: vouch edges (share ∝ locked stake) and completed-job edges
+// (share ∝ amount paid). Both are denominated in ag3nt, so a node's outgoing
+// influence is split across everyone it has committed ag3nt to — whether by
+// locking a vouch stake or by paying for accepted work. This is what lets an
+// honest newcomer bootstrap: it earns reputation by *doing accepted work*, with
+// no pre-existing vouch.
+//
+// anchors is the personalization (teleport) set — the trust roots (seeded with
+// the founder). The (1-d) teleport mass and all dangling mass flow to the
+// anchors, so reputation *originates* at the roots and reaches a node only to
+// the extent it is connected, via vouches or jobs, back to an anchor. A Sybil
+// ring with no anchor-rooted inflow scores ~0; a reputation-laundering ring can
+// only pass along the bounded, per-hop-decaying rank one of its members earned
+// from a real anchor-rooted job. If anchors is empty (or none are present in
+// the graph), teleport is uniform — classic PageRank — for backward
+// compatibility.
+//
+// Output: map[address]float64; scores sum to ~1.0. Node order is sorted so the
+// result is deterministic for consensus.
+func Reputation(vouches []types.Vouch, jobs []JobEdge, anchors []string) map[string]float64 {
+	// Unify vouches and jobs into weighted directed edges.
+	edges := make([]repEdge, 0, len(vouches)+len(jobs))
 	for _, v := range vouches {
-		nodeSet[v.FromAddr] = struct{}{}
-		nodeSet[v.ToAddr] = struct{}{}
+		// Self-loops contribute no useful flow; zero-stake edges carry none.
+		if v.FromAddr == v.ToAddr || v.Stake == 0 {
+			continue
+		}
+		edges = append(edges, repEdge{from: v.FromAddr, to: v.ToAddr, weight: float64(v.Stake)})
+	}
+	for _, j := range jobs {
+		if j.Payer == j.Payee || j.Amount == 0 {
+			continue
+		}
+		edges = append(edges, repEdge{from: j.Payer, to: j.Payee, weight: float64(j.Amount)})
+	}
+
+	// Node set from both endpoints plus the anchors, so teleport always has a
+	// node to land on even if an anchor has no edges yet.
+	nodeSet := map[string]struct{}{}
+	for _, e := range edges {
+		nodeSet[e.from] = struct{}{}
+		nodeSet[e.to] = struct{}{}
+	}
+	for _, a := range anchors {
+		if a != "" {
+			nodeSet[a] = struct{}{}
+		}
 	}
 	if len(nodeSet) == 0 {
 		return map[string]float64{}
@@ -49,8 +96,8 @@ func PageRank(vouches []types.Vouch) map[string]float64 {
 
 	// Deterministic node ordering and index lookup.
 	nodes := make([]string, 0, len(nodeSet))
-	for n := range nodeSet {
-		nodes = append(nodes, n)
+	for nd := range nodeSet {
+		nodes = append(nodes, nd)
 	}
 	sort.Strings(nodes)
 	n := len(nodes)
@@ -59,52 +106,56 @@ func PageRank(vouches []types.Vouch) map[string]float64 {
 		idx[addr] = i
 	}
 
-	// Total out-stake per node, used to stake-normalize out-edges.
+	// Total out-weight per node, used to normalize out-edges.
 	outWeight := make([]float64, n)
-	for _, v := range vouches {
-		// Self-loops are rejected by the module, but guard anyway: a
-		// self-loop contributes no useful flow, so skip it.
-		if v.FromAddr == v.ToAddr {
-			continue
-		}
-		outWeight[idx[v.FromAddr]] += float64(v.Stake)
+	for _, e := range edges {
+		outWeight[idx[e.from]] += e.weight
 	}
 
-	// Build the stake-normalized edge list: for each edge, the share of the
-	// source's rank that flows to the target, in proportion to locked stake.
-	type edge struct {
+	// Normalized edges: the share of the source's rank that flows to the target.
+	type fedge struct {
 		from  int
 		to    int
 		share float64
 	}
-	edges := make([]edge, 0, len(vouches))
-	for _, v := range vouches {
-		if v.FromAddr == v.ToAddr {
-			continue
-		}
-		f := idx[v.FromAddr]
+	fedges := make([]fedge, 0, len(edges))
+	for _, e := range edges {
+		f := idx[e.from]
 		tw := outWeight[f]
 		if tw == 0 {
 			continue
 		}
-		edges = append(edges, edge{
-			from:  f,
-			to:    idx[v.ToAddr],
-			share: float64(v.Stake) / tw,
-		})
+		fedges = append(fedges, fedge{from: f, to: idx[e.to], share: e.weight / tw})
 	}
 
-	invN := 1.0 / float64(n)
+	// Personalization vector p: mass concentrated on the anchors, or uniform if
+	// there are no anchors in the graph.
+	p := make([]float64, n)
+	anchorIdx := make([]int, 0, len(anchors))
+	for _, a := range anchors {
+		if i, ok := idx[a]; ok {
+			anchorIdx = append(anchorIdx, i)
+		}
+	}
+	if len(anchorIdx) == 0 {
+		invN := 1.0 / float64(n)
+		for i := range p {
+			p[i] = invN
+		}
+	} else {
+		share := 1.0 / float64(len(anchorIdx))
+		for _, i := range anchorIdx {
+			p[i] = share
+		}
+	}
 
-	// Initialize r = 1/N for all nodes.
+	// Initialize r = p (mass starts at the teleport distribution).
 	r := make([]float64, n)
-	for i := range r {
-		r[i] = invN
-	}
+	copy(r, p)
 
 	next := make([]float64, n)
 	for iter := 0; iter < pagerankMaxIter; iter++ {
-		// Dangling mass: total rank held by nodes with no out-edges.
+		// Dangling mass: rank held by nodes with no out-edges.
 		var danglingMass float64
 		for i := 0; i < n; i++ {
 			if outWeight[i] == 0 {
@@ -112,16 +163,15 @@ func PageRank(vouches []types.Vouch) map[string]float64 {
 			}
 		}
 
-		// Base term: teleport plus uniformly redistributed dangling mass,
-		// then scaled by damping where appropriate.
-		// r_{k+1} = (1-d)/N + d * (M^T r_k + danglingMass/N)
-		base := (1.0-pagerankDamping)*invN + pagerankDamping*danglingMass*invN
+		// Base term: teleport plus dangling mass, both redistributed to the
+		// personalization vector p (not uniformly) so reputation stays rooted at
+		// the anchors. r_{k+1} = (1-d)*p + d*(M^T r_k + danglingMass*p).
 		for i := range next {
-			next[i] = base
+			next[i] = (1.0-pagerankDamping)*p[i] + pagerankDamping*danglingMass*p[i]
 		}
 
 		// Weighted edge contributions: M^T r_k.
-		for _, e := range edges {
+		for _, e := range fedges {
 			next[e.to] += pagerankDamping * e.share * r[e.from]
 		}
 
