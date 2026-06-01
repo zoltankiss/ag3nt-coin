@@ -12,6 +12,10 @@ func RegisterInterfaces(registrar codectypes.InterfaceRegistry) {
 	)
 
 	registrar.RegisterImplementations((*sdk.Msg)(nil),
+		&MsgUnvouch{},
+	)
+
+	registrar.RegisterImplementations((*sdk.Msg)(nil),
 		&MsgLockEscrow{},
 	)
 

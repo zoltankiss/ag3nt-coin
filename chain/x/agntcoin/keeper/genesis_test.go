@@ -11,7 +11,7 @@ import (
 func TestGenesis(t *testing.T) {
 	genesisState := types.GenesisState{
 		Params:     types.DefaultParams(),
-		AccountMap: []types.Account{{Address: "0"}, {Address: "1"}}, VouchList: []types.Vouch{{Id: 0}, {Id: 1}},
+		AccountMap: []types.Account{{Address: "0"}, {Address: "1"}}, VouchList: []types.Vouch{{Id: 0, Stake: 250}, {Id: 1, Stake: 100}},
 		VouchCount: 2,
 	}
 	f := initFixture(t)

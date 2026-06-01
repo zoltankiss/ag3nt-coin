@@ -89,9 +89,15 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				},
 				{
 					RpcMethod:      "Castvouch",
-					Use:            "castvouch [to-addr] [weight]",
-					Short:          "Send a castvouch tx",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "to_addr"}, {ProtoField: "weight"}},
+					Use:            "castvouch [to-addr] [weight] [stake]",
+					Short:          "Send a castvouch tx (locks stake behind the vouch)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "to_addr"}, {ProtoField: "weight"}, {ProtoField: "stake"}},
+				},
+				{
+					RpcMethod:      "Unvouch",
+					Use:            "unvouch [to-addr]",
+					Short:          "Remove your vouch for an address and reclaim the locked stake",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "to_addr"}},
 				},
 				{
 					RpcMethod:      "LockEscrow",

@@ -38,6 +38,9 @@ service Msg {
 
   // RefundEscrow defines the RefundEscrow RPC.
   rpc RefundEscrow(MsgRefundEscrow) returns (MsgRefundEscrowResponse);
+
+  // Unvouch defines the Unvouch RPC.
+  rpc Unvouch(MsgUnvouch) returns (MsgUnvouchResponse);
 }
 
 // MsgUpdateParams is the Msg/UpdateParams request type.
@@ -97,10 +100,24 @@ message MsgCastvouch {
   string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   string to_addr = 2;
   uint64 weight = 3;
+  // stake is the amount of ag3nt to lock behind this vouch. Must be at least
+  // MinVouchStake and the voucher must have a sufficient balance.
+  uint64 stake = 4;
 }
 
 // MsgCastvouchResponse defines the MsgCastvouchResponse message.
 message MsgCastvouchResponse {}
+
+// MsgUnvouch removes the caller's vouch for to_addr and returns the locked
+// stake to the caller's balance.
+message MsgUnvouch {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string to_addr = 2;
+}
+
+// MsgUnvouchResponse defines the MsgUnvouchResponse message.
+message MsgUnvouchResponse {}
 
 // MsgLockEscrow defines the MsgLockEscrow message.
 message MsgLockEscrow {

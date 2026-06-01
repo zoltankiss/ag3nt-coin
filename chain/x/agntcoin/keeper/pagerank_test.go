@@ -34,7 +34,7 @@ func TestPageRankSingleNodeDangling(t *testing.T) {
 	// Two nodes total here: a -> b, b dangling. Just assert it doesn't crash
 	// and sums to ~1.
 	scores := PageRank([]types.Vouch{
-		{FromAddr: "a", ToAddr: "b", Weight: 10},
+		{FromAddr: "a", ToAddr: "b", Stake: 10},
 	})
 	if got := sumScores(scores); math.Abs(got-1.0) > prEpsilon {
 		t.Fatalf("scores should sum to ~1.0, got %v", got)
@@ -50,8 +50,8 @@ func TestPageRankSingleNodeDangling(t *testing.T) {
 
 func TestPageRankTwoNodeMutualSymmetric(t *testing.T) {
 	scores := PageRank([]types.Vouch{
-		{FromAddr: "a", ToAddr: "b", Weight: 50},
-		{FromAddr: "b", ToAddr: "a", Weight: 50},
+		{FromAddr: "a", ToAddr: "b", Stake: 50},
+		{FromAddr: "b", ToAddr: "a", Stake: 50},
 	})
 	if got := sumScores(scores); math.Abs(got-1.0) > prEpsilon {
 		t.Fatalf("scores should sum to ~1.0, got %v", got)
@@ -67,10 +67,10 @@ func TestPageRankTwoNodeMutualSymmetric(t *testing.T) {
 func TestPageRankStarHubHighest(t *testing.T) {
 	// Spokes all vouch for the hub; hub vouches back to nobody (dangling).
 	vouches := []types.Vouch{
-		{FromAddr: "s1", ToAddr: "hub", Weight: 10},
-		{FromAddr: "s2", ToAddr: "hub", Weight: 10},
-		{FromAddr: "s3", ToAddr: "hub", Weight: 10},
-		{FromAddr: "s4", ToAddr: "hub", Weight: 10},
+		{FromAddr: "s1", ToAddr: "hub", Stake: 10},
+		{FromAddr: "s2", ToAddr: "hub", Stake: 10},
+		{FromAddr: "s3", ToAddr: "hub", Stake: 10},
+		{FromAddr: "s4", ToAddr: "hub", Stake: 10},
 	}
 	scores := PageRank(vouches)
 
@@ -94,8 +94,8 @@ func TestPageRankWeightedSplit(t *testing.T) {
 	// a splits its vouch: heavily toward b, lightly toward c.
 	// b should end up ranked higher than c.
 	scores := PageRank([]types.Vouch{
-		{FromAddr: "a", ToAddr: "b", Weight: 90},
-		{FromAddr: "a", ToAddr: "c", Weight: 10},
+		{FromAddr: "a", ToAddr: "b", Stake: 90},
+		{FromAddr: "a", ToAddr: "c", Stake: 10},
 	})
 	if got := sumScores(scores); math.Abs(got-1.0) > prEpsilon {
 		t.Fatalf("scores should sum to ~1.0, got %v", got)
@@ -107,9 +107,9 @@ func TestPageRankWeightedSplit(t *testing.T) {
 
 func TestPageRankDeterministic(t *testing.T) {
 	vouches := []types.Vouch{
-		{FromAddr: "z", ToAddr: "a", Weight: 7},
-		{FromAddr: "a", ToAddr: "m", Weight: 3},
-		{FromAddr: "m", ToAddr: "z", Weight: 11},
+		{FromAddr: "z", ToAddr: "a", Stake: 7},
+		{FromAddr: "a", ToAddr: "m", Stake: 3},
+		{FromAddr: "m", ToAddr: "z", Stake: 11},
 	}
 	first := PageRank(vouches)
 	for i := 0; i < 5; i++ {

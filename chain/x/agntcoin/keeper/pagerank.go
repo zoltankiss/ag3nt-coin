@@ -16,21 +16,25 @@ const pagerankMaxIter = 100
 // pagerankTolerance is the L1 convergence threshold.
 const pagerankTolerance = 1e-9
 
-// PageRank computes weighted PageRank scores for the directed vouch graph.
+// PageRank computes staked-trust PageRank scores for the directed vouch graph.
 //
 // Input:
-//   - vouches: every edge (from, to, weight). Weights are uint64 in [1..100].
-//     The keeper deduplicates (from, to) pairs to the latest weight, so each
-//     entry is treated as a unique edge.
+//   - vouches: every edge (from, to, stake). Stake is the uint64 amount of
+//     ag3nt locked behind the vouch (always >= MinVouchStake). The keeper
+//     deduplicates (from, to) pairs to the latest vouch, so each entry is
+//     treated as a unique edge.
 //
 // Output:
 //   - map[address]float64 — one score per node. Scores sum to ~1.0 across all
 //     nodes.
 //
-// The transition is weight-normalized: each node splits its influence across
-// its out-edges in proportion to edge weight (not edge count). Dangling nodes
-// (no out-edges) redistribute their rank uniformly each iteration. Node
-// iteration order is sorted so results are deterministic for consensus.
+// The transition is stake-normalized: each node splits its influence across
+// its out-edges in proportion to the STAKE locked behind each vouch (not edge
+// count, and not the 1..100 weight). This makes reputation costly to
+// manufacture — a Sybil ring must lock real ag3nt across many vouches to move
+// the graph. Dangling nodes (no out-edges) redistribute their rank uniformly
+// each iteration. Node iteration order is sorted so results are deterministic
+// for consensus.
 func PageRank(vouches []types.Vouch) map[string]float64 {
 	// Collect the node set from both endpoints; a vouched-for-only address
 	// still gets a rank.
@@ -55,7 +59,7 @@ func PageRank(vouches []types.Vouch) map[string]float64 {
 		idx[addr] = i
 	}
 
-	// Total out-weight per node, used to weight-normalize out-edges.
+	// Total out-stake per node, used to stake-normalize out-edges.
 	outWeight := make([]float64, n)
 	for _, v := range vouches {
 		// Self-loops are rejected by the module, but guard anyway: a
@@ -63,11 +67,11 @@ func PageRank(vouches []types.Vouch) map[string]float64 {
 		if v.FromAddr == v.ToAddr {
 			continue
 		}
-		outWeight[idx[v.FromAddr]] += float64(v.Weight)
+		outWeight[idx[v.FromAddr]] += float64(v.Stake)
 	}
 
-	// Build the weight-normalized edge list: for each edge, the share of the
-	// source's rank that flows to the target.
+	// Build the stake-normalized edge list: for each edge, the share of the
+	// source's rank that flows to the target, in proportion to locked stake.
 	type edge struct {
 		from  int
 		to    int
@@ -86,7 +90,7 @@ func PageRank(vouches []types.Vouch) map[string]float64 {
 		edges = append(edges, edge{
 			from:  f,
 			to:    idx[v.ToAddr],
-			share: float64(v.Weight) / tw,
+			share: float64(v.Stake) / tw,
 		})
 	}
 

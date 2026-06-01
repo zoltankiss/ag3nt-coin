@@ -9,4 +9,9 @@ message Vouch {
   string from_addr = 2;
   string to_addr = 3;
   uint64 weight = 4;
+  // stake is the amount of ag3nt locked behind this vouch. Reputation
+  // (PageRank) edge weights are derived from stake, making the trust graph
+  // costly to Sybil. The stake is held (debited from the voucher) until the
+  // vouch is removed via Unvouch.
+  uint64 stake = 5;
 }
