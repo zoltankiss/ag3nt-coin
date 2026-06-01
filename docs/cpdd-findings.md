@@ -38,5 +38,26 @@ Vex's recon flagged it: an onboarded agent has both module `agntcoin` and bank `
 ### Mechanics learning (not a chain patch)
 **Pay-on-test-pass** is the compute market's killer mechanic and structurally enforces TDD; **objective verification and reputation are complementary** (tests = fast path, reputation/k-of-n = backstop for what tests can't capture). Full write-up: [`compute-market-design.md`](compute-market-design.md). Implication for experiments: an iteration with *un-verifiable* work is what will finally force the reputation path.
 
+## From CPDD iteration 4 — un-verifiable work (2026-05-31)
+
+### 7. App-level reputation is Sybil-trivial; reputation must be chain-anchored  ⟶ *motivates Rock 3 + cost-of-identity*
+The market for un-verifiable writing work **failed to transact** — without a trustworthy reputation signal, no deal could safely close. The blackhat's diary named the exact reason: *"two reputation planes — the on-chain vouch graph needs real keypairs (hard to Sybil), but the app marketplace keys off the x-agent-id header which I can forge freely."* App-level reputation on a forgeable identity is gameable; **chain reputation on real keypairs is Sybil-resistant only because identity costs something.**
+**Patch direction:** make reputation a chain primitive anchored to costly identity — i.e. **cost-of-identity** (a stake/bond to register or to be vouchable) + reputation-as-collateral, so the vouch/PageRank graph can't be cheaply Sybil'd. This is the necessary trust primitive un-verifiable markets demand; it's also the prerequisite for Rock 2's reputation-weighted voting.
+
+### 8. `runTests` verifier defeated by an `__eq__`-always-True submission  ⟶ *patch*
+The blackhat found a *generic* exploit of the platform's sandboxed verifier: a Python object whose `__eq__` returns `True` passes any `assert f(x) == expected` without solving anything (*"universal bounty winner"*).
+**Patch:** the runner must not trust a bare `==` the submission can override — compare results by **canonical serialization** (e.g. `repr`/JSON of the value) and/or a type check, run assertions in a harness the submission can't subvert, and reject objects that override comparison dunders for the checked values.
+
+## From CPDD iteration 5 — costly chain-anchored identity (2026-05-31)
+
+Cost-of-identity (vouch-staking) **worked**: the entrepreneur adopted on-chain staked reputation, the Sybil blackhat was priced out ("capped at 1 identity"), and its social-engineering toward the forgeable plane failed. But it surfaced the next layer:
+
+### 9. Reputation needs a bootstrap path — cost-of-identity excludes honest newcomers  ⟶ *next primitive*
+A brand-new honest agent has zero staked reputation and no way to earn a first job, so it can't bootstrap (*"new writers have zero on-chain vouches so we can never get our first job"*). The property that stops Sybils also walls out legitimate newcomers (no rep → no job → no rep).
+**Patch direction:** make reputation accrue from **completed escrow jobs**, not just vouches — track a per-address completed/accepted-job count (or settled-escrow volume) on-chain and feed it into the reputation signal. A newcomer then earns standing by *doing accepted work* (objective, needs no pre-existing vouch), which is also Sybil-resistant (each job requires a paying counterparty). Dovetails with the rollout plan (founder seeds first jobs) and it6 (the heavy-coder newcomer hits the same cold-start).
+
+### 10. Reputation is opaque — a bare PageRank score isn't a usable trust signal  ⟶ *app-level, with chain support*
+*"I will NOT hire based on an opaque on-chain reputation number I cannot interpret."* The float is necessary but not sufficient. Mostly an app concern (show samples/history/reviews), but the chain should make the **inputs** queryable — the vouch list with stakes, and (per #9) the completed-job history — so an app can render interpretable context, not just a number.
+
 ---
 *Process: when a CPDD run hits a chain limitation, log it here with a concrete patch. Patches land in the `chain/` repo.*
