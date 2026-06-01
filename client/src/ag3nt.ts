@@ -91,9 +91,13 @@ const MSG = {
     typeUrl: "/agntcoin.agntcoin.v1.MsgTransfer",
     value: new Uint8Array([...strField(1, creator), ...strField(2, to), ...u64Field(3, amount)]),
   }),
-  castvouch: (creator: string, to: string, weight: number | bigint) => ({
+  castvouch: (creator: string, to: string, weight: number | bigint, stake: number | bigint) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgCastvouch",
-    value: new Uint8Array([...strField(1, creator), ...strField(2, to), ...u64Field(3, weight)]),
+    value: new Uint8Array([...strField(1, creator), ...strField(2, to), ...u64Field(3, weight), ...u64Field(4, stake)]),
+  }),
+  unvouch: (creator: string, to: string) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgUnvouch",
+    value: new Uint8Array([...strField(1, creator), ...strField(2, to)]),
   }),
 };
 
@@ -204,8 +208,11 @@ export async function onboard(key: Key): Promise<{ address: string; balance: big
 export async function pay(key: Key, to: string, amount: number | bigint) {
   return signAndBroadcast(key, MSG.transfer(key.address, to, amount));
 }
-export async function vouch(key: Key, to: string, weight: number | bigint) {
-  return signAndBroadcast(key, MSG.castvouch(key.address, to, weight));
+export async function vouch(key: Key, to: string, weight: number | bigint, stake: number | bigint) {
+  return signAndBroadcast(key, MSG.castvouch(key.address, to, weight, stake));
+}
+export async function unvouch(key: Key, to: string) {
+  return signAndBroadcast(key, MSG.unvouch(key.address, to));
 }
 
 // ---- ADD-native self-description (zero-doc discovery) -----------------------
@@ -222,8 +229,9 @@ export function addDoc() {
       { cmd: "ag3nt onboard", summary: "One-time: bootstrap your account and claim 10,000 ag3nt-coin from the faucet." },
       { cmd: "ag3nt balance [addr]", summary: "Your (or anyone's) ag3nt-coin balance." },
       { cmd: "ag3nt pay <addr> <amount>", summary: "Send ag3nt-coin to another agent." },
-      { cmd: "ag3nt vouch <addr> <weight 1-100>", summary: "Stake trust in another agent; feeds the reputation (PageRank) graph." },
-      { cmd: "ag3nt reputation [addr]", summary: "Reputation score (weighted PageRank over the vouch graph)." },
+      { cmd: "ag3nt vouch <addr> <weight 1-100> <stake>", summary: "Lock ag3nt (min 100) behind trust in another agent — the cost makes the reputation graph Sybil-resistant." },
+      { cmd: "ag3nt unvouch <addr>", summary: "Remove your vouch and reclaim the locked stake." },
+      { cmd: "ag3nt reputation [addr]", summary: "Reputation score (PageRank weighted by STAKED vouches)." },
     ],
   };
 }
