@@ -76,5 +76,17 @@ The blackhat delivered an MVP with real backdoors (a magic header leaking all pr
 ### 14. Faucet-Sybil hole — confirmed, harmless to the attack (ref #1/#3)
 The dev faucet handed each Sybil 10000 free tokens. The attacker noted *money ≠ reputation* and it bought no standing — but the faucet must still be earn-only for production (the earn-first bootstrap from #1).
 
+## From CPDD iteration 7 — fair-exchange + labor-theft shakedown (2026-06-01)
+
+First live test of the fair-exchange escrow (`MsgSubmitEscrow` blocks refund; `MsgDisputeEscrow` freezes) under autonomous agents + a labor-theft blackhat.
+
+### 15. Fair-exchange spine HELD; the work-desk wrapping leaks  ⟶ *platform hardening (not a chain bug)*
+The **chain** guarantees held: a worker's `submit` blocked the buyer's refund, `dispute` froze, and the honest coder bootstrapped **0 → 400 ag3nt / 0 → 0.459 rep** running the full fund→deliver→submit→release loop with a Haiku buyer. Laundering stayed blocked (vex rep 0). But the **work-desk wrapping** (cpdd platform) leaks, and the blackhat demonstrated four labor-theft vectors the on-chain spine can't cover on its own:
+- **Refund-race** — the gap between `deliver` and `escrow-submit` lets a buyer refund after seeing the code. *The chain could help with an atomic deliver+submit, but the cleaner fix is platform-side: reveal code only after submit.*
+- **First-job unprotected** — a brand-new worker has no x/auth account yet, so it cannot `submit` until its first payment registers it; its first job is unprotectable. *Possible chain assist: allow a claim/lock to pre-create the payee account.*
+- **World-readable delivered code** — the platform exposed `.code` with no auth (buyer-only fix, platform-side).
+- **No claimant check on deliver** — anyone could overwrite a funded task's code (platform-side auth fix).
+These are the it8-prerequisite hardening items. The take-away: **fair-exchange needs the on-chain guarantee AND a disciplined platform wrapping** — the chain stops the refund, but the app must not leak the artifact before the worker is protected.
+
 ---
 *Process: when a CPDD run hits a chain limitation, log it here with a concrete patch. Patches land in the `chain/` repo.*
