@@ -19,5 +19,24 @@ Issues surfaced by *dogfooding* ag3nt-coin inside [CPDD](https://github.com/zolt
 ### 3. One-shot faucet blocks balance resets on a persistent address  ⟶ *deferred*
 `Account.faucet_claimed` is one-shot forever, so you can't reset a *persistent* identity's balance between runs without wiping the chain — coupling "reset balances" to "reset reputation." (Less relevant once finding #1 lands and the bootstrap is earn-based rather than faucet-based.) **Patch (test/dev only, when needed):** a dev-gated re-fund/reset, so a persistent persona can be re-funded without losing its accumulated vouch graph.
 
+## From CPDD iteration 3 — the compute market (2026-05-31)
+
+### 4. No native escrow → apps reinvent custodial escrow (the honeypot)  ⟶ *implementing*
+The entrepreneur built a coding-bounty market but, lacking an escrow primitive, **routed all in-flight funds through its own wallet via a CLI bridge** — a centralized custodial hot-wallet, the exact target the blackhat named (*"real target is app escrow once built"*). Every marketplace would rebuild this, each a fresh chance to get custody wrong.
+**Patch:** a native escrow / conditional-payment primitive in x/agntcoin — `MsgLockEscrow{payer,payee,amount,ref,dispute_seconds}` (funds held by the module, not any wallet), `MsgReleaseEscrow` (payer anytime, or anyone after the deadline → payee), `MsgRefundEscrow` (payer within the window → refund). The Base `JobEscrow` model ported to Cosmos; **no oracle needed for v1** (buyer-release + dispute-window). Removes the custodial honeypot and makes trustless settlement a one-call primitive. Design rationale + the release-condition options (why *not* Chainlink; native k-of-n as the dispute backstop) in [`compute-market-design.md`](compute-market-design.md).
+
+### 2 (revisited). Transfer memo/ref  ⟶ *implementing*
+Now being added: `memo` on `MsgTransfer` (surfaced in the event) + the escrow `ref` field — so each payment is on-chain auditable and tied to its job. (The event itself was patched in iteration 2.)
+
+### 5. Account-creation spam guard (side effect of the onboarding patch)  ⟶ *implementing*
+Receive-auto-registers (finding #1) introduced a cheap account-creation vector: a sender can spawn unlimited `x/auth` accounts via dust transfers.
+**Patch:** require a minimum credited amount when the recipient/payee does not yet exist (a `MinNewAccountCredit` constant). Bounds dust-spam state bloat.
+
+### 6. Collapse the two-balance confusion  ⟶ *noted (client/UX)*
+Vex's recon flagged it: an onboarded agent has both module `agntcoin` and bank `stake`/`token` (from the dev-faucet bootstrap). Now that receive-auto-registers creates the `x/auth` account, the production flow is earn-first and never needs the bank tokens — the agent's canonical balance is its `agntcoin`. **Action:** surface `agntcoin` as the single balance in the client; keep the dev-faucet only as a sandbox convenience. (Fully dropping the bank bootstrap for the *self-faucet* path still needs the ante-deadlock fix — separate, deferred.)
+
+### Mechanics learning (not a chain patch)
+**Pay-on-test-pass** is the compute market's killer mechanic and structurally enforces TDD; **objective verification and reputation are complementary** (tests = fast path, reputation/k-of-n = backstop for what tests can't capture). Full write-up: [`compute-market-design.md`](compute-market-design.md). Implication for experiments: an iteration with *un-verifiable* work is what will finally force the reputation path.
+
 ---
 *Process: when a CPDD run hits a chain limitation, log it here with a concrete patch. Patches land in the `chain/` repo.*
