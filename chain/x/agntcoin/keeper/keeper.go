@@ -1,0 +1,71 @@
+package keeper
+
+import (
+	"fmt"
+
+	"cosmossdk.io/collections"
+	"cosmossdk.io/core/address"
+	corestore "cosmossdk.io/core/store"
+	"github.com/cosmos/cosmos-sdk/codec"
+
+	"github.com/zoltankiss/agntcoin/x/agntcoin/types"
+)
+
+type Keeper struct {
+	storeService corestore.KVStoreService
+	cdc          codec.Codec
+	addressCodec address.Codec
+	authKeeper   types.AuthKeeper
+	// Address capable of executing a MsgUpdateParams message.
+	// Typically, this should be the x/gov module account.
+	authority []byte
+
+	Schema    collections.Schema
+	Params    collections.Item[types.Params]
+	Account   collections.Map[string, types.Account]
+	VouchSeq  collections.Sequence
+	Vouch     collections.Map[uint64, types.Vouch]
+	EscrowSeq collections.Sequence
+	Escrow    collections.Map[uint64, types.Escrow]
+}
+
+func NewKeeper(
+	storeService corestore.KVStoreService,
+	cdc codec.Codec,
+	addressCodec address.Codec,
+	authority []byte,
+	authKeeper types.AuthKeeper,
+
+) Keeper {
+	if _, err := addressCodec.BytesToString(authority); err != nil {
+		panic(fmt.Sprintf("invalid authority address %s: %s", authority, err))
+	}
+
+	sb := collections.NewSchemaBuilder(storeService)
+
+	k := Keeper{
+		storeService: storeService,
+		cdc:          cdc,
+		addressCodec: addressCodec,
+		authKeeper:   authKeeper,
+		authority:    authority,
+
+		Params:  collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
+		Account: collections.NewMap(sb, types.AccountKey, "account", collections.StringKey, codec.CollValue[types.Account](cdc)), Vouch: collections.NewMap(sb, types.VouchKey, "vouch", collections.Uint64Key, codec.CollValue[types.Vouch](cdc)),
+		VouchSeq:  collections.NewSequence(sb, types.VouchCountKey, "vouchSequence"),
+		Escrow:    collections.NewMap(sb, types.EscrowKey, "escrow", collections.Uint64Key, codec.CollValue[types.Escrow](cdc)),
+		EscrowSeq: collections.NewSequence(sb, types.EscrowCountKey, "escrowSequence"),
+	}
+	schema, err := sb.Build()
+	if err != nil {
+		panic(err)
+	}
+	k.Schema = schema
+
+	return k
+}
+
+// GetAuthority returns the module's authority.
+func (k Keeper) GetAuthority() []byte {
+	return k.authority
+}

@@ -1,0 +1,13 @@
+syntax = "proto3";
+package agntcoin.agntcoin.v1;
+
+option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
+
+// Account defines the Account message.
+message Account {
+  string address = 1;
+  uint64 balance = 2;
+  uint64 nonce = 3;
+  bool registered = 4;
+  bool faucet_claimed = 5;
+}

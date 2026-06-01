@@ -1,0 +1,16 @@
+syntax = "proto3";
+package agntcoin.agntcoin.v1;
+
+option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
+
+// Escrow defines a native conditional-payment record.
+// status is one of: "locked" | "released" | "refunded".
+message Escrow {
+  uint64 id = 1;
+  string payer = 2;
+  string payee = 3;
+  uint64 amount = 4;
+  string ref = 5;
+  string status = 6;
+  int64 deadline = 7;
+}

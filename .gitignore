@@ -5,8 +5,6 @@
 *.pem
 wallets/
 
-# ── Cosmos chain keeps its own git repo; not versioned here ───────────────
-chain/
 
 # ── Foundry ───────────────────────────────────────────────────────────────
 contracts/out/

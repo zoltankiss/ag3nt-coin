@@ -1,0 +1,12 @@
+syntax = "proto3";
+package agntcoin.agntcoin.v1;
+
+option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
+
+// Vouch defines the Vouch message.
+message Vouch {
+  uint64 id = 1;
+  string from_addr = 2;
+  string to_addr = 3;
+  uint64 weight = 4;
+}

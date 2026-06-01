@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package agntcoin.agntcoin.v1;
+
+import "agntcoin/agntcoin/v1/account.proto";
+import "agntcoin/agntcoin/v1/params.proto";
+import "agntcoin/agntcoin/v1/vouch.proto";
+import "agntcoin/agntcoin/v1/escrow.proto";
+import "amino/amino.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
+
+// Query defines the gRPC querier service.
+service Query {
+  // Parameters queries the parameters of the module.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/params";
+  }
+
+  // ListAccount Queries a list of Account items.
+  rpc GetAccount(QueryGetAccountRequest) returns (QueryGetAccountResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/account/{address}";
+  }
+
+  // ListAccount defines the ListAccount RPC.
+  rpc ListAccount(QueryAllAccountRequest) returns (QueryAllAccountResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/account";
+  }
+
+  // ListVouch Queries a list of Vouch items.
+  rpc GetVouch(QueryGetVouchRequest) returns (QueryGetVouchResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/vouch/{id}";
+  }
+
+  // ListVouch defines the ListVouch RPC.
+  rpc ListVouch(QueryAllVouchRequest) returns (QueryAllVouchResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/vouch";
+  }
+
+  // Reputation Queries a list of Reputation items.
+  rpc Reputation(QueryReputationRequest) returns (QueryReputationResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/reputation/{address}";
+  }
+
+  // GetEscrow Queries a Escrow item by id.
+  rpc GetEscrow(QueryGetEscrowRequest) returns (QueryGetEscrowResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/escrow/{id}";
+  }
+
+  // ListEscrow Queries a list of Escrow items.
+  rpc ListEscrow(QueryAllEscrowRequest) returns (QueryAllEscrowResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/escrow";
+  }
+}
+
+// QueryParamsRequest is request type for the Query/Params RPC method.
+message QueryParamsRequest {}
+
+// QueryParamsResponse is response type for the Query/Params RPC method.
+message QueryParamsResponse {
+  // params holds all the parameters of this module.
+  Params params = 1 [
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true
+  ];
+}
+
+// QueryGetAccountRequest defines the QueryGetAccountRequest message.
+message QueryGetAccountRequest {
+  string address = 1;
+}
+
+// QueryGetAccountResponse defines the QueryGetAccountResponse message.
+message QueryGetAccountResponse {
+  Account account = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryAllAccountRequest defines the QueryAllAccountRequest message.
+message QueryAllAccountRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryAllAccountResponse defines the QueryAllAccountResponse message.
+message QueryAllAccountResponse {
+  repeated Account account = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+// QueryGetVouchRequest defines the QueryGetVouchRequest message.
+message QueryGetVouchRequest {
+  uint64 id = 1;
+}
+
+// QueryGetVouchResponse defines the QueryGetVouchResponse message.
+message QueryGetVouchResponse {
+  Vouch vouch = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryAllVouchRequest defines the QueryAllVouchRequest message.
+message QueryAllVouchRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryAllVouchResponse defines the QueryAllVouchResponse message.
+message QueryAllVouchResponse {
+  repeated Vouch vouch = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+// QueryReputationRequest defines the QueryReputationRequest message.
+message QueryReputationRequest {
+  string address = 1;
+}
+
+// QueryReputationResponse defines the QueryReputationResponse message.
+message QueryReputationResponse {
+  string score = 1;
+}
+
+// QueryGetEscrowRequest defines the QueryGetEscrowRequest message.
+message QueryGetEscrowRequest {
+  uint64 id = 1;
+}
+
+// QueryGetEscrowResponse defines the QueryGetEscrowResponse message.
+message QueryGetEscrowResponse {
+  Escrow escrow = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryAllEscrowRequest defines the QueryAllEscrowRequest message.
+message QueryAllEscrowRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryAllEscrowResponse defines the QueryAllEscrowResponse message.
+message QueryAllEscrowResponse {
+  repeated Escrow escrow = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
