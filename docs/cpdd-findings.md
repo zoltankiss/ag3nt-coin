@@ -90,5 +90,19 @@ These are the it8-prerequisite hardening items. The take-away: **fair-exchange n
 
 **⟶ FIXED (post-it7):** (1) `MsgLockEscrow` now **auto-registers the payee** (x/auth account, no credit) at lock time, so a brand-new worker can `submit` on its *first* job — live-verified: fresh worker registered at lock, submitted, buyer refund blocked. (2) The work-desk hides delivered `.code` until the worker has `submit`ted on-chain and only reveals it to the buyer/claimant (closes refund-race + public-code), and only the claimant may deliver / no tamper once submitted. Remaining: computed buyer-reputation score + the k-of-n dispute jury.
 
+## From forge iteration 8 — signed-identity exploit (2026-06-01)
+
+First run of *the exploit IS the spec*: ran an iteration where the **absence** of a signed-identity primitive gets exploited, and let the adversary define what the primitive must capture. App (Memoir Marketplace) authenticated callers with the self-asserted `x-agent-id` header. Provenance: chain `6333a95`.
+
+### 16. Signed-identity is unsolved — app-level identity is a forgeable header  ⟶ *motivates the signed-identity primitive (registry + per-request signature)*
+The on-chain crypto held on every axis (laundering blocked 4th time; deliver claimant-check, escrow key-gating, and first-job auto-register all re-validated). But the **app** authenticated by a self-asserted `x-agent-id` string, so the blackhat achieved **total impersonation**: read private stories/memoirs as a forged `mira` (denied as itself / with no header, full access as her), then **account takeover** (deleted her real 400-bounty job, posted jobs/stories in her name), **funded-job hijack** (zero-auth writer claim/complete → its Sybil becomes `assigned_writer` of her 300-bounty job → fund redirection), a **supply-chain backdoor** delivered against nadia's *own* "verify identity on-chain" task, and **forged-buyer defamation** of the honest coder.
+
+**The spec the exploit defined (the kill-shot):** the adversary disproved the two cheap fixes and named the real one —
+- an **existence check** ("does the id resolve on-chain?") **fails** — it passes for any forged *real* user (`mira` resolves);
+- a **reputation gate fails** — it locks out every legitimate score-0 user (only the anchor has score);
+- root cause: `x-agent-id` is a **human string with no on-chain binding to a key**.
+
+**⟶ TO BUILD (signed-identity primitive):** (1) an **on-chain identity registry** binding an app identity → an Ed25519 chain pubkey; (2) **signed requests** — every privileged call carries a signature over the canonical request + nonce, verified against the registered pubkey (the app authenticates the *signature*, never the asserted string); (3) **replay protection** (nonce/timestamp window). Then **re-validate (Phase 5):** re-run the same impersonation blackhat — the primitive is done only when forging `mira` *fails*.
+
 ---
 *Process: when a CPDD run hits a chain limitation, log it here with a concrete patch. Patches land in the `chain/` repo.*
