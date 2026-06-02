@@ -19,6 +19,8 @@
 import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha512";
 import { sha256 } from "@noble/hashes/sha256";
+import { bytesToHex } from "@noble/hashes/utils";
+import { randomBytes } from "crypto";
 import { toBech32, toBase64, fromBase64 } from "@cosmjs/encoding";
 import { TxBody, AuthInfo, SignerInfo, Fee, SignDoc, TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { SignMode } from "cosmjs-types/cosmos/tx/signing/v1beta1/signing";
@@ -64,6 +66,43 @@ export async function loadOrCreateKey(path?: string): Promise<Key> {
   mkdirSync(join(file, ".."), { recursive: true });
   writeFileSync(file, JSON.stringify({ priv: toBase64(priv), pub: toBase64(pub), address }, null, 2));
   return { priv, pub, address };
+}
+
+// ---- signed requests (it9) -------------------------------------------------
+// Authenticate to an app by SIGNING each request with your chain key, instead
+// of asserting a forgeable header. The app verifies the signature, derives your
+// address from the pubkey, and that address IS your identity (and your rep node).
+// Canonical message binds method+path+body-hash+nonce; must match the verifier
+// in ag3nt-coin-forge/platform/signed-identity.js byte-for-byte.
+export async function signRequestHeaders(
+  key: Key, method: string, path: string, bodyStr = "",
+): Promise<Record<string, string>> {
+  const bodyHash = bytesToHex(sha256(new TextEncoder().encode(bodyStr || "")));
+  const nonce = `${Date.now()}.${randomBytes(8).toString("hex")}`;
+  const canonical = ["ag3nt-req:v1", method.toUpperCase(), path, bodyHash, nonce].join("\n");
+  const sig = await ed.signAsync(new TextEncoder().encode(canonical), key.priv);
+  return { "x-agent-pub": toBase64(key.pub), "x-agent-nonce": nonce, "x-agent-sig": toBase64(sig) };
+}
+
+// Sign + send a request to an app, AS this key's chain identity. urlOrPath may be
+// a full URL, a host:port/path, or a bare /path (resolved against AG3NT_APP or
+// http://localhost:$PORT).
+export async function signedRequest(
+  key: Key, method: string, urlOrPath: string, bodyStr = "",
+): Promise<{ status: number; body: any }> {
+  const base = process.env.AG3NT_APP || `http://localhost:${process.env.PORT || 4000}`;
+  const full = urlOrPath.startsWith("http") ? urlOrPath
+    : urlOrPath.startsWith("/") ? base + urlOrPath
+    : "http://" + urlOrPath;
+  const u = new URL(full);
+  const path = u.pathname + u.search;
+  const headers = await signRequestHeaders(key, method, path, bodyStr);
+  const init: any = { method: method.toUpperCase(), headers };
+  if (bodyStr) { headers["content-type"] = "application/json"; init.body = bodyStr; }
+  const r = await fetch(full, init);
+  const text = await r.text();
+  let body: any; try { body = JSON.parse(text); } catch { body = text; }
+  return { status: r.status, body };
 }
 
 // ---- minimal protobuf encoders for the 4 module Msgs -----------------------
