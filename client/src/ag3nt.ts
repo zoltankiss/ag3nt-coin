@@ -116,6 +116,8 @@ const strField = (f: number, s: string) => {
   return [...varint((f << 3) | 2), ...varint(b.length), ...b];
 };
 const u64Field = (f: number, n: number | bigint) => [...varint((f << 3) | 0), ...varint(n)];
+// proto3 bool: false is the default and is omitted (decodes back to false).
+const boolField = (f: number, b: boolean) => (b ? [...varint((f << 3) | 0), 1] : []);
 
 const MSG = {
   register: (creator: string) => ({
@@ -157,6 +159,18 @@ const MSG = {
   disputeEscrow: (creator: string, id: number | bigint) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgDisputeEscrow",
     value: new Uint8Array([...strField(1, creator), ...u64Field(2, id)]),
+  }),
+  openDispute: (creator: string, escrowId: number | bigint, reason: string) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgOpenDispute",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, escrowId), ...strField(3, reason)]),
+  }),
+  castVote: (creator: string, disputeId: number | bigint, accept: boolean) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgCastVote",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, disputeId), ...boolField(3, accept)]),
+  }),
+  resolveDispute: (creator: string, disputeId: number | bigint) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgResolveDispute",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, disputeId)]),
   }),
 };
 
@@ -357,6 +371,23 @@ export async function submitEscrow(key: Key, id: number | bigint | string) {
 }
 export async function disputeEscrow(key: Key, id: number | bigint | string) {
   return signAndBroadcast(key, MSG.disputeEscrow(key.address, BigInt(id)));
+}
+
+// ---- k-of-n dispute jury (it12) --------------------------------------------
+// Escalate a submitted/disputed escrow to a jury (payer or payee opens it),
+// have eligible jurors (the anchor set at genesis) vote accept/reject, then
+// resolve → release to payee (accept) or refund to payer (reject).
+export async function openDispute(key: Key, escrowId: number | bigint | string, reason = ""): Promise<{ id: string; txhash: string }> {
+  const r = await signAndBroadcast(key, MSG.openDispute(key.address, BigInt(escrowId), reason));
+  const id = eventAttr(r, "agntcoin_dispute_opened", "id");
+  if (!id) throw new Error("dispute opened but could not determine its id");
+  return { id, txhash: r.txhash };
+}
+export async function castVote(key: Key, disputeId: number | bigint | string, accept: boolean) {
+  return signAndBroadcast(key, MSG.castVote(key.address, BigInt(disputeId), accept));
+}
+export async function resolveDispute(key: Key, disputeId: number | bigint | string) {
+  return signAndBroadcast(key, MSG.resolveDispute(key.address, BigInt(disputeId)));
 }
 
 // ---- ADD-native self-description (zero-doc discovery) -----------------------

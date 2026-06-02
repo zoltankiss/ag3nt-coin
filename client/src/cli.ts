@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // ag3nt CLI — the drop-in surface a CPDD agent (or a human) calls.
-import { loadOrCreateKey, onboard, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, listEscrows, getJobHistory, getBalance, getReputation, addDoc, signedRequest, signRequestHeaders, CFG } from "./ag3nt";
+import { loadOrCreateKey, onboard, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, openDispute, castVote, resolveDispute, listEscrows, getJobHistory, getBalance, getReputation, addDoc, signedRequest, signRequestHeaders, CFG } from "./ag3nt";
 
 const [cmd, ...args] = process.argv.slice(2);
 const key = await loadOrCreateKey();
@@ -56,6 +56,22 @@ try {
       const r = await disputeEscrow(key, args[0]);
       out({ ok: true, disputed: args[0], by: key.address, txhash: r.txhash }); break;
     }
+    case "dispute-open": {
+      if (args.length < 1) throw new Error("usage: ag3nt dispute-open <escrow_id> [reason]  (payer/payee escalates to the jury; freezes the escrow)");
+      const r = await openDispute(key, args[0], args.slice(1).join(" "));
+      out({ ok: true, dispute_id: r.id, escrow_id: args[0], by: key.address, txhash: r.txhash }); break;
+    }
+    case "vote": {
+      if (args.length < 2) throw new Error("usage: ag3nt vote <dispute_id> <accept|reject>  (eligible jurors only)");
+      const accept = /^(accept|true|yes|y|1)$/i.test(args[1]);
+      const r = await castVote(key, args[0], accept);
+      out({ ok: true, dispute: args[0], vote: accept ? "accept" : "reject", by: key.address, txhash: r.txhash }); break;
+    }
+    case "resolve": {
+      if (args.length < 1) throw new Error("usage: ag3nt resolve <dispute_id>  (tally jury → release to payee / refund to payer)");
+      const r = await resolveDispute(key, args[0]);
+      out({ ok: true, resolved: args[0], by: key.address, txhash: r.txhash }); break;
+    }
     case "escrows":
       out(await listEscrows()); break;
     case "jobs":
@@ -78,7 +94,7 @@ try {
       out(await signRequestHeaders(key, method, path, rest.join(" "))); break;
     }
     default:
-      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] | escrow-release <id> | escrow-refund <id> | escrows | jobs [addr] | reputation [addr] | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
+      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> [reason] | vote <dispute_id> <accept|reject> | resolve <dispute_id> | jobs [addr] | reputation [addr] | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
   }
 } catch (e: any) {
   console.error("error:", e.message);
