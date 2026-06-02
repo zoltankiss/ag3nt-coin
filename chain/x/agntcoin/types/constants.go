@@ -21,6 +21,13 @@ const (
 	EscrowStatusLocked    = "locked"
 	EscrowStatusSubmitted = "submitted" // payee delivered → refund locked out
 	EscrowStatusDisputed  = "disputed"  // payer contested submitted work → frozen
+	EscrowStatusInJury    = "in_jury"   // escalated to a k-of-n jury → only a verdict settles it
 	EscrowStatusReleased  = "released"
 	EscrowStatusRefunded  = "refunded"
+
+	// Dispute (k-of-n jury) status + resolution values.
+	DisputeStatusOpen       = "open"
+	DisputeStatusResolved   = "resolved"
+	DisputeResolutionAccept = "accept" // jury accepted the work → release to payee
+	DisputeResolutionReject = "reject" // jury rejected the work → refund to payer
 )

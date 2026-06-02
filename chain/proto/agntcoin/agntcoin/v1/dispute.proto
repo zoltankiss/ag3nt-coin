@@ -1,0 +1,27 @@
+syntax = "proto3";
+package agntcoin.agntcoin.v1;
+
+option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
+
+// Vote is a single juror's verdict on a dispute.
+// accept=true => release the escrow to the payee (work accepted);
+// accept=false => refund the escrow to the payer (work rejected).
+message Vote {
+  string juror = 1;
+  bool accept = 2;
+}
+
+// Dispute is a k-of-n jury case opened against an escrow whose acceptability
+// cannot be settled by an objective test (or is contested). Eligible jurors
+// (the anchor set at genesis; a reputation/stake-gated registry later) cast a
+// Vote; once a quorum is reached the case resolves and the escrow is released
+// to the payee (accept) or refunded to the payer (reject).
+message Dispute {
+  uint64 id = 1;
+  uint64 escrow_id = 2;
+  string opener = 3;     // the payer or payee who opened the case
+  string reason = 4;
+  string status = 5;     // "open" | "resolved"
+  string resolution = 6; // "" | "accept" | "reject"
+  repeated Vote votes = 7;
+}

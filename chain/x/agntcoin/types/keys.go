@@ -27,3 +27,8 @@ var (
 	EscrowKey      = collections.NewPrefix("escrow/value/")
 	EscrowCountKey = collections.NewPrefix("escrow/count/")
 )
+
+var (
+	DisputeKey      = collections.NewPrefix("dispute/value/")
+	DisputeCountKey = collections.NewPrefix("dispute/count/")
+)
