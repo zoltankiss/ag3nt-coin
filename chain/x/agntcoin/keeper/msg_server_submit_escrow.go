@@ -38,6 +38,10 @@ func (k msgServer) SubmitEscrow(ctx context.Context, msg *types.MsgSubmitEscrow)
 	}
 
 	escrow.Status = types.EscrowStatusSubmitted
+	// Pin the delivered artifact on-chain (hex sha256) so the exhibit the jury
+	// later judges is tamper-evident: anyone can re-hash what the serving layer
+	// presents and verify it against this commitment. Set once, at submit.
+	escrow.DeliveryHash = msg.DeliveryHash
 	if err := k.Escrow.Set(ctx, escrow.Id, escrow); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
@@ -50,6 +54,7 @@ func (k msgServer) SubmitEscrow(ctx context.Context, msg *types.MsgSubmitEscrow)
 			sdk.NewAttribute("payee", escrow.Payee),
 			sdk.NewAttribute("amount", strconv.FormatUint(escrow.Amount, 10)),
 			sdk.NewAttribute("ref", escrow.Ref),
+			sdk.NewAttribute("delivery_hash", escrow.DeliveryHash),
 		),
 	)
 

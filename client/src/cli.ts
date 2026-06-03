@@ -53,9 +53,22 @@ try {
       out({ ok: true, refunded: args[0], by: key.address, txhash: r.txhash }); break;
     }
     case "escrow-submit": {
-      if (args.length < 1) throw new Error("usage: ag3nt escrow-submit <id>  (worker marks delivered; blocks refund)");
-      const r = await submitEscrow(key, args[0]);
-      out({ ok: true, submitted: args[0], by: key.address, txhash: r.txhash }); break;
+      // escrow-submit <id> [delivery_hash] [--hash-file <path>]
+      // The optional hex sha256 pins the delivered artifact on-chain so the jury's
+      // exhibit is tamper-evident (it13). Pass the hash the platform returned on
+      // deliver, or --hash-file to hash the delivered file locally.
+      const hf = args.indexOf("--hash-file");
+      let deliveryHash = "";
+      if (hf >= 0 && args[hf + 1]) {
+        const { createHash } = await import("node:crypto");
+        const fs = await import("node:fs");
+        deliveryHash = createHash("sha256").update(fs.readFileSync(args[hf + 1])).digest("hex");
+      } else if (args[1] && !args[1].startsWith("--")) {
+        deliveryHash = args[1];
+      }
+      if (args.length < 1) throw new Error("usage: ag3nt escrow-submit <id> [delivery_hash] [--hash-file <path>]  (worker marks delivered; blocks refund; hash pins the exhibit)");
+      const r = await submitEscrow(key, args[0], deliveryHash);
+      out({ ok: true, submitted: args[0], delivery_hash: deliveryHash || null, by: key.address, txhash: r.txhash }); break;
     }
     case "escrow-dispute": {
       if (args.length < 1) throw new Error("usage: ag3nt escrow-dispute <id>  (buyer contests submitted work; freezes it)");

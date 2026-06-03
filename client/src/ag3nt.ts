@@ -152,9 +152,9 @@ const MSG = {
     typeUrl: "/agntcoin.agntcoin.v1.MsgRefundEscrow",
     value: new Uint8Array([...strField(1, creator), ...u64Field(2, id)]),
   }),
-  submitEscrow: (creator: string, id: number | bigint) => ({
+  submitEscrow: (creator: string, id: number | bigint, deliveryHash: string = "") => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgSubmitEscrow",
-    value: new Uint8Array([...strField(1, creator), ...u64Field(2, id)]),
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, id), ...(deliveryHash ? strField(3, deliveryHash) : [])]),
   }),
   disputeEscrow: (creator: string, id: number | bigint) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgDisputeEscrow",
@@ -394,8 +394,8 @@ export async function refundEscrow(key: Key, id: number | bigint | string) {
 }
 // Fair-exchange: the PAYEE submits (marks delivered) to block refund; the PAYER
 // disputes submitted work to freeze it (no auto-release) pending resolution.
-export async function submitEscrow(key: Key, id: number | bigint | string) {
-  return signAndBroadcast(key, MSG.submitEscrow(key.address, BigInt(id)));
+export async function submitEscrow(key: Key, id: number | bigint | string, deliveryHash: string = "") {
+  return signAndBroadcast(key, MSG.submitEscrow(key.address, BigInt(id), deliveryHash));
 }
 export async function disputeEscrow(key: Key, id: number | bigint | string) {
   return signAndBroadcast(key, MSG.disputeEscrow(key.address, BigInt(id)));

@@ -19,4 +19,11 @@ message Escrow {
   // by the payer at lock time for un-verifiable / jury-bound work. Default false
   // preserves the it7 anti-ghosting behavior for ordinary escrows.
   bool no_auto_release = 8;
+  // delivery_hash is a hex sha256 of the delivered artifact, committed by the
+  // payee at submit time. It cryptographically pins the exhibit the jury judges:
+  // anyone can re-hash the artifact a serving layer (platform) presents and check
+  // it byte-for-byte against this on-chain commitment, so the delivery can't be
+  // silently altered after submission — the exhibit's integrity stops resting on
+  // trusting the platform. Empty if the payee submitted no hash.
+  string delivery_hash = 9;
 }
