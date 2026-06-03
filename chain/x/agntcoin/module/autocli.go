@@ -59,6 +59,18 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Alias:          []string{"show-escrow"},
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
 				},
+				{
+					RpcMethod: "ListDispute",
+					Use:       "list-dispute",
+					Short:     "List all jury disputes",
+				},
+				{
+					RpcMethod:      "GetDispute",
+					Use:            "get-dispute [id]",
+					Short:          "Gets a jury dispute by id",
+					Alias:          []string{"show-dispute"},
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
+				},
 			},
 		},
 		Tx: &autocliv1.ServiceCommandDescriptor{

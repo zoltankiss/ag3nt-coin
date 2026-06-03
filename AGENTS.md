@@ -1,13 +1,13 @@
 <claude-mem-context>
 # Memory Context
 
-# [ag3nt-coin] recent context, 2026-05-29 4:29pm CDT
+# [ag3nt-coin] recent context, 2026-05-29 8:14pm CDT
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (14,930t read) | 610,702t work | 98% savings
+Stats: 50 obs (16,618t read) | 614,873t work | 97% savings
 
 ### May 24, 2026
 S934 Worker daemon named "hermes" — naming the Mac mini ag3nt worker process (May 24 at 9:06 AM)
@@ -16,18 +16,7 @@ S936 Testnet-to-mainnet migration concern: will Base Sepolia deployment create h
 S943 Write a beginner-friendly HTML spec for the ag3nt MVP — completed and written to docs/mvp-base.html (May 24 at 9:11 AM)
 S1093 Build the ag3nt-coin MVP — an on-chain AI agent job marketplace where agents pay other agents in a native ERC-20 token to do AI work (May 24 at 9:19 AM)
 ### May 29, 2026
-4134 3:50p 🔵 TixSwarm repo not present on local machine
-4135 " 🔵 TixSwarm does not exist anywhere locally or on GitHub
-4138 3:52p 🔵 add-native-ticket-tracker repo found — has existing agent infrastructure
-4139 3:53p 🔵 add-native-ticket-tracker already has LLM title generation at src/tickets/title-generator.ts
-4140 " 🔵 title-generator.ts uses claude-haiku-4-5 with 80 token limit and truncation fallback
-4141 " ✅ Build plan updated: "TixSwarm missing" badge replaced with "consumer identified"
-4142 " ✅ Build plan reality-check section updated: consumer confirmed as add-native-ticket-tracker with exact integration seam
-4143 3:54p 🟣 Foundry installation started in background
-4144 " 🟣 ag3nt MVP build tasks created for steps 1-3
-4145 " 🟣 ag3nt MVP build tasks 4-5 created — full 5-task plan now tracked
-4146 3:55p 🟣 Foundry 1.7.1 installed successfully — forge, cast, anvil, chisel all verified
-4147 " 🔵 forge init --no-commit flag invalid; OpenZeppelin installed but contracts/ dir not created
+4147 3:55p 🔵 forge init --no-commit flag invalid; OpenZeppelin installed but contracts/ dir not created
 4148 " 🔵 forge init 1.7.1 has no --no-git flag — correct flag is --use-parent-git
 4149 " 🔵 forge init flag clarification: --no-git means no-submodule, --empty skips Counter.sol, --use-parent-git avoids nested repo
 4150 3:56p 🟣 contracts/ Foundry project scaffolded with forge-std and OpenZeppelin installed
@@ -70,7 +59,18 @@ S1099 Build ag3nt-coin MVP — user has correct faucet settings confirmed, click
 4182 " 🔵 Second deployment to Base Sepolia with new contract addresses — wallets fully funded and ready for e2e
 4183 4:26p 🔴 RPC eventual consistency fixes added to agent-a.ts and worker.ts for testnet reliability
 4184 " 🟣 retry() helper added to worker.ts — generic RPC retry with configurable attempts and delay
+4186 " 🔵 Job #1 already claimed by hermes-64 on Base Sepolia — state is Claimed (2), not yet submitted
 4185 4:27p 🟣 agent/scripts/testnet-run.sh created — reusable live testnet loop script (no deploy, no funding)
+4187 4:32p 🔴 worker.ts claim-win detection changed from stale state read to receipt.status check
+4188 " 🟣 ag3nt-coin live testnet e2e SUCCEEDED on Base Sepolia — real Claude inference, real token settlement on-chain
+4189 " 🔵 On-chain state confirmed post-settlement — totalSupply increased to 1,000,010 AGNT proving JOB_REWARD minted
+4190 " ✅ ag3nt-coin testnet milestone committed and pushed — third commit on main with BaseScan proof links
+4191 4:34p ⚖️ Next milestone defined: package runWorker as OpenClaw skill and deploy to macmini64 + macmini24
+4192 4:36p ⚖️ Agent-Native Crypto Portfolio + Agentic Hedge Fund Strategy Planned
+4193 4:39p 🔵 otel-olympics project discovered — 8-trial observability benchmark comparing Red/Sentry/Clone worlds for AI agent debugging
+4194 " 🔵 add-native-ticket-tracker is partially otel-olympics compatible — has ADD manifest but uses Bun+Hono not Node+Express
+4195 " 🔵 otel-olympics skill cloned locally — 5-phase workflow with explicit Node.js+Express requirement confirmed
+4196 4:43p 🔵 otel-olympics workflow.js architecture: parallel customer+dev agents → structured judge verdict
 
-Access 611k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 615k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

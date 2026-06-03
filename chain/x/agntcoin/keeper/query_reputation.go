@@ -86,6 +86,43 @@ func (q queryServer) Reputation(ctx context.Context, req *types.QueryReputationR
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
 
+	// Jury-endorsement edges: when a jury ACCEPTS a contested delivery, each
+	// juror who voted accept has *endorsed* the worker on the merits. Modeled as
+	// a directed edge juror→payee — mechanically identical to a job edge, so it
+	// flows reputation. This fixes the it12 "money-not-standing" finding: a
+	// worker hired by a buyer who is not anchor-rooted gets paid but earns no
+	// standing, because the buyer→payee job edge carries ~no anchor-rooted rank.
+	// A jury-accept by an anchor-juror is, by construction, an anchor-rooted
+	// endorsement — so the worker finally accrues reputation for work an anchor
+	// judged good. Derived purely from on-chain state (resolved-accept disputes
+	// already record their jurors' votes + the escrow), so it adds no new
+	// storage and stays deterministic for consensus.
+	//
+	// v0 safety note: under a *colluding* juror (v1, decentralized jurors) this
+	// is a reputation-laundering vector — a corrupt juror could accept fake work
+	// to launder rank to a Sybil. Defending that is exactly what jury-v1
+	// (staking + slashing of incoherent jurors) is for; in v0 the only juror is
+	// the honest anchor, so it is safe. (See BACKLOG: jury-v1.)
+	if err := q.k.Dispute.Walk(ctx, nil, func(_ uint64, d types.Dispute) (bool, error) {
+		if d.Resolution != types.DisputeResolutionAccept {
+			return false, nil
+		}
+		e, err := q.k.Escrow.Get(ctx, d.EscrowId)
+		if err != nil {
+			// A resolved dispute always has its escrow; skip defensively rather
+			// than fail the whole reputation query on an unexpected gap.
+			return false, nil
+		}
+		for _, v := range d.Votes {
+			if v.Accept {
+				jobs = append(jobs, JobEdge{Payer: v.Juror, Payee: e.Payee, Amount: e.Amount})
+			}
+		}
+		return false, nil
+	}); err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+	}
+
 	// Anchors (trust roots) from params.
 	params, err := q.k.Params.Get(ctx)
 	if err != nil {

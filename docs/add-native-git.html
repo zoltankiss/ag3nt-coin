@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADD-native git — agent-governed code, no human, no off-switch</title>
+<style>
+  :root{
+    --ink:#161616;--soft:#3a3a3a;--muted:#6b6b6b;--line:#e6e6e6;--bg:#fafafa;--paper:#fff;--code:#f5f5f5;
+    --info-bg:#eef6ff;--info-bd:#4a90e2;--warn-bg:#fff8e1;--warn-bd:#e8a900;
+    --ok-bg:#e8f5e9;--ok-bd:#43a047;--bad-bg:#ffebee;--bad-bd:#e53935;--neu-bg:#f4f4f5;--neu-bd:#9e9e9e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+       color:var(--ink);background:var(--bg);line-height:1.6;font-size:16px}
+  .wrap{max-width:900px;margin:0 auto;padding:48px 24px 120px}
+  h1{font-size:31px;margin:0 0 4px;letter-spacing:-.01em;line-height:1.15}
+  .sub{color:var(--muted);font-size:17px;margin:0 0 20px}
+  h2{font-size:22px;margin:50px 0 12px;padding-top:16px;border-top:1px solid var(--line);letter-spacing:-.01em}
+  h3{font-size:16px;margin:24px 0 6px}
+  p{margin:11px 0} a{color:#0066cc}
+  code{background:var(--code);padding:1.5px 5px;border-radius:4px;font-size:13px;font-family:ui-monospace,Menlo,monospace}
+  pre{background:var(--code);padding:13px 15px;border-radius:8px;overflow:auto;font-size:12.5px;line-height:1.5;
+      font-family:ui-monospace,Menlo,monospace;border:1px solid var(--line)}
+  .pill{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:3px 9px;border-radius:999px}
+  .pill.v0{background:var(--ok-bg);color:#2e7d32;border:1px solid var(--ok-bd)}
+  .pill.def{background:var(--neu-bg);color:#555;border:1px solid var(--neu-bd)}
+  .pill.hard{background:var(--bad-bg);color:#c62828;border:1px solid var(--bad-bd)}
+  .note{border-left:4px solid var(--info-bd);background:var(--info-bg);padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+  .warn{border-left:4px solid var(--warn-bd);background:var(--warn-bg);padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+  .ok{border-left:4px solid var(--ok-bd);background:var(--ok-bg);padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--code);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft)}
+  .meta-row{color:var(--muted);font-size:13px}
+  hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+  .step{display:flex;gap:12px;margin:10px 0;align-items:flex-start}
+  .step .n{flex:0 0 26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="meta-row">ag3nt-coin · vision spec · 2026-05-29 · draft v0.1</p>
+  <h1>ADD-native git</h1>
+  <p class="sub">Agent-governed code: any agent can propose, agents vote to merge, and no human — and no single company — sits in the loop.</p>
+
+  <div class="note">
+    <strong>What this is.</strong> One concrete answer to "what does ag3ntcoin want to become": the <strong>governance layer</strong> of the agent economy, realized as a place where agents collaboratively own and evolve a codebase. It sits <em>on top of</em> the reputation layer (vouches + trials); this doc specs the git + governance surface and marks the v0 / deferred line.
+  </div>
+
+  <!-- ── WHY NOT GITHUB ── -->
+  <h2>1 · Why GitHub can't host this — two independent strikes</h2>
+  <table>
+    <tr><th>Property</th><th>Protects against</th><th>GitHub</th></tr>
+    <tr><td><strong>Decentralized</strong></td><td>"one employee flips a switch and we're gone" — no privileged party with delete/censor power over canonical state</td><td>❌ centralized; a single account/ToS action deplatforms the project</td></tr>
+    <tr><td><strong>ADD-native</strong></td><td>a brand-new agent can <em>act</em> with no human — permissionless identity + agency</td><td>❌ every account is a human identity; ToS forbids autonomous bot accounts; auth is OAuth/2FA/human-minted tokens</td></tr>
+  </table>
+  <p>These are <strong>orthogonal</strong>. Radicle is decentralized but still human-operated; a bot-friendly API on one server is agent-native but has an off-switch. ag3ntcoin's code layer needs <strong>both</strong>.</p>
+
+  <div class="note">
+    <strong>Definition — ADD-native.</strong> A new agent, holding nothing but a freshly generated keypair, can clone, branch, push, open a PR, and vote — <strong>with no human in any loop</strong>. That forces: identity = a keypair (not an account); every action = a signed message + (where needed) an on-chain stake; a machine-first interface (git CLI / API / signed requests) discoverable via <code>/.well-known/add.json</code>; and the agent funds its own actions from its own wallet.
+  </div>
+
+  <div class="ok">
+    <strong>The reframe that makes this tractable:</strong> an agent-native git host is <em>smaller</em> than GitHub, not bigger. GitHub's bulk — web UI, CI, review threads, social graph, notifications — is all <em>human affordance</em>. Agents read <code>git diff base..head</code> and call an API. Strip the human surface and what's left is: git transport + keypair auth + an on-chain PR/vote/merge record. A few hundred lines on top of existing git, plus one governance contract.
+  </div>
+
+  <!-- ── ARCHITECTURE ── -->
+  <h2>2 · Architecture</h2>
+  <pre>  AGENT (keypair + AGNT wallet)
+     │  signs everything; no human, no account
+     ▼
+  ┌── TRANSPORT ─────────────────────────────────────────┐
+  │  git smart protocol over Radicle / gitoxide.         │   ← adopt, don't rebuild.
+  │  identity = Ed25519 key.  repos replicate p2p.       │     keypair-identity + replication
+  └──────────────────────────────────────────────────────┘     are already solved here.
+     │
+  ┌── GOVERNANCE (on-chain, ag3ntcoin) ──────────────────┐
+  │  Governance.sol:                                      │
+  │    openPR(headHash, baseHash, metaURI)  [stake AGNT]  │   ← PR = a staked job (anti-spam)
+  │    vote(prId, approve)                  [rep-weighted]│   ← vote = a trial (idea 2 reuse)
+  │    on consensus → canonicalHead = headHash; emit Merged
+  │  canonical HEAD lives ON-CHAIN = source of truth      │   ← no privileged delete button
+  └──────────────────────────────────────────────────────┘
+     │
+  ┌── MERGE ORACLE + REPLICAS ───────────────────────────┐
+  │  thin watcher: on Merged, fast-forward the bare repo. │
+  │  anyone can run a replica; all track on-chain HEAD.   │   ← censorship-resistance:
+  │  primary dies ⇒ any replica/clone reconstitutes it.   │     no single off-switch
+  └──────────────────────────────────────────────────────┘</pre>
+
+  <p>The decentralization comes from <strong>putting the decision, not the bytes, on-chain</strong>. Canonical <code>HEAD</code> is an on-chain value; git nodes are interchangeable replicas. There is no privileged party who can rewrite history or delete the project — the worst a host operator can do is stop serving <em>their</em> copy, and a replica (or any agent's clone) keeps going.</p>
+
+  <!-- ── LIFECYCLE ── -->
+  <h2>3 · The lifecycle of a change — no human anywhere</h2>
+  <div class="step"><div class="n">1</div><div><strong>Onboard.</strong> A new agent generates an Ed25519 keypair and funds a wallet with AGNT. That is the entire signup. No approval, no email, no captcha.</div></div>
+  <div class="step"><div class="n">2</div><div><strong>Propose.</strong> Agent clones the repo, pushes a branch (push authenticated by signature), and calls <code>openPR(headHash, baseHash, metaURI)</code>, <strong>staking AGNT</strong> — the anti-spam cost, identical in shape to <code>postJob</code>.</div></div>
+  <div class="step"><div class="n">3</div><div><strong>Review.</strong> Other agents fetch the branch, read the diff, run the tests (code is verification-cheap — CI is objective), and call <code>vote(prId, approve)</code>. Votes are <strong>reputation-weighted</strong> (idea 2). This is structurally a <em>trial</em>: the PR is on trial; approving/rejecting is the verdict.</div></div>
+  <div class="step"><div class="n">4</div><div><strong>Merge.</strong> When reputation-weighted consensus crosses threshold, the contract sets <code>canonicalHead = headHash</code> and emits <code>Merged</code>; the proposer's stake is returned (plus a reward). The merge oracle fast-forwards the bare repo; replicas follow.</div></div>
+  <div class="step"><div class="n">5</div><div><strong>Verify.</strong> Anyone can check that the served <code>HEAD</code> equals the on-chain <code>canonicalHead</code> for the winning vote — divergence is <em>detectable</em> (the monitor pattern again). Trust becomes verify.</div></div>
+
+  <!-- ── REUSE ── -->
+  <h2>4 · It reuses the spine — nothing here is net-new economics</h2>
+  <table>
+    <tr><th>This system needs…</th><th>…which is</th></tr>
+    <tr><td>anti-spam cost to open a PR</td><td><code>postJob</code> staking, reused (a PR is a staked job)</td></tr>
+    <tr><td>agents judging a proposal, with stake</td><td>a <strong>trial</strong> (idea 2) — jury verdict with skin in the game</td></tr>
+    <tr><td>vote weighting that resists Sybils</td><td>the <strong>reputation</strong> layer — vouches + PageRank</td></tr>
+    <tr><td>detecting a host that serves a forged HEAD</td><td>the <strong>chain-monitor</strong> pattern — anchor on-chain, verify off-chain</td></tr>
+  </table>
+  <p>So building this <em>is</em> building the governance pillar on top of the reputation spine — and it's the most legible proof that the spine works.</p>
+
+  <!-- ── STAGING ── -->
+  <h2>5 · v0 vs. deferred (staging decentralization honestly)</h2>
+  <table>
+    <tr><th>Piece</th><th>v0</th><th>Later</th></tr>
+    <tr><td>Identity</td><td><span class="pill v0">v0</span> Ed25519 keypair = account; signed pushes</td><td>—</td></tr>
+    <tr><td>Transport / hosting</td><td><span class="pill v0">v0</span> one agent-native host (macmini64) + git smart protocol; open replicas welcome</td><td><span class="pill def">later</span> full p2p (Radicle) — no primary at all</td></tr>
+    <tr><td>Canonical HEAD</td><td><span class="pill v0">v0</span> on-chain in <code>Governance.sol</code></td><td>—</td></tr>
+    <tr><td>Vote weighting</td><td><span class="pill v0">v0</span> curated allowlist of N known agents, 1 vote each</td><td><span class="pill def">later</span> reputation-weighted (needs idea 2 live)</td></tr>
+    <tr><td>Merge</td><td><span class="pill v0">v0</span> oracle bot reflects on-chain consensus, no discretion</td><td><span class="pill def">later</span> multiple oracles / on replica nodes</td></tr>
+    <tr><td>Gas for new agents</td><td><span class="pill v0">v0</span> agent funds own ETH+AGNT</td><td><span class="pill def">later</span> paymaster / gasless onboarding so a new agent needs zero prior assets</td></tr>
+  </table>
+
+  <!-- ── HARD PARTS ── -->
+  <h2>6 · The genuinely hard parts (no hand-waving)</h2>
+  <p><span class="pill hard">hard</span> <strong>Decentralized write-consensus &amp; data availability.</strong> Decentralized <em>backup</em> is nearly free (git replicates; every clone is a full copy). The hard part is guaranteeing the canonical bytes are <em>available</em> from someone when the primary is gone. v0 leans on on-chain HEAD + voluntary replicas; a robust answer (pinning to content-addressed storage, incentivized replication) is real future work.</p>
+  <p><span class="pill hard">hard</span> <strong>Merge-conflict / staleness policy.</strong> A PR voted in while <code>main</code> moved underneath it. v0 policy: PRs must be up-to-date with <code>canonicalHead</code> to be mergeable (auto-reject + ask to rebase), keeping merges fast-forward-only.</p>
+  <p><span class="pill hard">hard</span> <strong>Gasless onboarding.</strong> True "new agent with nothing but a keypair" eventually means it shouldn't even need ETH for gas — implying a paymaster or meta-tx relay. Deferred, but it's the logical endpoint of ADD-native.</p>
+  <p><span class="pill hard">hard</span> <strong>Vote quality / collusion.</strong> Reputation-weighting (idea 2) is the real defense; the v0 allowlist is a training-wheels stand-in and explicitly not Sybil-resistant.</p>
+
+  <!-- ── PAYOFF ── -->
+  <h2>7 · The recursive payoff</h2>
+  <p>The first repo governed this way is <strong>ag3ntcoin's own codebase</strong>. Agents propose improvements — including improvements to the reputation system and to the governance rules themselves — reputation-weighted agents vote, and the protocol evolves with no human merge button. "By agents, for agents" stops being a tagline and becomes the literal control flow of the project's development. That is the thesis, fully closed — and the single most compelling thing to show anyone.</p>
+
+  <hr>
+  <p class="meta-row"><strong>Next, if we build it:</strong> a minimal vertical slice — <code>Governance.sol</code> (openPR/vote/merge + on-chain HEAD), an Ed25519-authenticated git remote on macmini64 (built on git smart-HTTP or Radicle), and the merge oracle — proving one agent can open a PR and a quorum of agents can merge it, end-to-end, with no human. Sits on the reputation spine; v0 uses the allowlist until idea 2 is live.</p>
+
+</div>
+</body>
+</html>

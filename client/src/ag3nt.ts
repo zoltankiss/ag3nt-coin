@@ -223,6 +223,34 @@ export async function getEscrow(id: number | bigint | string): Promise<EscrowRec
   return e ? toEscrow(e) : null;
 }
 
+// Disputes (jury cases). The read side of the jury: a juror lists open cases
+// from the chain itself instead of an out-of-band notification.
+export type VoteRecord = { juror: string; accept: boolean };
+export type DisputeRecord = { id: string; escrow_id: string; opener: string; reason: string; status: string; resolution: string; votes: VoteRecord[] };
+
+function toDispute(d: any): DisputeRecord {
+  return {
+    id: String(d.id ?? "0"), escrow_id: String(d.escrow_id ?? d.escrowId ?? "0"),
+    opener: d.opener ?? "", reason: d.reason ?? "", status: d.status ?? "", resolution: d.resolution ?? "",
+    votes: (d.votes ?? []).map((v: any) => ({ juror: v.juror ?? "", accept: !!v.accept })),
+  };
+}
+
+export async function listDisputes(): Promise<DisputeRecord[]> {
+  const r = await fetch(`${Q}/dispute`);
+  if (!r.ok) return [];
+  const j: any = await r.json();
+  return (j.dispute ?? j.Dispute ?? []).map(toDispute);
+}
+
+export async function getDispute(id: number | bigint | string): Promise<DisputeRecord | null> {
+  const r = await fetch(`${Q}/dispute/${id}`);
+  if (!r.ok) return null;
+  const j: any = await r.json();
+  const d = j.dispute ?? j.Dispute;
+  return d ? toDispute(d) : null;
+}
+
 // Interpretable reputation inputs (the evidence behind the score): the
 // completed-job history (released escrows) an address earned vs. paid for. A
 // buyer can read the actual track record — who paid this agent, for how much —

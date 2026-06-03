@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -9,6 +10,65 @@ import (
 	"github.com/zoltankiss/agntcoin/x/agntcoin/keeper"
 	"github.com/zoltankiss/agntcoin/x/agntcoin/types"
 )
+
+// repScore queries a node's reputation through the query server and parses it.
+func repScore(t *testing.T, f *fixture, qs types.QueryServer, addr string) float64 {
+	t.Helper()
+	resp, err := qs.Reputation(f.ctx, &types.QueryReputationRequest{Address: addr})
+	require.NoError(t, err)
+	v, err := strconv.ParseFloat(resp.Score, 64)
+	require.NoError(t, err)
+	return v
+}
+
+// Money-not-standing fix (it12): a jury-ACCEPT by the anchor-juror confers
+// anchor-rooted reputation on the worker — the recognition a paid-but-unvouched
+// worker otherwise never earns when its buyer is not anchor-connected. A/B
+// within one test: the SAME non-anchor buyer pays two workers — one by a normal
+// release (control), one via a jury-accept — and only the jury-endorsed worker
+// gains standing.
+func TestJuryAcceptConfersAnchorRootedReputation(t *testing.T) {
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+	qs := keeper.NewQueryServerImpl(f.keeper)
+
+	// The anchor/trust-root is the juror — NOT the buyer (addrPayer), who is an
+	// ordinary funded account with no anchor connection.
+	juror := sample.AccAddress()
+	setJurors(t, f, juror)
+	seedAccount(t, f, addrPayer, 2000)
+
+	// CONTROL: buyer pays worker2 by a normal release (no jury). worker2 is paid
+	// but, because the buyer isn't anchor-rooted, earns ~no standing.
+	worker2 := sample.AccAddress()
+	lc := setBlockTime(f.ctx, 100)
+	lr, err := ms.LockEscrow(lc, &types.MsgLockEscrow{Creator: addrPayer, Payee: worker2, Amount: 400, Ref: "control", DisputeSeconds: 50})
+	require.NoError(t, err)
+	_, err = ms.ReleaseEscrow(lc, &types.MsgReleaseEscrow{Creator: addrPayer, Id: lr.Id})
+	require.NoError(t, err)
+
+	// JURY PATH: buyer hires addrPayee, who delivers; buyer escalates; the
+	// anchor-juror accepts on the merits.
+	eid := submittedEscrow(t, f, ms)
+	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayer, EscrowId: eid, Reason: "can't verify; rule please"})
+	require.NoError(t, err)
+	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true})
+	require.NoError(t, err)
+	_, err = ms.ResolveDispute(f.ctx, &types.MsgResolveDispute{Creator: addrPayer, DisputeId: od.Id})
+	require.NoError(t, err)
+
+	// Both workers got PAID the same 400.
+	require.Equal(t, uint64(400), balanceOf(t, f, worker2))
+	require.Equal(t, uint64(400), balanceOf(t, f, addrPayee))
+
+	// But only the jury-endorsed worker earns STANDING: the anchor-juror's
+	// accept is an anchor-rooted endorsement; the control worker's buyer-only
+	// release carries ~no anchor-rooted rank.
+	juryRep := repScore(t, f, qs, addrPayee)
+	controlRep := repScore(t, f, qs, worker2)
+	require.Greater(t, juryRep, 0.0, "jury-accepted worker must earn anchor-rooted reputation")
+	require.Greater(t, juryRep, controlRep*10, "jury endorsement must dominate a non-anchor buyer's bare release")
+}
 
 // setJurors points the v0 juror set (= Params.Anchors, the founder/trust roots)
 // at the given addresses.

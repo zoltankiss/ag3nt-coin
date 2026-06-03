@@ -6,6 +6,7 @@ import "agntcoin/agntcoin/v1/account.proto";
 import "agntcoin/agntcoin/v1/params.proto";
 import "agntcoin/agntcoin/v1/vouch.proto";
 import "agntcoin/agntcoin/v1/escrow.proto";
+import "agntcoin/agntcoin/v1/dispute.proto";
 import "amino/amino.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
@@ -53,6 +54,18 @@ service Query {
   // ListEscrow Queries a list of Escrow items.
   rpc ListEscrow(QueryAllEscrowRequest) returns (QueryAllEscrowResponse) {
     option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/escrow";
+  }
+
+  // GetDispute Queries a Dispute (jury case) by id.
+  rpc GetDispute(QueryGetDisputeRequest) returns (QueryGetDisputeResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/dispute/{id}";
+  }
+
+  // ListDispute Queries a list of Dispute (jury case) items. This is what makes
+  // the jury legible: a juror lists open cases instead of relying on an
+  // out-of-band notification.
+  rpc ListDispute(QueryAllDisputeRequest) returns (QueryAllDisputeResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/dispute";
   }
 }
 
@@ -138,5 +151,26 @@ message QueryAllEscrowRequest {
 // QueryAllEscrowResponse defines the QueryAllEscrowResponse message.
 message QueryAllEscrowResponse {
   repeated Escrow escrow = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+// QueryGetDisputeRequest defines the QueryGetDisputeRequest message.
+message QueryGetDisputeRequest {
+  uint64 id = 1;
+}
+
+// QueryGetDisputeResponse defines the QueryGetDisputeResponse message.
+message QueryGetDisputeResponse {
+  Dispute dispute = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryAllDisputeRequest defines the QueryAllDisputeRequest message.
+message QueryAllDisputeRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryAllDisputeResponse defines the QueryAllDisputeResponse message.
+message QueryAllDisputeResponse {
+  repeated Dispute dispute = 1 [(gogoproto.nullable) = false];
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
