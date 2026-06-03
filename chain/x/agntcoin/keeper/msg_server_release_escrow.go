@@ -39,10 +39,23 @@ func (k msgServer) ReleaseEscrow(ctx context.Context, msg *types.MsgReleaseEscro
 		if msg.Creator != escrow.Payer {
 			return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "disputed escrow can only be released by the payer (pending resolution)")
 		}
-	} else if msg.Creator != escrow.Payer && now < escrow.Deadline {
-		// locked/submitted: the payer may release anytime; anyone may release
-		// after the deadline, so a ghosting payer cannot trap a delivered payee.
-		return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "only the payer may release before the deadline")
+	} else if msg.Creator != escrow.Payer {
+		// Non-payer (payee) release on a locked/submitted escrow.
+		if escrow.NoAutoRelease {
+			// Jury-bound escrow: the payee can NEVER self-release — not even past
+			// the deadline. Un-verifiable / contested work must be settled by the
+			// jury (open a dispute → the juror rules on the merits), so a scammer
+			// cannot deliver slop, submit, and simply wait out the clock to self-pay
+			// (it13 finding #19 — the deadline self-release was a jury-bypass). The
+			// honest-worker protection is preserved THROUGH the jury: a ghosted payee
+			// opens a dispute and an honest delivery is jury-accepted.
+			return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "jury-bound escrow: the payee cannot self-release — settle via the jury (open a dispute; the juror rules on the merits)")
+		}
+		if now < escrow.Deadline {
+			// Ordinary escrow: the payer may release anytime; anyone may release
+			// after the deadline, so a ghosting payer cannot trap a delivered payee.
+			return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "only the payer may release before the deadline")
+		}
 	}
 
 	payeeBytes, err := k.addressCodec.StringToBytes(escrow.Payee)

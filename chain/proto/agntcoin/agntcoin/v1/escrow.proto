@@ -13,4 +13,10 @@ message Escrow {
   string ref = 5;
   string status = 6;
   int64 deadline = 7;
+  // no_auto_release disables the post-deadline payee-self-release path: a
+  // jury-bound escrow can only be settled by the payer or by the jury, never by
+  // the payee waiting out the deadline and self-paying (it13 finding #19). Set
+  // by the payer at lock time for un-verifiable / jury-bound work. Default false
+  // preserves the it7 anti-ghosting behavior for ordinary escrows.
+  bool no_auto_release = 8;
 }

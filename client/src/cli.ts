@@ -32,9 +32,15 @@ try {
       out({ ok: true, from: key.address, to: args[0], txhash: r.txhash }); break;
     }
     case "escrow-lock": {
-      if (args.length < 3) throw new Error("usage: ag3nt escrow-lock <payee> <amount> <ref> [disputeSeconds]");
-      const r = await lockEscrow(key, args[0], BigInt(args[1]), args[2], args[3] ? BigInt(args[3]) : 3600n);
-      out({ ok: true, id: r.id, payer: key.address, payee: args[0], amount: args[1], ref: args[2], txhash: r.txhash }); break;
+      // --jury-bound (alias --no-auto-release): mark the escrow jury-bound so the
+      // worker can't self-release on deadline — un-verifiable work settles via the
+      // jury (it13 #19). Lock no-test/prose tasks this way.
+      const flags = args.filter((a: string) => a.startsWith("--"));
+      const pos = args.filter((a: string) => !a.startsWith("--"));
+      if (pos.length < 3) throw new Error("usage: ag3nt escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound]");
+      const juryBound = flags.includes("--jury-bound") || flags.includes("--no-auto-release");
+      const r = await lockEscrow(key, pos[0], BigInt(pos[1]), pos[2], pos[3] ? BigInt(pos[3]) : 3600n, juryBound);
+      out({ ok: true, id: r.id, payer: key.address, payee: pos[0], amount: pos[1], ref: pos[2], jury_bound: juryBound, txhash: r.txhash }); break;
     }
     case "escrow-release": {
       if (args.length < 1) throw new Error("usage: ag3nt escrow-release <id>");
@@ -100,7 +106,7 @@ try {
       out(await signRequestHeaders(key, method, path, rest.join(" "))); break;
     }
     default:
-      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> [reason] | vote <dispute_id> <accept|reject> | resolve <dispute_id> | disputes [open] | dispute <id> | jobs [addr] | reputation [addr] | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
+      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> [reason] | vote <dispute_id> <accept|reject> | resolve <dispute_id> | disputes [open] | dispute <id> | jobs [addr] | reputation [addr] | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
   }
 } catch (e: any) {
   console.error("error:", e.message);

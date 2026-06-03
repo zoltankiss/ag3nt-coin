@@ -62,13 +62,14 @@ func (k msgServer) LockEscrow(ctx context.Context, msg *types.MsgLockEscrow) (*t
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
 	escrow := types.Escrow{
-		Id:       id,
-		Payer:    msg.Creator,
-		Payee:    msg.Payee,
-		Amount:   msg.Amount,
-		Ref:      msg.Ref,
-		Status:   types.EscrowStatusLocked,
-		Deadline: deadline,
+		Id:            id,
+		Payer:         msg.Creator,
+		Payee:         msg.Payee,
+		Amount:        msg.Amount,
+		Ref:           msg.Ref,
+		Status:        types.EscrowStatusLocked,
+		Deadline:      deadline,
+		NoAutoRelease: msg.NoAutoRelease,
 	}
 	if err := k.Escrow.Set(ctx, id, escrow); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())

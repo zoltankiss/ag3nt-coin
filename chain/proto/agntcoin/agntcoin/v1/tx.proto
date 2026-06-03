@@ -142,6 +142,10 @@ message MsgLockEscrow {
   uint64 amount = 3;
   string ref = 4;
   uint64 dispute_seconds = 5;
+  // no_auto_release marks the escrow jury-bound: the payee can never self-release
+  // (even past the deadline) — un-verifiable work settles via the jury. Set this
+  // for no-test / prose tasks (it13 finding #19). Default false = ordinary escrow.
+  bool no_auto_release = 6;
 }
 
 // MsgLockEscrowResponse defines the MsgLockEscrowResponse message.

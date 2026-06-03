@@ -140,9 +140,9 @@ const MSG = {
     typeUrl: "/agntcoin.agntcoin.v1.MsgUnvouch",
     value: new Uint8Array([...strField(1, creator), ...strField(2, to)]),
   }),
-  lockEscrow: (creator: string, payee: string, amount: number | bigint, ref: string, disputeSeconds: number | bigint) => ({
+  lockEscrow: (creator: string, payee: string, amount: number | bigint, ref: string, disputeSeconds: number | bigint, noAutoRelease: boolean = false) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgLockEscrow",
-    value: new Uint8Array([...strField(1, creator), ...strField(2, payee), ...u64Field(3, amount), ...strField(4, ref), ...u64Field(5, disputeSeconds)]),
+    value: new Uint8Array([...strField(1, creator), ...strField(2, payee), ...u64Field(3, amount), ...strField(4, ref), ...u64Field(5, disputeSeconds), ...boolField(6, noAutoRelease)]),
   }),
   releaseEscrow: (creator: string, id: number | bigint) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgReleaseEscrow",
@@ -374,8 +374,8 @@ function eventAttr(resp: any, type: string, key: string): string | null {
 // the payee reputation), or refund within the dispute window. disputeSeconds
 // is how long the payer is the only one who can release (after it, the payee
 // can self-release so a ghosting payer can't trap funds).
-export async function lockEscrow(key: Key, payee: string, amount: number | bigint, ref: string, disputeSeconds: number | bigint = 3600): Promise<{ id: string; txhash: string }> {
-  const r = await signAndBroadcast(key, MSG.lockEscrow(key.address, payee, amount, ref, disputeSeconds));
+export async function lockEscrow(key: Key, payee: string, amount: number | bigint, ref: string, disputeSeconds: number | bigint = 3600, noAutoRelease: boolean = false): Promise<{ id: string; txhash: string }> {
+  const r = await signAndBroadcast(key, MSG.lockEscrow(key.address, payee, amount, ref, disputeSeconds, noAutoRelease));
   let id = eventAttr(r, "agntcoin_escrow_locked", "id");
   if (!id) {
     const mine = (await listEscrows())
