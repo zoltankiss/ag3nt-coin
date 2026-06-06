@@ -164,9 +164,9 @@ const MSG = {
     typeUrl: "/agntcoin.agntcoin.v1.MsgOpenDispute",
     value: new Uint8Array([...strField(1, creator), ...u64Field(2, escrowId), ...strField(3, reason), ...u64Field(4, bondAmount)]),
   }),
-  castVote: (creator: string, disputeId: number | bigint, accept: boolean) => ({
+  castVote: (creator: string, disputeId: number | bigint, accept: boolean, stakeAmount: number | bigint) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgCastVote",
-    value: new Uint8Array([...strField(1, creator), ...u64Field(2, disputeId), ...boolField(3, accept)]),
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, disputeId), ...boolField(3, accept), ...u64Field(4, stakeAmount)]),
   }),
   resolveDispute: (creator: string, disputeId: number | bigint) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgResolveDispute",
@@ -453,8 +453,11 @@ export async function openDispute(key: Key, escrowId: number | bigint | string, 
   if (!id) throw new Error("dispute opened but could not determine its id");
   return { id, txhash: r.txhash };
 }
-export async function castVote(key: Key, disputeId: number | bigint | string, accept: boolean) {
-  return signAndBroadcast(key, MSG.castVote(key.address, BigInt(disputeId), accept));
+// Voting requires a slashable juror-stake (>= MinJurorStake): returned if your
+// vote is coherent with the resolved verdict, slashed to the wronged party if not
+// (jury-v1). Combined with the resolve-time quorum, this blocks a 1-0 rush.
+export async function castVote(key: Key, disputeId: number | bigint | string, accept: boolean, stakeAmount: number | bigint) {
+  return signAndBroadcast(key, MSG.castVote(key.address, BigInt(disputeId), accept, BigInt(stakeAmount)));
 }
 export async function resolveDispute(key: Key, disputeId: number | bigint | string) {
   return signAndBroadcast(key, MSG.resolveDispute(key.address, BigInt(disputeId)));

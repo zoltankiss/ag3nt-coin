@@ -9,6 +9,12 @@ option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
 message Vote {
   string juror = 1;
   bool accept = 2;
+  // bond_id is the slashable juror-stake the juror posted with this vote
+  // (purpose "jurorstake:<dispute id>"). On ResolveDispute it is released to the
+  // juror if its vote is coherent with the resolved verdict, or slashed to the
+  // wronged party if it voted against the resolution (the minority-collusion
+  // deterrent). Protocol-settled at resolution; no external slasher.
+  uint64 bond_id = 3;
 }
 
 // Dispute is a k-of-n jury case opened against an escrow whose acceptability

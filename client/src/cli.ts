@@ -81,10 +81,10 @@ try {
       out({ ok: true, dispute_id: r.id, escrow_id: args[0], bond: args[1], by: key.address, txhash: r.txhash }); break;
     }
     case "vote": {
-      if (args.length < 2) throw new Error("usage: ag3nt vote <dispute_id> <accept|reject>  (eligible jurors only)");
+      if (args.length < 3) throw new Error("usage: ag3nt vote <dispute_id> <accept|reject> <stake>  (eligible jurors only; posts a slashable juror-stake >= MinJurorStake — returned if coherent with the verdict, slashed to the wronged party if not)");
       const accept = /^(accept|true|yes|y|1)$/i.test(args[1]);
-      const r = await castVote(key, args[0], accept);
-      out({ ok: true, dispute: args[0], vote: accept ? "accept" : "reject", by: key.address, txhash: r.txhash }); break;
+      const r = await castVote(key, args[0], accept, BigInt(args[2]));
+      out({ ok: true, dispute: args[0], vote: accept ? "accept" : "reject", stake: args[2], by: key.address, txhash: r.txhash }); break;
     }
     case "resolve": {
       if (args.length < 1) throw new Error("usage: ag3nt resolve <dispute_id>  (tally jury → release to payee / refund to payer)");
@@ -143,7 +143,7 @@ try {
       out(await signRequestHeaders(key, method, path, rest.join(" "))); break;
     }
     default:
-      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
+      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> <stake> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
   }
 } catch (e: any) {
   console.error("error:", e.message);

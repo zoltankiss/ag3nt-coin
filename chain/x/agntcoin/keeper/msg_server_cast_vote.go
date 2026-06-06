@@ -47,7 +47,43 @@ func (k msgServer) CastVote(ctx context.Context, msg *types.MsgCastVote) (*types
 			return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "juror has already voted on this dispute")
 		}
 	}
-	dispute.Votes = append(dispute.Votes, &types.Vote{Juror: msg.Creator, Accept: msg.Accept})
+
+	// Voting requires a slashable JUROR-STAKE (jury-v1, it20): a free vote lets a
+	// colluding juror push fraudulent verdicts at no cost. The juror must be
+	// registered with sufficient balance; the stake is debited now and settled in
+	// ResolveDispute (released if coherent with the verdict, slashed to the wronged
+	// party if not). Protocol-held (slasher empty) — only ResolveDispute settles it.
+	if msg.StakeAmount < types.MinJurorStake {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "voting requires a juror-stake of at least %d", types.MinJurorStake)
+	}
+	juror, err := k.Account.Get(ctx, msg.Creator)
+	if err != nil || !juror.Registered {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "juror not registered")
+	}
+	if juror.Balance < msg.StakeAmount {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "insufficient balance for juror stake")
+	}
+	juror.Balance -= msg.StakeAmount
+	if err := k.Account.Set(ctx, msg.Creator, juror); err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+	}
+	bondID, err := k.BondSeq.Next(ctx)
+	if err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+	}
+	if err := k.Bond.Set(ctx, bondID, types.Bond{
+		Id:      bondID,
+		Poster:  msg.Creator,
+		Amount:  msg.StakeAmount,
+		Purpose: "jurorstake:" + strconv.FormatUint(dispute.Id, 10),
+		Slasher: "", // protocol-settled by ResolveDispute
+		Status:  types.BondStatusActive,
+		Ref:     strconv.FormatUint(dispute.Id, 10),
+	}); err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+	}
+
+	dispute.Votes = append(dispute.Votes, &types.Vote{Juror: msg.Creator, Accept: msg.Accept, BondId: bondID})
 	if err := k.Dispute.Set(ctx, dispute.Id, dispute); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}

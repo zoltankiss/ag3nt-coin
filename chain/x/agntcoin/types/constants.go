@@ -33,6 +33,15 @@ const (
 	// flood cost N bonds. Returned in full when the opener's dispute is upheld.
 	MinDisputeBond uint64 = 100
 
+	// MinJurorStake is the minimum slashable collateral a juror must post WITH a
+	// vote (jury-v1, it20). The jury settles escrows AND slashes dispute-bonds, so
+	// a free, penalty-free vote lets a colluding juror push fraudulent verdicts. A
+	// per-vote stake makes voting cost: coherent-with-the-verdict jurors get it
+	// back; a juror incoherent with the resolved verdict is slashed to the wronged
+	// party (the minority-collusion deterrent). Majority collusion is out of scope
+	// for v1 — it needs reputation-weighted/proper-scoring voting (it25).
+	MinJurorStake uint64 = 100
+
 	// Bond (slashable collateral) status values. ACTIVE resolves exactly once,
 	// to RELEASED (collateral -> poster) or SLASHED (collateral -> beneficiary,
 	// or burned) — and only ever by the bond's designated slasher.

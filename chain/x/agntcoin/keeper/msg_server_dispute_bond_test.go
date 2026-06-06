@@ -22,6 +22,7 @@ func TestOpenDisputeRequiresBond(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 	juror := sample.AccAddress()
 	setJurors(t, f, juror)
+	seedAccount(t, f, juror, 1000) // jury-v1: fund the juror-stake
 	seedAccount(t, f, addrPayer, 1000)
 	seedAccount(t, f, addrPayee, 0)
 	eid := submittedEscrow(t, f, ms)
@@ -57,13 +58,14 @@ func TestDisputeBondSlashedToGriefedWorkerOnFrivolous(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 	juror := sample.AccAddress()
 	setJurors(t, f, juror)
+	seedAccount(t, f, juror, 1000) // jury-v1: fund the juror-stake
 	seedAccount(t, f, addrPayer, 1000)
 	seedAccount(t, f, addrPayee, 0)
 	eid := submittedEscrow(t, f, ms) // locks 400 payer→payee, submitted
 
 	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayer, EscrowId: eid, Reason: "cry wolf", BondAmount: 200})
 	require.NoError(t, err)
-	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true}) // work was good
+	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true, StakeAmount: 100}) // work was good
 	require.NoError(t, err)
 	_, err = ms.ResolveDispute(f.ctx, &types.MsgResolveDispute{Creator: juror, DisputeId: od.Id})
 	require.NoError(t, err)
@@ -85,13 +87,14 @@ func TestDisputeBondReturnedWhenUpheld(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 	juror := sample.AccAddress()
 	setJurors(t, f, juror)
+	seedAccount(t, f, juror, 1000) // jury-v1: fund the juror-stake
 	seedAccount(t, f, addrPayer, 1000)
 	seedAccount(t, f, addrPayee, 0)
 	eid := submittedEscrow(t, f, ms)
 
 	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayer, EscrowId: eid, Reason: "genuine slop", BondAmount: 200})
 	require.NoError(t, err)
-	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: false}) // slop → reject
+	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: false, StakeAmount: 100}) // slop → reject
 	require.NoError(t, err)
 	_, err = ms.ResolveDispute(f.ctx, &types.MsgResolveDispute{Creator: juror, DisputeId: od.Id})
 	require.NoError(t, err)
@@ -113,6 +116,7 @@ func TestDisputeBondNotExternallySettleable(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 	juror := sample.AccAddress()
 	setJurors(t, f, juror)
+	seedAccount(t, f, juror, 1000) // jury-v1: fund the juror-stake
 	seedAccount(t, f, addrPayer, 1000)
 	seedAccount(t, f, addrPayee, 0)
 	seedAccount(t, f, addrOutside, 1000)

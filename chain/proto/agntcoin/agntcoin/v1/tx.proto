@@ -238,6 +238,12 @@ message MsgCastVote {
   string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   uint64 dispute_id = 2;
   bool accept = 3;
+  // stake_amount: the slashable juror-stake the juror posts WITH this vote
+  // (>= MinJurorStake). Voting is no longer free — a juror coherent with the
+  // resolved verdict gets it back, one incoherent with it is slashed to the
+  // wronged party. Deters a colluding juror (jury-v1; it20). Combined with the
+  // quorum requirement in ResolveDispute, it also blocks a single-juror 1-0 rush.
+  uint64 stake_amount = 4;
 }
 
 // MsgCastVoteResponse defines the MsgCastVote response.

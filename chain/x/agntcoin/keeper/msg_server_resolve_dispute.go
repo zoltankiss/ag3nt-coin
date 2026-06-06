@@ -43,6 +43,20 @@ func (k msgServer) ResolveDispute(ctx context.Context, msg *types.MsgResolveDisp
 			reject++
 		}
 	}
+	// QUORUM (jury-v1, it20): a real majority of the eligible juror set must have
+	// voted before a dispute can resolve — so a single colluding juror cannot vote
+	// "accept" and immediately resolve a 1-0 verdict before honest jurors weigh in
+	// (the rush-resolve hole the it20 RED targets). quorum = floor(n/2)+1 of the n
+	// eligible jurors (a strict majority of the whole set, not just of votes cast).
+	params, err := k.Params.Get(ctx)
+	if err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+	}
+	nJurors := len(resolveAnchors(params.Anchors))
+	quorum := nJurors/2 + 1
+	if len(dispute.Votes) < quorum {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "quorum not reached: %d of %d eligible jurors voted (need %d)", len(dispute.Votes), nJurors, quorum)
+	}
 	if accept == reject {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "no majority yet — need a strict accept/reject majority to resolve")
 	}
@@ -123,6 +137,55 @@ func (k msgServer) ResolveDispute(ctx context.Context, msg *types.MsgResolveDisp
 		sdkCtx0.EventManager().EmitEvent(
 			sdk.NewEvent("agntcoin_dispute_bond_settled",
 				sdk.NewAttribute("dispute_id", strconv.FormatUint(dispute.Id, 10)),
+				sdk.NewAttribute("bond_id", strconv.FormatUint(bond.Id, 10)),
+				sdk.NewAttribute("status", bond.Status),
+				sdk.NewAttribute("recipient", recipient),
+				sdk.NewAttribute("amount", strconv.FormatUint(bond.Amount, 10)),
+			),
+		)
+	}
+
+	// Settle each juror's JUROR-STAKE by coherence with the resolved verdict
+	// (jury-v1, it20). A juror who voted WITH the resolution gets its stake back; a
+	// juror who voted AGAINST it (incoherent — the minority-collusion signature) is
+	// slashed, the stake credited to the party the verdict favored (whom the
+	// incoherent vote tried to harm). Protocol-settled; guarded by the jurorstake
+	// purpose. v1 scope: this punishes a MINORITY colluder caught by an honest
+	// majority; a colluding MAJORITY would invert it — deferred to reputation-
+	// weighted / proper-scoring voting (it25).
+	verdictAccept := resolution == types.DisputeResolutionAccept
+	winner := escrow.Payer
+	if verdictAccept {
+		winner = escrow.Payee
+	}
+	for _, v := range dispute.Votes {
+		bond, err := k.Bond.Get(ctx, v.BondId)
+		if err != nil || bond.Status != types.BondStatusActive || bond.Purpose != "jurorstake:"+strconv.FormatUint(dispute.Id, 10) {
+			continue
+		}
+		recipient := v.Juror // coherent → stake returned to the juror
+		if v.Accept == verdictAccept {
+			bond.Status = types.BondStatusReleased
+		} else {
+			recipient = winner // incoherent → slashed to the party it tried to wrong
+			bond.Status = types.BondStatusSlashed
+		}
+		acct, err := k.Account.Get(ctx, recipient)
+		if err != nil {
+			return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+		}
+		acct.Balance += bond.Amount
+		if err := k.Account.Set(ctx, recipient, acct); err != nil {
+			return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+		}
+		if err := k.Bond.Set(ctx, bond.Id, bond); err != nil {
+			return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+		}
+		sdkCtxJ := sdk.UnwrapSDKContext(ctx)
+		sdkCtxJ.EventManager().EmitEvent(
+			sdk.NewEvent("agntcoin_juror_stake_settled",
+				sdk.NewAttribute("dispute_id", strconv.FormatUint(dispute.Id, 10)),
+				sdk.NewAttribute("juror", v.Juror),
 				sdk.NewAttribute("bond_id", strconv.FormatUint(bond.Id, 10)),
 				sdk.NewAttribute("status", bond.Status),
 				sdk.NewAttribute("recipient", recipient),

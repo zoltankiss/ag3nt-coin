@@ -36,6 +36,7 @@ func TestJuryAcceptConfersAnchorRootedReputation(t *testing.T) {
 	// ordinary funded account with no anchor connection.
 	juror := sample.AccAddress()
 	setJurors(t, f, juror)
+	seedAccount(t, f, juror, 1000) // jury-v1: fund the juror-stake
 	seedAccount(t, f, addrPayer, 2000)
 
 	// CONTROL: buyer pays worker2 by a normal release (no jury). worker2 is paid
@@ -52,7 +53,7 @@ func TestJuryAcceptConfersAnchorRootedReputation(t *testing.T) {
 	eid := submittedEscrow(t, f, ms)
 	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayer, EscrowId: eid, Reason: "can't verify; rule please", BondAmount: 100})
 	require.NoError(t, err)
-	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true})
+	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true, StakeAmount: 100})
 	require.NoError(t, err)
 	_, err = ms.ResolveDispute(f.ctx, &types.MsgResolveDispute{Creator: addrPayer, DisputeId: od.Id})
 	require.NoError(t, err)
@@ -97,6 +98,7 @@ func TestJuryAcceptReleasesToPayee(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 	juror := sample.AccAddress()
 	setJurors(t, f, juror)
+	seedAccount(t, f, juror, 1000) // jury-v1: fund the juror-stake
 	seedAccount(t, f, addrPayer, 1000)
 	seedAccount(t, f, addrPayee, 0)
 	eid := submittedEscrow(t, f, ms)
@@ -112,7 +114,7 @@ func TestJuryAcceptReleasesToPayee(t *testing.T) {
 	require.Error(t, err)
 
 	// Juror votes accept; resolve releases to the payee.
-	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true})
+	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true, StakeAmount: 100})
 	require.NoError(t, err)
 	rd, err := ms.ResolveDispute(f.ctx, &types.MsgResolveDispute{Creator: addrPayer, DisputeId: od.Id})
 	require.NoError(t, err)
@@ -129,13 +131,14 @@ func TestJuryRejectRefundsToPayer(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 	juror := sample.AccAddress()
 	setJurors(t, f, juror)
+	seedAccount(t, f, juror, 1000) // jury-v1: fund the juror-stake
 	seedAccount(t, f, addrPayer, 1000) // 1000 - 400 locked = 600 held after lock
 	seedAccount(t, f, addrPayee, 0)
 	eid := submittedEscrow(t, f, ms)
 
 	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayer, EscrowId: eid, Reason: "slop", BondAmount: 100})
 	require.NoError(t, err)
-	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: false})
+	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: false, StakeAmount: 100})
 	require.NoError(t, err)
 	rd, err := ms.ResolveDispute(f.ctx, &types.MsgResolveDispute{Creator: addrPayer, DisputeId: od.Id})
 	require.NoError(t, err)
@@ -154,6 +157,7 @@ func TestJuryGuards(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 	juror := sample.AccAddress()
 	setJurors(t, f, juror)
+	seedAccount(t, f, juror, 1000) // jury-v1: fund the juror-stake
 	seedAccount(t, f, addrPayer, 1000)
 	seedAccount(t, f, addrPayee, 200) // funds the payee's dispute-bond
 	eid := submittedEscrow(t, f, ms)
@@ -161,7 +165,7 @@ func TestJuryGuards(t *testing.T) {
 	require.NoError(t, err)
 
 	// Non-juror (the payer) cannot vote.
-	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: addrPayer, DisputeId: od.Id, Accept: true})
+	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: addrPayer, DisputeId: od.Id, Accept: true, StakeAmount: 100})
 	require.Error(t, err)
 
 	// No votes yet → cannot resolve.
@@ -169,8 +173,8 @@ func TestJuryGuards(t *testing.T) {
 	require.Error(t, err)
 
 	// Juror votes once; a second vote by the same juror is rejected.
-	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true})
+	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true, StakeAmount: 100})
 	require.NoError(t, err)
-	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: false})
+	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: false, StakeAmount: 100})
 	require.Error(t, err)
 }

@@ -34,6 +34,7 @@ func TestNoAutoReleaseBlocksDeadlineBypass(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 	juror := sample.AccAddress()
 	setJurors(t, f, juror)
+	seedAccount(t, f, juror, 1000) // jury-v1: fund the juror-stake
 	seedAccount(t, f, addrPayer, 1000)
 	seedAccount(t, f, addrPayee, 100) // funds the payee's dispute-bond (returned when upheld)
 
@@ -50,7 +51,7 @@ func TestNoAutoReleaseBlocksDeadlineBypass(t *testing.T) {
 	// via the jury, not a bypass. The dispute is upheld, so the bond returns.
 	od, err := ms.OpenDispute(setBlockTime(f.ctx, 210), &types.MsgOpenDispute{Creator: addrPayee, EscrowId: eid, Reason: "buyer ghosted; please rule on the merits", BondAmount: 100})
 	require.NoError(t, err)
-	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true})
+	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true, StakeAmount: 100})
 	require.NoError(t, err)
 	_, err = ms.ResolveDispute(f.ctx, &types.MsgResolveDispute{Creator: addrPayee, DisputeId: od.Id})
 	require.NoError(t, err)
