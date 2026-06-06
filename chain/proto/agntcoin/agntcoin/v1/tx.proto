@@ -219,6 +219,11 @@ message MsgOpenDispute {
   string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   uint64 escrow_id = 2;
   string reason = 3;
+  // bond_amount: the slashable dispute-bond the opener posts (>= MinDisputeBond).
+  // Opening a dispute is no longer free — a frivolous/lost dispute slashes this
+  // to the griefed counterparty; an upheld one returns it. Deters cry-wolf +
+  // jury-DDoS (it18 RED → the it19 GREEN benchmark).
+  uint64 bond_amount = 4;
 }
 
 // MsgOpenDisputeResponse returns the new dispute id.

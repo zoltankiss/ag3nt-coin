@@ -37,16 +37,58 @@ func (k msgServer) OpenDispute(ctx context.Context, msg *types.MsgOpenDispute) (
 		return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "only the escrow payer or payee may open a dispute")
 	}
 
+	// Opening a dispute requires a slashable DISPUTE-BOND (it18 RED → it19): a free
+	// dispute is weaponizable (cry-wolf to stall payment; jury-DDoS to bury real
+	// cases), so the opener must post collateral that a lost/frivolous verdict
+	// slashes to the griefed counterparty (and an upheld one returns). The opener
+	// must be registered with sufficient balance; the bond is debited now and
+	// settled in ResolveDispute.
+	if msg.BondAmount < types.MinDisputeBond {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "opening a dispute requires a bond of at least %d", types.MinDisputeBond)
+	}
+	opener, err := k.Account.Get(ctx, msg.Creator)
+	if err != nil || !opener.Registered {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "opener not registered")
+	}
+	if opener.Balance < msg.BondAmount {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "insufficient balance for dispute bond")
+	}
+
 	id, err := k.DisputeSeq.Next(ctx)
 	if err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
+
+	// Debit the opener + lock the dispute-bond (protocol-held; slasher empty so
+	// only ResolveDispute can settle it — never an external SlashBond/ReleaseBond).
+	opener.Balance -= msg.BondAmount
+	if err := k.Account.Set(ctx, msg.Creator, opener); err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+	}
+	bondID, err := k.BondSeq.Next(ctx)
+	if err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+	}
+	bond := types.Bond{
+		Id:      bondID,
+		Poster:  msg.Creator,
+		Amount:  msg.BondAmount,
+		Purpose: "dispute:" + strconv.FormatUint(id, 10),
+		Slasher: "", // protocol-settled by ResolveDispute; no external slasher
+		Status:  types.BondStatusActive,
+		Ref:     strconv.FormatUint(msg.EscrowId, 10), // verifiable escrow ref (it17 #22)
+	}
+	if err := k.Bond.Set(ctx, bondID, bond); err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+	}
+
 	dispute := types.Dispute{
 		Id:       id,
 		EscrowId: msg.EscrowId,
 		Opener:   msg.Creator,
 		Reason:   msg.Reason,
 		Status:   types.DisputeStatusOpen,
+		BondId:   bondID,
 	}
 	if err := k.Dispute.Set(ctx, id, dispute); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())

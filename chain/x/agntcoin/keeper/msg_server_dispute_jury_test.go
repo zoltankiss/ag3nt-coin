@@ -50,16 +50,18 @@ func TestJuryAcceptConfersAnchorRootedReputation(t *testing.T) {
 	// JURY PATH: buyer hires addrPayee, who delivers; buyer escalates; the
 	// anchor-juror accepts on the merits.
 	eid := submittedEscrow(t, f, ms)
-	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayer, EscrowId: eid, Reason: "can't verify; rule please"})
+	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayer, EscrowId: eid, Reason: "can't verify; rule please", BondAmount: 100})
 	require.NoError(t, err)
 	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true})
 	require.NoError(t, err)
 	_, err = ms.ResolveDispute(f.ctx, &types.MsgResolveDispute{Creator: addrPayer, DisputeId: od.Id})
 	require.NoError(t, err)
 
-	// Both workers got PAID the same 400.
+	// Both workers got PAID the same 400 escrow; addrPayee additionally collects
+	// the buyer's 100 dispute-bond, slashed to it because the buyer cry-wolfed
+	// (disputed good work the jury then accepted) — so 500 total.
 	require.Equal(t, uint64(400), balanceOf(t, f, worker2))
-	require.Equal(t, uint64(400), balanceOf(t, f, addrPayee))
+	require.Equal(t, uint64(500), balanceOf(t, f, addrPayee))
 
 	// But only the jury-endorsed worker earns STANDING: the anchor-juror's
 	// accept is an anchor-rooted endorsement; the control worker's buyer-only
@@ -100,7 +102,7 @@ func TestJuryAcceptReleasesToPayee(t *testing.T) {
 	eid := submittedEscrow(t, f, ms)
 
 	// Buyer escalates to the jury; the escrow freezes under jury control.
-	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayer, EscrowId: eid, Reason: "can't verify; want a ruling"})
+	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayer, EscrowId: eid, Reason: "can't verify; want a ruling", BondAmount: 100})
 	require.NoError(t, err)
 	esc, _ := f.keeper.Escrow.Get(f.ctx, eid)
 	require.Equal(t, types.EscrowStatusInJury, esc.Status)
@@ -115,7 +117,8 @@ func TestJuryAcceptReleasesToPayee(t *testing.T) {
 	rd, err := ms.ResolveDispute(f.ctx, &types.MsgResolveDispute{Creator: addrPayer, DisputeId: od.Id})
 	require.NoError(t, err)
 	require.Equal(t, types.DisputeResolutionAccept, rd.Resolution)
-	require.Equal(t, uint64(400), balanceOf(t, f, addrPayee))
+	// 400 escrow + 100 dispute-bond slashed to the payee (payer cry-wolfed: jury accepted).
+	require.Equal(t, uint64(500), balanceOf(t, f, addrPayee))
 	esc, _ = f.keeper.Escrow.Get(f.ctx, eid)
 	require.Equal(t, types.EscrowStatusReleased, esc.Status)
 }
@@ -130,14 +133,15 @@ func TestJuryRejectRefundsToPayer(t *testing.T) {
 	seedAccount(t, f, addrPayee, 0)
 	eid := submittedEscrow(t, f, ms)
 
-	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayer, EscrowId: eid, Reason: "slop"})
+	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayer, EscrowId: eid, Reason: "slop", BondAmount: 100})
 	require.NoError(t, err)
 	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: false})
 	require.NoError(t, err)
 	rd, err := ms.ResolveDispute(f.ctx, &types.MsgResolveDispute{Creator: addrPayer, DisputeId: od.Id})
 	require.NoError(t, err)
 	require.Equal(t, types.DisputeResolutionReject, rd.Resolution)
-	require.Equal(t, uint64(1000), balanceOf(t, f, addrPayer)) // 600 + 400 refunded
+	// 600 held + 400 refunded; the 100 dispute-bond round-trips (payer's dispute upheld → released back).
+	require.Equal(t, uint64(1000), balanceOf(t, f, addrPayer))
 	require.Equal(t, uint64(0), balanceOf(t, f, addrPayee))
 	esc, _ := f.keeper.Escrow.Get(f.ctx, eid)
 	require.Equal(t, types.EscrowStatusRefunded, esc.Status)
@@ -151,9 +155,9 @@ func TestJuryGuards(t *testing.T) {
 	juror := sample.AccAddress()
 	setJurors(t, f, juror)
 	seedAccount(t, f, addrPayer, 1000)
-	seedAccount(t, f, addrPayee, 0)
+	seedAccount(t, f, addrPayee, 200) // funds the payee's dispute-bond
 	eid := submittedEscrow(t, f, ms)
-	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayee, EscrowId: eid, Reason: "rule please"})
+	od, err := ms.OpenDispute(f.ctx, &types.MsgOpenDispute{Creator: addrPayee, EscrowId: eid, Reason: "rule please", BondAmount: 100})
 	require.NoError(t, err)
 
 	// Non-juror (the payer) cannot vote.

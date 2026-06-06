@@ -76,9 +76,9 @@ try {
       out({ ok: true, disputed: args[0], by: key.address, txhash: r.txhash }); break;
     }
     case "dispute-open": {
-      if (args.length < 1) throw new Error("usage: ag3nt dispute-open <escrow_id> [reason]  (payer/payee escalates to the jury; freezes the escrow)");
-      const r = await openDispute(key, args[0], args.slice(1).join(" "));
-      out({ ok: true, dispute_id: r.id, escrow_id: args[0], by: key.address, txhash: r.txhash }); break;
+      if (args.length < 2) throw new Error("usage: ag3nt dispute-open <escrow_id> <bond> [reason]  (escalate to the jury; posts a slashable dispute-bond >= MinDisputeBond — slashed to the other side if your dispute is rejected, returned if upheld)");
+      const r = await openDispute(key, args[0], BigInt(args[1]), args.slice(2).join(" "));
+      out({ ok: true, dispute_id: r.id, escrow_id: args[0], bond: args[1], by: key.address, txhash: r.txhash }); break;
     }
     case "vote": {
       if (args.length < 2) throw new Error("usage: ag3nt vote <dispute_id> <accept|reject>  (eligible jurors only)");
@@ -143,7 +143,7 @@ try {
       out(await signRequestHeaders(key, method, path, rest.join(" "))); break;
     }
     default:
-      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> [reason] | vote <dispute_id> <accept|reject> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
+      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
   }
 } catch (e: any) {
   console.error("error:", e.message);

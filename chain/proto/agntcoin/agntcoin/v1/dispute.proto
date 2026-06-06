@@ -24,4 +24,9 @@ message Dispute {
   string status = 5;     // "open" | "resolved"
   string resolution = 6; // "" | "accept" | "reject"
   repeated Vote votes = 7;
+  // bond_id is the slashable dispute-bond the opener posted at OpenDispute time
+  // (purpose "dispute:<id>", ref = the contested escrow id). On ResolveDispute it
+  // is released to the opener if their dispute is upheld, or slashed to the
+  // griefed counterparty if the verdict goes against them (frivolous/cry-wolf).
+  uint64 bond_id = 8;
 }

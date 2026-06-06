@@ -86,6 +86,51 @@ func (k msgServer) ResolveDispute(ctx context.Context, msg *types.MsgResolveDisp
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
 
+	// Settle the opener's DISPUTE-BOND by the verdict (it19). The opener's dispute
+	// is UPHELD iff the verdict went their way — payer-opener wants a reject
+	// (refund), payee-opener wants an accept (release). Upheld → the bond returns
+	// to the opener; not-upheld (frivolous/cry-wolf) → the bond is slashed to the
+	// griefed counterparty. Protocol-settled here (the bond's slasher is empty, so
+	// no external SlashBond/ReleaseBond can touch it); guarded by a purpose match.
+	if bond, err := k.Bond.Get(ctx, dispute.BondId); err == nil &&
+		bond.Status == types.BondStatusActive && bond.Purpose == "dispute:"+strconv.FormatUint(dispute.Id, 10) {
+		openerUpheld := (dispute.Opener == escrow.Payer && resolution == types.DisputeResolutionReject) ||
+			(dispute.Opener == escrow.Payee && resolution == types.DisputeResolutionAccept)
+		recipient := dispute.Opener // upheld → refund the opener
+		if openerUpheld {
+			bond.Status = types.BondStatusReleased
+		} else {
+			// frivolous/lost → slash to the counterparty the opener griefed
+			if dispute.Opener == escrow.Payer {
+				recipient = escrow.Payee
+			} else {
+				recipient = escrow.Payer
+			}
+			bond.Status = types.BondStatusSlashed
+		}
+		acct, err := k.Account.Get(ctx, recipient)
+		if err != nil {
+			return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+		}
+		acct.Balance += bond.Amount
+		if err := k.Account.Set(ctx, recipient, acct); err != nil {
+			return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+		}
+		if err := k.Bond.Set(ctx, bond.Id, bond); err != nil {
+			return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+		}
+		sdkCtx0 := sdk.UnwrapSDKContext(ctx)
+		sdkCtx0.EventManager().EmitEvent(
+			sdk.NewEvent("agntcoin_dispute_bond_settled",
+				sdk.NewAttribute("dispute_id", strconv.FormatUint(dispute.Id, 10)),
+				sdk.NewAttribute("bond_id", strconv.FormatUint(bond.Id, 10)),
+				sdk.NewAttribute("status", bond.Status),
+				sdk.NewAttribute("recipient", recipient),
+				sdk.NewAttribute("amount", strconv.FormatUint(bond.Amount, 10)),
+			),
+		)
+	}
+
 	dispute.Status = types.DisputeStatusResolved
 	dispute.Resolution = resolution
 	if err := k.Dispute.Set(ctx, dispute.Id, dispute); err != nil {

@@ -17,7 +17,7 @@ the forge's `iteration-1 … iteration-16` archives, left flat). Forge iteration
 |---|---|---|---|
 | _pre-0.0.1_ | Native token, **escrow** + fair-exchange, anchor-rooted **reputation** + vouch, **k-of-n jury**, **jury-bound escrow** (`no_auto_release`) + `delivery_hash` | iterations 1–16 (unversioned) | see each iteration's `manifest.chain_sha` |
 | **0.0.1** | **Slashable bond** primitive (`PostBond`/`ReleaseBond`/`SlashBond`, no self-withdraw — the keystone) | forged + shakedown `it17`; RED `it18` (jury-ddos) | `6f065a4` (findings `e04be15`) |
-| 0.1.0 *(next)* | **Dispute-bond** (open-requires-bond; frivolous → slash to griefed worker; verifiable bond↔escrow ref) | RED `it18` wrote the spec → GREEN `it19` | _pending_ |
+| **0.1.0** | **Dispute-bond** (`OpenDispute`-requires-bond; frivolous/lost → slash to griefed worker; upheld → returned; verifiable bond↔escrow ref) | built post-`it18`; GREEN re-validation = `it19` | tag `v0.1.0` |
 
 ## Roadmap (prospective)
 `0.1.0` dispute-bond · `0.2.0` jury-v1 (k-of-n staked jurors + collusion) · `0.3.0` checker-market/canary ·

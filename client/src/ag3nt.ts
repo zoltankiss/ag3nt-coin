@@ -160,9 +160,9 @@ const MSG = {
     typeUrl: "/agntcoin.agntcoin.v1.MsgDisputeEscrow",
     value: new Uint8Array([...strField(1, creator), ...u64Field(2, id)]),
   }),
-  openDispute: (creator: string, escrowId: number | bigint, reason: string) => ({
+  openDispute: (creator: string, escrowId: number | bigint, reason: string, bondAmount: number | bigint) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgOpenDispute",
-    value: new Uint8Array([...strField(1, creator), ...u64Field(2, escrowId), ...strField(3, reason)]),
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, escrowId), ...strField(3, reason), ...u64Field(4, bondAmount)]),
   }),
   castVote: (creator: string, disputeId: number | bigint, accept: boolean) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgCastVote",
@@ -444,8 +444,11 @@ export async function disputeEscrow(key: Key, id: number | bigint | string) {
 // Escalate a submitted/disputed escrow to a jury (payer or payee opens it),
 // have eligible jurors (the anchor set at genesis) vote accept/reject, then
 // resolve → release to payee (accept) or refund to payer (reject).
-export async function openDispute(key: Key, escrowId: number | bigint | string, reason = ""): Promise<{ id: string; txhash: string }> {
-  const r = await signAndBroadcast(key, MSG.openDispute(key.address, BigInt(escrowId), reason));
+// Opening a dispute requires a slashable dispute-bond (>= MinDisputeBond): a
+// frivolous/lost dispute slashes it to the griefed counterparty, an upheld one
+// returns it — so a free dispute can't be weaponized (cry-wolf / jury-DDoS).
+export async function openDispute(key: Key, escrowId: number | bigint | string, bondAmount: number | bigint, reason = ""): Promise<{ id: string; txhash: string }> {
+  const r = await signAndBroadcast(key, MSG.openDispute(key.address, BigInt(escrowId), reason, BigInt(bondAmount)));
   const id = eventAttr(r, "agntcoin_dispute_opened", "id");
   if (!id) throw new Error("dispute opened but could not determine its id");
   return { id, txhash: r.txhash };

@@ -25,6 +25,14 @@ const (
 	EscrowStatusReleased  = "released"
 	EscrowStatusRefunded  = "refunded"
 
+	// MinDisputeBond is the minimum slashable collateral an opener must post to
+	// OpenDispute. Opening a dispute freezes the escrow + loads the jury, so a
+	// FREE dispute is weaponizable (cry-wolf to stall payment; jury-DDoS to bury
+	// real cases — it18 RED). Requiring a bond makes a frivolous dispute cost the
+	// opener (slashed to the griefed counterparty on a lost verdict) and makes a
+	// flood cost N bonds. Returned in full when the opener's dispute is upheld.
+	MinDisputeBond uint64 = 100
+
 	// Bond (slashable collateral) status values. ACTIVE resolves exactly once,
 	// to RELEASED (collateral -> poster) or SLASHED (collateral -> beneficiary,
 	// or burned) — and only ever by the bond's designated slasher.

@@ -35,7 +35,7 @@ func TestNoAutoReleaseBlocksDeadlineBypass(t *testing.T) {
 	juror := sample.AccAddress()
 	setJurors(t, f, juror)
 	seedAccount(t, f, addrPayer, 1000)
-	seedAccount(t, f, addrPayee, 0)
+	seedAccount(t, f, addrPayee, 100) // funds the payee's dispute-bond (returned when upheld)
 
 	eid := lockNoAutoReleaseSubmitted(t, f, ms)
 
@@ -43,17 +43,18 @@ func TestNoAutoReleaseBlocksDeadlineBypass(t *testing.T) {
 	// self-release its own submitted escrow. On a jury-bound escrow it must FAIL.
 	_, err := ms.ReleaseEscrow(setBlockTime(f.ctx, 200), &types.MsgReleaseEscrow{Creator: addrPayee, Id: eid})
 	require.Error(t, err)
-	require.Equal(t, uint64(0), balanceOf(t, f, addrPayee)) // not paid by waiting out the clock
+	require.Equal(t, uint64(100), balanceOf(t, f, addrPayee)) // still just the seed — not paid by waiting out the clock
 
-	// Honest-worker recourse preserved: the payee opens a dispute, the anchor-juror
-	// reviews and accepts, and resolution pays the payee — via the jury, not a bypass.
-	od, err := ms.OpenDispute(setBlockTime(f.ctx, 210), &types.MsgOpenDispute{Creator: addrPayee, EscrowId: eid, Reason: "buyer ghosted; please rule on the merits"})
+	// Honest-worker recourse preserved: the payee opens a dispute (posting a 100
+	// bond), the anchor-juror reviews and accepts, and resolution pays the payee —
+	// via the jury, not a bypass. The dispute is upheld, so the bond returns.
+	od, err := ms.OpenDispute(setBlockTime(f.ctx, 210), &types.MsgOpenDispute{Creator: addrPayee, EscrowId: eid, Reason: "buyer ghosted; please rule on the merits", BondAmount: 100})
 	require.NoError(t, err)
 	_, err = ms.CastVote(f.ctx, &types.MsgCastVote{Creator: juror, DisputeId: od.Id, Accept: true})
 	require.NoError(t, err)
 	_, err = ms.ResolveDispute(f.ctx, &types.MsgResolveDispute{Creator: addrPayee, DisputeId: od.Id})
 	require.NoError(t, err)
-	require.Equal(t, uint64(400), balanceOf(t, f, addrPayee)) // paid via the jury
+	require.Equal(t, uint64(500), balanceOf(t, f, addrPayee)) // 100 seed + 400 escrow (bond posted then returned)
 }
 
 // Control: an ORDINARY escrow (no_auto_release=false) still auto-releases to the
