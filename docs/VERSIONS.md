@@ -17,9 +17,9 @@ the forge's `iteration-1 … iteration-16` archives, left flat). Forge iteration
 |---|---|---|---|
 | _pre-0.0.1_ | Native token, **escrow** + fair-exchange, anchor-rooted **reputation** + vouch, **k-of-n jury**, **jury-bound escrow** (`no_auto_release`) + `delivery_hash` | iterations 1–16 (unversioned) | see each iteration's `manifest.chain_sha` |
 | **0.0.1** | **Slashable bond** primitive (`PostBond`/`ReleaseBond`/`SlashBond`, no self-withdraw — the keystone) | forged + shakedown `it17`; RED `it18` (jury-ddos) | `6f065a4` (findings `e04be15`) |
-| 0.0.2 *(next)* | **Dispute-bond** (open-requires-bond; frivolous → slash to griefed worker; verifiable bond↔escrow ref) | RED `it18` wrote the spec → GREEN `it19` | _pending_ |
+| 0.1.0 *(next)* | **Dispute-bond** (open-requires-bond; frivolous → slash to griefed worker; verifiable bond↔escrow ref) | RED `it18` wrote the spec → GREEN `it19` | _pending_ |
 
 ## Roadmap (prospective)
-`0.0.2` dispute-bond · `0.0.3` jury-v1 (k-of-n staked jurors + collusion) · `0.0.4` checker-market/canary ·
-`0.0.5` PoUW mint rails (proto-mining) · `0.0.6` mint-capstone · `0.0.7` reputation convergence ·
+`0.1.0` dispute-bond · `0.2.0` jury-v1 (k-of-n staked jurors + collusion) · `0.3.0` checker-market/canary ·
+`0.4.0` PoUW mint rails (proto-mining) · `0.5.0` mint-capstone · `0.6.0` reputation convergence ·
 **`1.0.0` beachhead testnet genesis.** (Numbers are sequential, not significance-weighted — see the forge `design-context`.)
