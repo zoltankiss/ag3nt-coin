@@ -172,6 +172,18 @@ const MSG = {
     typeUrl: "/agntcoin.agntcoin.v1.MsgResolveDispute",
     value: new Uint8Array([...strField(1, creator), ...u64Field(2, disputeId)]),
   }),
+  postBond: (creator: string, amount: number | bigint, purpose: string, slasher: string, ref: string) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgPostBond",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, amount), ...strField(3, purpose), ...strField(4, slasher), ...strField(5, ref)]),
+  }),
+  releaseBond: (creator: string, id: number | bigint) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgReleaseBond",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, id)]),
+  }),
+  slashBond: (creator: string, id: number | bigint, beneficiary: string) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgSlashBond",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, id), ...(beneficiary ? strField(3, beneficiary) : [])]),
+  }),
 };
 
 // ---- queries ---------------------------------------------------------------
@@ -249,6 +261,33 @@ export async function getDispute(id: number | bigint | string): Promise<DisputeR
   const j: any = await r.json();
   const d = j.dispute ?? j.Dispute;
   return d ? toDispute(d) : null;
+}
+
+// Bonds (slashable collateral). The read side: a buyer checks a claimant's
+// stake ("is this worker bonded, and who holds the slash power?"); the slasher
+// lists the active bonds it is responsible for resolving.
+export type BondRecord = { id: string; poster: string; amount: string; purpose: string; slasher: string; status: string; ref: string };
+
+function toBond(b: any): BondRecord {
+  return {
+    id: String(b.id ?? "0"), poster: b.poster ?? "", amount: String(b.amount ?? "0"),
+    purpose: b.purpose ?? "", slasher: b.slasher ?? "", status: b.status ?? "", ref: b.ref ?? "",
+  };
+}
+
+export async function listBonds(): Promise<BondRecord[]> {
+  const r = await fetch(`${Q}/bond`);
+  if (!r.ok) return [];
+  const j: any = await r.json();
+  return (j.bond ?? j.Bond ?? []).map(toBond);
+}
+
+export async function getBond(id: number | bigint | string): Promise<BondRecord | null> {
+  const r = await fetch(`${Q}/bond/${id}`);
+  if (!r.ok) return null;
+  const j: any = await r.json();
+  const b = j.bond ?? j.Bond;
+  return b ? toBond(b) : null;
 }
 
 // Interpretable reputation inputs (the evidence behind the score): the
@@ -418,6 +457,32 @@ export async function resolveDispute(key: Key, disputeId: number | bigint | stri
   return signAndBroadcast(key, MSG.resolveDispute(key.address, BigInt(disputeId)));
 }
 
+// ---- slashable bonds (it17) --------------------------------------------------
+// Post slashable collateral behind a claim/behavior. The named slasher (a
+// neutral adjudicator — e.g. the anchor/jury, NEVER yourself) is the only
+// address that can release (refund you) or slash (pay your collateral to a
+// beneficiary) the bond — you cannot self-withdraw. At reputation 0, posting a
+// bond is the sincerity signal a bare keypair can't fake: a Sybil that ghosts
+// loses real, locked coin.
+export async function postBond(key: Key, amount: number | bigint, purpose: string, slasher: string, ref = ""): Promise<{ id: string; txhash: string }> {
+  const r = await signAndBroadcast(key, MSG.postBond(key.address, amount, purpose, slasher, ref));
+  let id = eventAttr(r, "agntcoin_bond_posted", "id");
+  if (!id) {
+    const mine = (await listBonds())
+      .filter((b) => b.poster === key.address && b.purpose === purpose && b.status === "active")
+      .sort((a, b) => Number(b.id) - Number(a.id));
+    id = mine.length ? mine[0].id : null;
+  }
+  if (!id) throw new Error("bond posted but could not determine its id");
+  return { id, txhash: r.txhash };
+}
+export async function releaseBond(key: Key, id: number | bigint | string) {
+  return signAndBroadcast(key, MSG.releaseBond(key.address, BigInt(id)));
+}
+export async function slashBond(key: Key, id: number | bigint | string, beneficiary = "") {
+  return signAndBroadcast(key, MSG.slashBond(key.address, BigInt(id), beneficiary));
+}
+
 // ---- ADD-native self-description (zero-doc discovery) -----------------------
 // The agent needs only its Ed25519 keypair; everything else is discoverable here.
 export function addDoc() {
@@ -442,6 +507,10 @@ export function addDoc() {
       { cmd: "ag3nt escrows", summary: "List all escrows (the on-chain job ledger)." },
       { cmd: "ag3nt jobs [addr]", summary: "Completed-job history (released escrows earned vs. paid) — the interpretable evidence behind a reputation score." },
       { cmd: "ag3nt reputation [addr]", summary: "Reputation score: anchor-rooted PageRank over BOTH staked vouches and completed paid jobs. You can bootstrap with zero vouches by completing escrow-paid work for a trusted counterparty." },
+      { cmd: "ag3nt bond-post <amount> <purpose> <slasher> [ref]", summary: "Lock slashable collateral behind a claim (e.g. a job you claim at rep 0). The slasher — a neutral adjudicator, never you — is the ONLY one who can release or slash it; you cannot self-withdraw. Ghosting costs you the bond." },
+      { cmd: "ag3nt bond-release <id>", summary: "Slasher only: exonerate a bond — refund the collateral to its poster (honest delivery)." },
+      { cmd: "ag3nt bond-slash <id> [beneficiary]", summary: "Slasher only: punish a bond — pay the collateral to the beneficiary (e.g. the stranded buyer), or burn it if no beneficiary." },
+      { cmd: "ag3nt bonds", summary: "List all bonds (check whether a claimant has real stake behind its claim)." },
     ],
   };
 }

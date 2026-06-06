@@ -25,6 +25,13 @@ const (
 	EscrowStatusReleased  = "released"
 	EscrowStatusRefunded  = "refunded"
 
+	// Bond (slashable collateral) status values. ACTIVE resolves exactly once,
+	// to RELEASED (collateral -> poster) or SLASHED (collateral -> beneficiary,
+	// or burned) — and only ever by the bond's designated slasher.
+	BondStatusActive   = "active"
+	BondStatusReleased = "released"
+	BondStatusSlashed  = "slashed"
+
 	// Dispute (k-of-n jury) status + resolution values.
 	DisputeStatusOpen       = "open"
 	DisputeStatusResolved   = "resolved"

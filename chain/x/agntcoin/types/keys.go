@@ -32,3 +32,8 @@ var (
 	DisputeKey      = collections.NewPrefix("dispute/value/")
 	DisputeCountKey = collections.NewPrefix("dispute/count/")
 )
+
+var (
+	BondKey      = collections.NewPrefix("bond/value/")
+	BondCountKey = collections.NewPrefix("bond/count/")
+)

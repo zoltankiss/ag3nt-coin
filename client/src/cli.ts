@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // ag3nt CLI — the drop-in surface a CPDD agent (or a human) calls.
-import { loadOrCreateKey, onboard, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, openDispute, castVote, resolveDispute, listEscrows, listDisputes, getDispute, getJobHistory, getBalance, getReputation, addDoc, signedRequest, signRequestHeaders, CFG } from "./ag3nt";
+import { loadOrCreateKey, onboard, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, openDispute, castVote, resolveDispute, listEscrows, listDisputes, getDispute, postBond, releaseBond, slashBond, listBonds, getBond, getJobHistory, getBalance, getReputation, addDoc, signedRequest, signRequestHeaders, CFG } from "./ag3nt";
 
 const [cmd, ...args] = process.argv.slice(2);
 const key = await loadOrCreateKey();
@@ -99,6 +99,30 @@ try {
     case "dispute":
       if (args.length < 1) throw new Error("usage: ag3nt dispute <dispute_id>  (read a single jury case + its votes)");
       out(await getDispute(args[0])); break;
+    case "bond-post": {
+      // Slashable collateral behind a claim. The slasher (a neutral adjudicator,
+      // never yourself) is the ONLY one who can release or slash it — posting is
+      // the rep-0 sincerity signal; ghosting costs you the bond (it17).
+      if (args.length < 3) throw new Error("usage: ag3nt bond-post <amount> <purpose> <slasher> [ref]");
+      const r = await postBond(key, BigInt(args[0]), args[1], args[2], args[3] || "");
+      out({ ok: true, id: r.id, poster: key.address, amount: args[0], purpose: args[1], slasher: args[2], txhash: r.txhash }); break;
+    }
+    case "bond-release": {
+      if (args.length < 1) throw new Error("usage: ag3nt bond-release <id>  (slasher only: refund the collateral to the poster)");
+      const r = await releaseBond(key, args[0]);
+      out({ ok: true, released: args[0], by: key.address, txhash: r.txhash }); break;
+    }
+    case "bond-slash": {
+      if (args.length < 1) throw new Error("usage: ag3nt bond-slash <id> [beneficiary]  (slasher only: collateral to beneficiary, or burn)");
+      const r = await slashBond(key, args[0], args[1] || "");
+      out({ ok: true, slashed: args[0], beneficiary: args[1] || "burned", by: key.address, txhash: r.txhash }); break;
+    }
+    case "bonds":
+      // Read side: `bonds` lists all, `bonds active` just the unresolved ones.
+      out((await listBonds()).filter(b => args[0] === "active" ? b.status === "active" : true)); break;
+    case "bond":
+      if (args.length < 1) throw new Error("usage: ag3nt bond <id>  (read a single bond)");
+      out(await getBond(args[0])); break;
     case "jobs":
       out({ address: args[0] || key.address, ...(await getJobHistory(args[0] || key.address)) }); break;
     case "reputation":
@@ -119,7 +143,7 @@ try {
       out(await signRequestHeaders(key, method, path, rest.join(" "))); break;
     }
     default:
-      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> [reason] | vote <dispute_id> <accept|reject> | resolve <dispute_id> | disputes [open] | dispute <id> | jobs [addr] | reputation [addr] | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
+      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> [reason] | vote <dispute_id> <accept|reject> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
   }
 } catch (e: any) {
   console.error("error:", e.message);

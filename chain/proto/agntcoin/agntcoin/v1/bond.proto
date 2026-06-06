@@ -1,0 +1,21 @@
+syntax = "proto3";
+package agntcoin.agntcoin.v1;
+
+option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
+
+// Bond defines slashable collateral held by the protocol. A participant
+// (poster) locks `amount` behind a claim/behavior; a designated neutral
+// `slasher` either releases it (exonerate -> refund the poster) or slashes it
+// (punish -> collateral to a beneficiary, or burned). The security-critical
+// property — what makes it a deterrent and not a refundable deposit — is that
+// the poster can NEVER self-withdraw (only the slasher resolves it).
+// status is one of: "active" | "released" | "slashed".
+message Bond {
+  uint64 id = 1;
+  string poster = 2;  // who locked the collateral
+  uint64 amount = 3;
+  string purpose = 4; // free-form tag, e.g. "workerbond:task-7", "dispute:3"
+  string slasher = 5; // the ONLY address that may release or slash
+  string status = 6;
+  string ref = 7;
+}

@@ -56,6 +56,15 @@ service Msg {
 
   // ResolveDispute tallies the jury and settles the underlying escrow.
   rpc ResolveDispute(MsgResolveDispute) returns (MsgResolveDisputeResponse);
+
+  // PostBond locks slashable collateral behind a claim/behavior.
+  rpc PostBond(MsgPostBond) returns (MsgPostBondResponse);
+
+  // ReleaseBond (slasher only) exonerates a bond, refunding the poster.
+  rpc ReleaseBond(MsgReleaseBond) returns (MsgReleaseBondResponse);
+
+  // SlashBond (slasher only) punishes a bond, paying the beneficiary (or burning).
+  rpc SlashBond(MsgSlashBond) returns (MsgSlashBondResponse);
 }
 
 // MsgUpdateParams is the Msg/UpdateParams request type.
@@ -240,3 +249,44 @@ message MsgResolveDispute {
 
 // MsgResolveDisputeResponse returns the resolution ("accept" | "reject").
 message MsgResolveDisputeResponse { string resolution = 1; }
+
+// MsgPostBond locks `amount` of the creator's balance as slashable collateral.
+// `slasher` is the only address that may later release or slash it — the
+// poster can NEVER self-withdraw (the deterrent). Willingness to post a bond
+// at reputation 0 is the cold-start sincerity signal (it10 finding #17).
+message MsgPostBond {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 amount = 2;
+  string purpose = 3;
+  string slasher = 4; // address authorised to release/slash
+  string ref = 5;
+}
+
+// MsgPostBondResponse returns the new bond id.
+message MsgPostBondResponse { uint64 id = 1; }
+
+// MsgReleaseBond exonerates an active bond: collateral returns to the poster.
+// creator MUST equal bond.slasher — in particular the poster's own
+// ReleaseBond is rejected (no self-withdraw).
+message MsgReleaseBond {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 id = 2;
+}
+
+// MsgReleaseBondResponse defines the MsgReleaseBond response.
+message MsgReleaseBondResponse {}
+
+// MsgSlashBond punishes an active bond: collateral goes to `beneficiary`
+// (e.g. the buyer a ghosting worker stranded), or is burned if empty.
+// creator MUST equal bond.slasher.
+message MsgSlashBond {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 id = 2;
+  string beneficiary = 3; // empty = burn (deliberate supply decrease)
+}
+
+// MsgSlashBondResponse defines the MsgSlashBond response.
+message MsgSlashBondResponse {}

@@ -71,6 +71,18 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Alias:          []string{"show-dispute"},
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
 				},
+				{
+					RpcMethod: "ListBond",
+					Use:       "list-bond",
+					Short:     "List all bonds (slashable collateral)",
+				},
+				{
+					RpcMethod:      "GetBond",
+					Use:            "get-bond [id]",
+					Short:          "Gets a bond by id",
+					Alias:          []string{"show-bond"},
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
+				},
 			},
 		},
 		Tx: &autocliv1.ServiceCommandDescriptor{
@@ -140,6 +152,24 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Use:            "dispute-escrow [id]",
 					Short:          "Payer: contest submitted work (freeze, no auto-release)",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
+				},
+				{
+					RpcMethod:      "PostBond",
+					Use:            "post-bond [amount] [purpose] [slasher] [ref]",
+					Short:          "Lock slashable collateral behind a claim (only the slasher can release/slash it)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "amount"}, {ProtoField: "purpose"}, {ProtoField: "slasher"}, {ProtoField: "ref"}},
+				},
+				{
+					RpcMethod:      "ReleaseBond",
+					Use:            "release-bond [id]",
+					Short:          "Slasher: exonerate a bond (refund the poster)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
+				},
+				{
+					RpcMethod:      "SlashBond",
+					Use:            "slash-bond [id] [beneficiary]",
+					Short:          "Slasher: punish a bond (collateral to beneficiary, or burn if empty)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}, {ProtoField: "beneficiary"}},
 				},
 			},
 		},
