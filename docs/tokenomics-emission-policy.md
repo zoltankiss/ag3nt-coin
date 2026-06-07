@@ -1,9 +1,10 @@
 # ag3ntcoin Tokenomics and Emission Policy
 
 **Status:** Implemented as the `0.5.0-beta.1` emission-accounting beta, with
-raw AGNT integer accounting. This validates hard-cap, epoch, and unclaimed-burn
-mechanics before a production-denomination decision.
-**Current chain version:** `0.5.0-beta.1`.
+raw AGNT integer accounting. The `0.5.0-beta.2` blind-gate hygiene beta keeps
+that emission accounting unchanged while tightening review-gate artifact
+discipline.
+**Current chain version:** `0.5.0-beta.2`.
 
 This document specifies the hard-cap emission model for agntcoin. The beta.1
 chain code enforces total supply, epoch accounting, scheduled issuance, and
@@ -336,8 +337,9 @@ total_burned_unclaimed_base += burned_unclaimed_base
 
 ## Versioning Recommendation
 
-The chain `VERSION` is `0.5.0-beta.1` once the code enforces the new
-monetary-policy primitive.
+The chain `VERSION` advanced from `0.5.0-beta.1` to `0.5.0-beta.2` after the
+emission primitive was in place. Beta.2 keeps the monetary-policy primitive and
+adds safer blind gate construction around it.
 
 Recommended sequence:
 
@@ -351,6 +353,10 @@ Recommended sequence:
   the common protocol reward function
 
 0.5.0-beta.2
+  keeps beta.1 emission accounting and adds gate-template tooling plus private
+  GitHub artifact hygiene for blind PR-review gates
+
+post-beta.2
   add rail splits, artifact availability checks at mint time, and richer
   emission queries
 
