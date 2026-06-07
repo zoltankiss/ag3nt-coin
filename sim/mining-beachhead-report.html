@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mining Beachhead: gate-v1 Parameter Monte Carlo — 2026-06-07</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1a1a2e; background: #fafafa; margin: 0; padding: 2rem; line-height: 1.55; }
+  main { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: .2rem; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; border-bottom: 2px solid #e3e3ee; padding-bottom: .3rem; }
+  .sub { color: #667; margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .9rem; background: #fff; }
+  th, td { border: 1px solid #e0e0ea; padding: .4rem .6rem; text-align: right; }
+  th { background: #eef0f7; }
+  td:first-child, th:first-child { text-align: left; }
+  .ok { color: #0a7d33; font-weight: 600; }
+  .bad { color: #c0392b; font-weight: 600; }
+  .warn { color: #b8860b; font-weight: 600; }
+  .verdict { background: #f0f7f1; border: 1px solid #bfe3c8; border-radius: 10px; padding: 1rem 1.4rem; margin: 1.4rem 0; }
+  code { background: #eef0f7; padding: .1rem .3rem; border-radius: 4px; font-size: .88em; }
+  .small { font-size: .85rem; color: #667; }
+</style>
+</head>
+<body>
+<main>
+<h1>Mining Beachhead: gate-v1 Parameter Monte Carlo</h1>
+<p class="sub">2026-06-07 &middot; rung 2 of the validation ladder &middot; <code>sim/mining_beachhead.py</code> (seed 1337) &middot; 36 configs &times; 2,000 gates, populations of 200 pure-policy agents</p>
+
+<h2>Question</h2>
+<p>Which gate-v1 economic constants survive contact with lazy sybils? Policies: <strong>honest</strong>
+(answers truth at the measured 0.95 haiku-verifier accuracy, pays 2 microcoin-equivalent compute per answer),
+<strong>stamper</strong> (always "pass", zero cost), <strong>guesser</strong> (uniform over k, zero cost).
+Copying is not a policy — commit-reveal makes it structurally impossible (integration test G2). Drip = 10.</p>
+
+<h2>Findings</h2>
+<ol>
+  <li><strong class="ok">The onboarding math works.</strong> An honest agent nets ~7.5 microcoin/answer and
+  affords its first <code>MinDisputeBond</code> (100) after <strong>~13–15 gates</strong>. The earned-faucet
+  funnel is real.</li>
+  <li><strong class="ok">k-ary answers crush guessers as designed</strong> — guesser gross falls from 5.1 (k=2)
+  to 1.2 (k=8) per answer.</li>
+  <li><strong class="bad">The stamper beats the guesser everywhere — k-ary spaces don't touch it.</strong>
+  With a realistic verdict distribution (P(pass)=0.4), "always pass" matches 40% of decoys regardless of k.
+  At sybil-share ≥ 0.5 the stamper out-earns honest agents per unit cost and captures 24–40% of emission.
+  Sweeping decoy <em>ratio</em> barely helps: an unpaid wrong answer costs a stamper nothing.</li>
+  <li><strong class="bad">Live-gate plurality collapses under sybil majority.</strong> Integrity (consensus ==
+  truth) falls from ~1.00 at sybil 0.2 to ~0.50 at sybil 0.8 — stampers flip live consensus to "pass" and then
+  farm it. No emission parameter fixes this; it is a <em>weighting</em> problem, not a pricing problem.</li>
+</ol>
+
+<h2>Mitigation variants (k=4, decoy=0.5)</h2>
+<table>
+<tr><th>Variant</th><th>honest net/ans</th><th>stamper net/ans</th><th>guesser net/ans</th><th>dishonest emission share</th><th>live integrity</th></tr>
+<tr><td>Baseline, sybil 0.5</td><td>6.99</td><td class="bad">4.73</td><td>2.54</td><td>0.29</td><td>0.83</td></tr>
+<tr><td>A: fail-skewed decoys (P(pass|decoy)=0.1)</td><td>6.99</td><td>3.08</td><td>2.62</td><td>0.24</td><td>0.83</td></tr>
+<tr><td>B: vesting slash 5/incoherent decoy answer</td><td>6.87</td><td>3.19</td><td>0.64</td><td>0.29</td><td>0.83</td></tr>
+<tr><td><strong>A+B</strong>, sybil 0.5</td><td>6.86</td><td class="ok">0.78</td><td class="ok">0.76</td><td>0.24</td><td>0.83</td></tr>
+<tr><td>A+B, sybil 0.8, decoy 0.7</td><td>6.08</td><td class="ok">0.23</td><td class="ok">&minus;0.01</td><td>0.58</td><td class="bad">0.47</td></tr>
+</table>
+<p><strong>A</strong> is your "test if they answer negatively" instinct, quantified: decoys must be
+predominantly <em>fail</em> verdicts, or "always pass" free-rides on the base rate. Operational (decoy
+authors control it), zero chain changes. <strong>B</strong> is the 0.5.0 vesting mechanic: incoherent decoy
+answers burn unvested drip. Together they drive dishonest <em>profit</em> to ~zero even at sybil-majority —
+but note the last row: <strong>economic deterrence cannot repair live-gate consensus integrity</strong>.
+Profit-rational sybils leave; vandals and verdict-manipulators don't price out.</p>
+
+<h2>Parameter sheet (what hardens, what waits)</h2>
+<table>
+<tr><th>Constant / rule</th><th>Verdict</th><th>Where</th></tr>
+<tr><td><code>drip=10, MaxDripPerAnswer=50</code> vs compute cost ~2</td><td class="ok">viable (honest net ~7.5/ans, bond in ~14 gates)</td><td>shipped, v0.4.0</td></tr>
+<tr><td>k-ary answers (k ≥ 4)</td><td class="ok">viable vs guessers</td><td>shipped (answer format convention)</td></tr>
+<tr><td>Decoy gold mix: ≥ ~80–90% fail verdicts</td><td class="ok">required — kills the base-rate free-ride</td><td>operational, decoy authoring (platform/anchor)</td></tr>
+<tr><td>Vesting + slash-on-incoherent-decoy (≈ drip/2)</td><td class="warn">required before open scale</td><td>0.5.0 chain change</td></tr>
+<tr><td>Live-gate consensus as a paying authority</td><td class="bad">NOT sybil-safe at any price — needs rep-weighted votes / sortition over reputed answerers</td><td>0.5.0; until then live gates gather labels, never settle value</td></tr>
+</table>
+
+<div class="verdict">
+<strong>Verdict:</strong> gate-v1's emission economics survive (onboarding in ~14 gates, guessers priced out,
+stampers priced out once fail-skewed decoys + vesting land). The hard boundary the sweep found: <strong>
+plurality consensus over an unweighted, self-selected answerer pool is only honest while sybils are a
+minority</strong> — so live gates must not become a settlement authority before rep-weighting/sortition
+(0.5.0). In v0.4.0 they aren't: gates mint drip; escrows still settle only via payer, staked verifier
+quorum, or jury.
+</div>
+
+<p class="small">Reproduce: <code>python3 sim/mining_beachhead.py</code> (seed pinned). Honest-accuracy input
+(0.95) measured in <code>docs/experiments/verifier-asymmetry-smoke-2026-06-07.html</code>. Raw sweep:
+<code>sim/mining_beachhead_results.json</code>.</p>
+</main>
+</body>
+</html>
