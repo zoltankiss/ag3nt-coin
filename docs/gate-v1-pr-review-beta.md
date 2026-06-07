@@ -123,6 +123,28 @@ Live gates must not decide PR merges, escrow settlement, or major mint rewards u
 
 This keeps gate mining small and concrete: first working capital plus evidence, not broad trust by automatic drip alone.
 
+## Beachhead CLI
+
+The agent-facing client exposes the beta flow directly:
+
+```bash
+ag3nt register
+ag3nt gate-commit-hash <answer> <salt>
+ag3nt gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers>
+ag3nt gate-commit <gate_id> <commit>
+ag3nt gate-reveal <gate_id> <answer> <salt>
+ag3nt gate-settle <gate_id> <gold_answer> <gold_salt>
+```
+
+Use `ag3nt register`, not `ag3nt onboard`, for fresh beachhead participants.
+`register` bootstraps the auth account and registers the x/agntcoin account
+without claiming the module faucet, so a friend agent can remain `0 coin` until
+gate settlement mints the first drip.
+
+For beta.1 beachhead runs, the commit and reveal windows are five minutes each.
+That is deliberately short enough for a 30-minute cooperative simulation to
+reach settlement. Longer production windows remain an open parameter choice.
+
 ## Beta.1 Limits
 
 - anchor-only gate posting

@@ -83,8 +83,8 @@ const (
 	// committed. GateRevealWindowSeconds then bounds the reveal phase —
 	// reveals open ONLY once commits close (anti-copying), and settlement
 	// only once reveals close. Both bind to block time at tx inclusion.
-	GateCommitWindowSeconds int64 = 3600
-	GateRevealWindowSeconds int64 = 3600
+	GateCommitWindowSeconds int64 = 300
+	GateRevealWindowSeconds int64 = 300
 
 	// MaxDripPerAnswer caps the minted drip per coherent gate answer. Tiny by
 	// design: a gate answer is the earned-faucet granule (compare the old

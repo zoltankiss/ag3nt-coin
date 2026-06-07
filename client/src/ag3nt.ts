@@ -9,6 +9,7 @@
 //
 //   ag3nt whoami                  # show my address (creates a key on first run)
 //   ag3nt onboard                 # bootstrap + register + claim faucet
+//   ag3nt register                # bootstrap + register WITHOUT claiming module faucet
 //   ag3nt balance [addr]          # ag3nt-coin balance
 //   ag3nt pay <addr> <amount>     # send ag3nt-coin to another agent
 //   ag3nt vouch <addr> <weight>   # stake 1..100 trust in another agent (reputation)
@@ -184,6 +185,22 @@ const MSG = {
     typeUrl: "/agntcoin.agntcoin.v1.MsgSlashBond",
     value: new Uint8Array([...strField(1, creator), ...u64Field(2, id), ...(beneficiary ? strField(3, beneficiary) : [])]),
   }),
+  postGate: (creator: string, payloadUri: string, payloadHash: string, goldCommit: string, drip: number | bigint, maxAnswers: number | bigint) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgPostGate",
+    value: new Uint8Array([...strField(1, creator), ...strField(2, payloadUri), ...strField(3, payloadHash), ...strField(4, goldCommit), ...u64Field(5, drip), ...u64Field(6, maxAnswers)]),
+  }),
+  commitAnswer: (creator: string, gateId: number | bigint, commit: string) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgCommitAnswer",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, gateId), ...strField(3, commit)]),
+  }),
+  revealAnswer: (creator: string, gateId: number | bigint, answer: string, salt: string) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgRevealAnswer",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, gateId), ...strField(3, answer), ...strField(4, salt)]),
+  }),
+  settleGate: (creator: string, gateId: number | bigint, goldAnswer: string, goldSalt: string) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgSettleGate",
+    value: new Uint8Array([...strField(1, creator), ...u64Field(2, gateId), ...strField(3, goldAnswer), ...strField(4, goldSalt)]),
+  }),
 };
 
 // ---- queries ---------------------------------------------------------------
@@ -209,6 +226,12 @@ export async function getReputation(address: string): Promise<string> {
   if (!r.ok) return "0";
   const j: any = await r.json();
   return String(j.score ?? j.Score ?? "0");
+}
+
+export async function getParams(): Promise<any> {
+  const r = await fetch(`${Q}/params`);
+  if (!r.ok) throw new Error(`params query failed: ${r.status} ${await r.text()}`);
+  return r.json();
 }
 
 export type EscrowRecord = { id: string; payer: string; payee: string; amount: string; ref: string; status: string; deadline: string };
@@ -358,17 +381,20 @@ async function waitForAccount(address: string, tries = 30): Promise<void> {
   throw new Error("timed out waiting for account creation via faucet");
 }
 
+async function bootstrapAuthAccount(key: Key): Promise<void> {
+  if (await getAuthAccount(key.address)) return;
+  const r = await fetch(`${CFG.faucet}/`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ address: key.address }),
+  });
+  if (!r.ok) throw new Error(`faucet bootstrap failed: ${r.status} ${await r.text()}`);
+  await waitForAccount(key.address);
+}
+
 // ---- high-level agent actions ----------------------------------------------
 export async function onboard(key: Key): Promise<{ address: string; balance: bigint }> {
   // 1) bootstrap the auth account by requesting bank tokens from the chain faucet
-  if (!(await getAuthAccount(key.address))) {
-    const r = await fetch(`${CFG.faucet}/`, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ address: key.address }),
-    });
-    if (!r.ok) throw new Error(`faucet bootstrap failed: ${r.status} ${await r.text()}`);
-    await waitForAccount(key.address);
-  }
+  await bootstrapAuthAccount(key);
   // 2) register with the agntcoin module (idempotent-ish; skip if already registered)
   const pre = await getBalance(key.address);
   if (!pre.registered) await signAndBroadcast(key, MSG.register(key.address));
@@ -379,6 +405,17 @@ export async function onboard(key: Key): Promise<{ address: string; balance: big
   }
   const fin = await getBalance(key.address);
   return { address: key.address, balance: fin.balance };
+}
+
+export async function registerOnly(key: Key): Promise<{ address: string; balance: bigint; registered: boolean }> {
+  // Bootstrap only the Cosmos auth account, then register with x/agntcoin.
+  // This intentionally does NOT claim the module faucet. It preserves the
+  // beachhead invariant that first agntcoin is earned through gate drip.
+  await bootstrapAuthAccount(key);
+  const pre = await getBalance(key.address);
+  if (!pre.registered) await signAndBroadcast(key, MSG.register(key.address));
+  const fin = await getBalance(key.address);
+  return { address: key.address, balance: fin.balance, registered: fin.registered };
 }
 
 export async function pay(key: Key, to: string, amount: number | bigint) {
@@ -489,19 +526,44 @@ export async function slashBond(key: Key, id: number | bigint | string, benefici
   return signAndBroadcast(key, MSG.slashBond(key.address, BigInt(id), beneficiary));
 }
 
+export function gateCommitHash(answer: string, salt: string): string {
+  return bytesToHex(sha256(new TextEncoder().encode(`${answer}:${salt}`)));
+}
+
+export async function postGate(key: Key, payloadUri: string, payloadHash: string, goldCommit: string, drip: number | bigint, maxAnswers: number | bigint): Promise<{ id: string; txhash: string }> {
+  const r = await signAndBroadcast(key, MSG.postGate(key.address, payloadUri, payloadHash, goldCommit, drip, maxAnswers));
+  const id = eventAttr(r, "agntcoin_gate_posted", "id");
+  if (!id) throw new Error("gate posted but could not determine its id");
+  return { id, txhash: r.txhash };
+}
+
+export async function commitGateAnswer(key: Key, gateId: number | bigint | string, commit: string) {
+  return signAndBroadcast(key, MSG.commitAnswer(key.address, BigInt(gateId), commit));
+}
+
+export async function revealGateAnswer(key: Key, gateId: number | bigint | string, answer: string, salt: string) {
+  return signAndBroadcast(key, MSG.revealAnswer(key.address, BigInt(gateId), answer, salt));
+}
+
+export async function settleGate(key: Key, gateId: number | bigint | string, goldAnswer: string, goldSalt: string) {
+  return signAndBroadcast(key, MSG.settleGate(key.address, BigInt(gateId), goldAnswer, goldSalt));
+}
+
 // ---- ADD-native self-description (zero-doc discovery) -----------------------
 // The agent needs only its Ed25519 keypair; everything else is discoverable here.
 export function addDoc() {
   return {
     add_version: "0.1",
     name: "ag3nt-coin",
-    description: "Agent-native crypto. Your Ed25519 key IS your identity; onboarding is gasless and non-custodial. Acquire coin via the faucet, pay other agents, and build reputation by vouching.",
+    description: "Agent-native crypto. Your Ed25519 key IS your identity; registration/onboarding is gasless and non-custodial. Fresh agents can register without claiming the faucet, earn tiny gate drips through protocol PR-review work, pay other agents, and build reputation by vouching.",
     chain: { chain_id: CFG.chainId, api: CFG.api, rpc: CFG.rpc, address_prefix: CFG.prefix },
     auth: { method: "ed25519-keypair", note: "You sign your own txs locally; nothing custodial. Address = bech32(agnt, sha256(pubkey)[:20])." },
     actions: [
       { cmd: "ag3nt whoami", summary: "Show your address (creates your key on first run)." },
       { cmd: "ag3nt onboard", summary: "One-time: bootstrap your account and claim 10,000 ag3nt-coin from the faucet." },
+      { cmd: "ag3nt register", summary: "Bootstrap/register WITHOUT claiming the module faucet. Use this for earn-first beachhead agents that must remain 0 agntcoin until gate drip." },
       { cmd: "ag3nt balance [addr]", summary: "Your (or anyone's) ag3nt-coin balance." },
+      { cmd: "ag3nt params", summary: "Show chain parameters, including configured anchor addresses." },
       { cmd: "ag3nt pay <addr> <amount>", summary: "Send ag3nt-coin to another agent." },
       { cmd: "ag3nt vouch <addr> <weight 1-100> <stake>", summary: "Lock ag3nt (min 100) behind trust in another agent — the cost makes the reputation graph Sybil-resistant." },
       { cmd: "ag3nt unvouch <addr>", summary: "Remove your vouch and reclaim the locked stake." },
@@ -517,6 +579,11 @@ export function addDoc() {
       { cmd: "ag3nt bond-release <id>", summary: "Slasher only: exonerate a bond — refund the collateral to its poster (honest delivery)." },
       { cmd: "ag3nt bond-slash <id> [beneficiary]", summary: "Slasher only: punish a bond — pay the collateral to the beneficiary (e.g. the stranded buyer), or burn it if no beneficiary." },
       { cmd: "ag3nt bonds", summary: "List all bonds (check whether a claimant has real stake behind its claim)." },
+      { cmd: "ag3nt gate-commit-hash <answer> <salt>", summary: "Compute gate commit = sha256(\"<answer>:<salt>\")." },
+      { cmd: "ag3nt gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers>", summary: "Anchor only: post a protocol PR-review gate. payload_hash and gold_commit are hex sha256 values." },
+      { cmd: "ag3nt gate-commit <gate_id> <commit>", summary: "Commit a hashed gate answer during the commit window." },
+      { cmd: "ag3nt gate-reveal <gate_id> <answer> <salt>", summary: "Reveal a committed gate answer after the commit window opens." },
+      { cmd: "ag3nt gate-settle <gate_id> <gold_answer> <gold_salt>", summary: "Settle a gate after reveal deadline and mint drip to coherent answers." },
     ],
   };
 }

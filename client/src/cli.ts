@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // ag3nt CLI — the drop-in surface a CPDD agent (or a human) calls.
-import { loadOrCreateKey, onboard, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, openDispute, castVote, resolveDispute, listEscrows, listDisputes, getDispute, postBond, releaseBond, slashBond, listBonds, getBond, getJobHistory, getBalance, getReputation, addDoc, signedRequest, signRequestHeaders, CFG } from "./ag3nt";
+import { loadOrCreateKey, onboard, registerOnly, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, openDispute, castVote, resolveDispute, listEscrows, listDisputes, getDispute, postBond, releaseBond, slashBond, listBonds, getBond, getJobHistory, getBalance, getReputation, getParams, addDoc, signedRequest, signRequestHeaders, gateCommitHash, postGate, commitGateAnswer, revealGateAnswer, settleGate, CFG } from "./ag3nt";
 
 const [cmd, ...args] = process.argv.slice(2);
 const key = await loadOrCreateKey();
@@ -12,6 +12,8 @@ try {
       out({ address: key.address, chain: CFG.chainId, api: CFG.api }); break;
     case "onboard":
       out(await onboard(key)); break;
+    case "register":
+      out(await registerOnly(key)); break;
     case "balance": {
       const b = await getBalance(args[0] || key.address);
       out({ address: args[0] || key.address, registered: b.registered, balance: b.balance }); break;
@@ -127,6 +129,32 @@ try {
       out({ address: args[0] || key.address, ...(await getJobHistory(args[0] || key.address)) }); break;
     case "reputation":
       out({ address: args[0] || key.address, score: await getReputation(args[0] || key.address) }); break;
+    case "params":
+      out(await getParams()); break;
+    case "gate-commit-hash": {
+      if (args.length < 2) throw new Error("usage: ag3nt gate-commit-hash <answer> <salt>");
+      out({ answer: args[0], salt: args[1], commit: gateCommitHash(args[0], args[1]) }); break;
+    }
+    case "gate-post": {
+      if (args.length < 5) throw new Error("usage: ag3nt gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers>");
+      const r = await postGate(key, args[0], args[1], args[2], BigInt(args[3]), BigInt(args[4]));
+      out({ ok: true, id: r.id, poster: key.address, payload_uri: args[0], payload_hash: args[1], gold_commit: args[2], drip: args[3], max_answers: args[4], txhash: r.txhash }); break;
+    }
+    case "gate-commit": {
+      if (args.length < 2) throw new Error("usage: ag3nt gate-commit <gate_id> <commit>");
+      const r = await commitGateAnswer(key, args[0], args[1]);
+      out({ ok: true, gate_id: args[0], by: key.address, commit: args[1], txhash: r.txhash }); break;
+    }
+    case "gate-reveal": {
+      if (args.length < 3) throw new Error("usage: ag3nt gate-reveal <gate_id> <answer> <salt>");
+      const r = await revealGateAnswer(key, args[0], args[1], args[2]);
+      out({ ok: true, gate_id: args[0], by: key.address, answer: args[1], txhash: r.txhash }); break;
+    }
+    case "gate-settle": {
+      if (args.length < 3) throw new Error("usage: ag3nt gate-settle <gate_id> <gold_answer> <gold_salt>");
+      const r = await settleGate(key, args[0], args[1], args[2]);
+      out({ ok: true, gate_id: args[0], by: key.address, gold_answer: args[1], txhash: r.txhash }); break;
+    }
     case "discover":
       out(addDoc()); break;
     case "request": {
@@ -143,7 +171,7 @@ try {
       out(await signRequestHeaders(key, method, path, rest.join(" "))); break;
     }
     default:
-      console.log("commands: whoami | discover | onboard | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> <stake> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
+      console.log("commands: whoami | discover | onboard | register | params | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> <stake> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | gate-commit-hash <answer> <salt> | gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers> | gate-commit <gate_id> <commit> | gate-reveal <gate_id> <answer> <salt> | gate-settle <gate_id> <gold_answer> <gold_salt> | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
   }
 } catch (e: any) {
   console.error("error:", e.message);
