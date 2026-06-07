@@ -285,6 +285,37 @@ Implemented query/client surface:
 ag3nt emission
 ```
 
+## Beta.2 Beachhead Evidence Checklist
+
+For beta.2 forge runs, public artifacts should make emission changes
+independently reviewable without relying on private diary notes. Every accepted
+contribution award, gate drip, or faucet test should include:
+
+```text
+run_id
+recipient_address
+rail
+amount
+artifact_uri
+artifact_sha256
+evidence_sha256
+emission_before
+emission_after
+balance_before
+balance_after
+verification_command
+```
+
+Contribution awards should pin the reviewed work to a repository URL and commit
+SHA. Private GitHub artifacts are acceptable only for private beachhead runs
+when reviewers can refetch the exact bytes with authenticated `gh` or `git` and
+verify the recorded SHA-256. A public chain should not treat local GitHub
+credentials as an artifact availability primitive.
+
+Blind gate artifacts should publish only the payload hash, public question set,
+commit/reveal transaction references, and settlement emission snapshots. The
+gold answer and salt stay private until settlement.
+
 ## Future Precision Notes
 
 The mathematical schedule has positive reward for every epoch. A real chain has
