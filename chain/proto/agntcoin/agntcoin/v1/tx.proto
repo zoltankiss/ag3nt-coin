@@ -93,6 +93,9 @@ service Msg {
 
   // AwardContribution mints capped AGNT to an accepted protocol contributor.
   rpc AwardContribution(MsgAwardContribution) returns (MsgAwardContributionResponse);
+
+  // CastScopedEvidenceVouch records a reputation/root-backed scoped evidence vouch.
+  rpc CastScopedEvidenceVouch(MsgCastScopedEvidenceVouch) returns (MsgCastScopedEvidenceVouchResponse);
 }
 
 // MsgUpdateParams is the Msg/UpdateParams request type.
@@ -507,3 +510,23 @@ message MsgAwardContribution {
 
 // MsgAwardContributionResponse returns the new contribution award id.
 message MsgAwardContributionResponse { uint64 id = 1; }
+
+// MsgCastScopedEvidenceVouch records scoped positive evidence without requiring
+// a coin stake. In beta.2 this is anchor/root gated; later versions should
+// allow any sufficiently high-reputation scoped issuer plus challenge/slash.
+message MsgCastScopedEvidenceVouch {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string recipient = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string scope = 3;
+  uint64 weight = 4;
+  string artifact_uri = 5;
+  string artifact_sha256 = 6;
+  string evidence_uri = 7;
+  string evidence_sha256 = 8;
+  string rationale_hash = 9;
+  int64 expires_at = 10;
+}
+
+// MsgCastScopedEvidenceVouchResponse returns the new scoped evidence vouch id.
+message MsgCastScopedEvidenceVouchResponse { uint64 id = 1; }

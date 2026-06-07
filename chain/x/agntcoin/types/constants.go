@@ -106,4 +106,10 @@ const (
 	// review sortition, duplicate checks, challenge bonds, and emission policy
 	// are forged.
 	MaxContributionAward uint64 = 500
+
+	// MinScopedEvidenceReputation is the beta threshold for non-anchor issuers
+	// to cast an unstaked scoped evidence vouch. Reputation scores are
+	// normalized PageRank values, so 0.01 is intentionally high in small
+	// networks while still allowing high-standing non-founders to participate.
+	MinScopedEvidenceReputation float64 = 0.01
 )

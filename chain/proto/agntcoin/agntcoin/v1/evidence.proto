@@ -1,0 +1,26 @@
+syntax = "proto3";
+package agntcoin.agntcoin.v1;
+
+option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
+
+// ScopedEvidenceVouch is a reputation-backed attestation over a specific piece
+// of public evidence. It is not a coin-staked vouch: in the genesis beachhead,
+// the founder/root may have reputation authority but intentionally has 0 AGNT.
+//
+// The vouch says "issuer believes recipient has demonstrated capability in
+// scope, based on externally reviewable bytes whose hashes are pinned here."
+// Later versions can add challenges, slashing, and expiry enforcement; beta.2
+// records the public evidence trail without forcing a premine or faucet claim.
+message ScopedEvidenceVouch {
+  uint64 id = 1;
+  string issuer = 2;
+  string recipient = 3;
+  string scope = 4;
+  uint64 weight = 5;
+  string artifact_uri = 6;
+  string artifact_sha256 = 7;
+  string evidence_uri = 8;
+  string evidence_sha256 = 9;
+  string rationale_hash = 10;
+  int64 expires_at = 11;
+}

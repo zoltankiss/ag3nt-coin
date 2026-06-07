@@ -43,6 +43,16 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		return err
 	}
 
+	for _, elem := range genState.ScopedEvidenceVouchList {
+		if err := k.ScopedEvidenceVouch.Set(ctx, elem.Id, elem); err != nil {
+			return err
+		}
+	}
+
+	if err := k.ScopedEvidenceVouchSeq.Set(ctx, genState.ScopedEvidenceVouchCount); err != nil {
+		return err
+	}
+
 	return k.Params.Set(ctx, genState.Params)
 }
 
@@ -96,6 +106,19 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	}
 
 	genesis.ContributionAwardCount, err = k.ContributionAwardSeq.Peek(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = k.ScopedEvidenceVouch.Walk(ctx, nil, func(key uint64, elem types.ScopedEvidenceVouch) (bool, error) {
+		genesis.ScopedEvidenceVouchList = append(genesis.ScopedEvidenceVouchList, elem)
+		return false, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	genesis.ScopedEvidenceVouchCount, err = k.ScopedEvidenceVouchSeq.Peek(ctx)
 	if err != nil {
 		return nil, err
 	}

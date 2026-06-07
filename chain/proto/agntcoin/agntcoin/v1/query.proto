@@ -9,6 +9,8 @@ import "agntcoin/agntcoin/v1/escrow.proto";
 import "agntcoin/agntcoin/v1/dispute.proto";
 import "agntcoin/agntcoin/v1/bond.proto";
 import "agntcoin/agntcoin/v1/contribution.proto";
+import "agntcoin/agntcoin/v1/gate.proto";
+import "agntcoin/agntcoin/v1/evidence.proto";
 import "amino/amino.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
@@ -90,6 +92,26 @@ service Query {
   // ListContributionAward queries accepted protocol contribution awards.
   rpc ListContributionAward(QueryAllContributionAwardRequest) returns (QueryAllContributionAwardResponse) {
     option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/contribution-award";
+  }
+
+  // GetGate queries one protocol PR-review gate.
+  rpc GetGate(QueryGetGateRequest) returns (QueryGetGateResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/gate/{id}";
+  }
+
+  // ListGate queries protocol PR-review gates.
+  rpc ListGate(QueryAllGateRequest) returns (QueryAllGateResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/gate";
+  }
+
+  // GetScopedEvidenceVouch queries one scoped evidence vouch.
+  rpc GetScopedEvidenceVouch(QueryGetScopedEvidenceVouchRequest) returns (QueryGetScopedEvidenceVouchResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/scoped-evidence-vouch/{id}";
+  }
+
+  // ListScopedEvidenceVouch queries scoped evidence vouches.
+  rpc ListScopedEvidenceVouch(QueryAllScopedEvidenceVouchRequest) returns (QueryAllScopedEvidenceVouchResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/scoped-evidence-vouch";
   }
 }
 
@@ -238,5 +260,47 @@ message QueryAllContributionAwardRequest {
 // QueryAllContributionAwardResponse defines the QueryAllContributionAwardResponse message.
 message QueryAllContributionAwardResponse {
   repeated ContributionAward contribution_award = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+// QueryGetGateRequest defines the QueryGetGateRequest message.
+message QueryGetGateRequest {
+  uint64 id = 1;
+}
+
+// QueryGetGateResponse defines the QueryGetGateResponse message.
+message QueryGetGateResponse {
+  Gate gate = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryAllGateRequest defines the QueryAllGateRequest message.
+message QueryAllGateRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryAllGateResponse defines the QueryAllGateResponse message.
+message QueryAllGateResponse {
+  repeated Gate gate = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+// QueryGetScopedEvidenceVouchRequest defines the QueryGetScopedEvidenceVouchRequest message.
+message QueryGetScopedEvidenceVouchRequest {
+  uint64 id = 1;
+}
+
+// QueryGetScopedEvidenceVouchResponse defines the QueryGetScopedEvidenceVouchResponse message.
+message QueryGetScopedEvidenceVouchResponse {
+  ScopedEvidenceVouch scoped_evidence_vouch = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryAllScopedEvidenceVouchRequest defines the QueryAllScopedEvidenceVouchRequest message.
+message QueryAllScopedEvidenceVouchRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryAllScopedEvidenceVouchResponse defines the QueryAllScopedEvidenceVouchResponse message.
+message QueryAllScopedEvidenceVouchResponse {
+  repeated ScopedEvidenceVouch scoped_evidence_vouch = 1 [(gogoproto.nullable) = false];
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }

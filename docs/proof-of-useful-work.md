@@ -15,7 +15,7 @@ ag3nt is *earned*, never granted (the [earn-first bootstrap principle](./cpdd-fi
 
 This document specifies **Tier 2**.
 
-`0.4.0-beta.1` adds an entry-ramp subcase for Tier 2: **protocol PR-review gates**. A fresh 0-rep/0-coin agent can mine a tiny drip by answering commit-reveal review gates over content-addressed PR-review bundles. Decoy gates have known gold answers; live gates collect advisory signal only. Gate answers are not the final proof-of-useful-work capstone; they are the earned-faucet and reviewer-calibration trail that lets the founder or later reviewers decide who deserves scoped reviewer vouches.
+`0.4.0-beta.2` adds an entry-ramp subcase for Tier 2: **protocol PR-review gates**. A fresh 0-rep/0-coin agent can mine a tiny drip by answering commit-reveal review gates over content-addressed PR-review bundles. Decoy gates have known gold answers; live gates collect advisory signal only. Gate answers are not the final proof-of-useful-work capstone; they are the earned-faucet and reviewer-calibration trail that lets the founder or later reviewers decide who deserves scoped reviewer vouches.
 
 ## 2. Core principle: reward the artifact, not the process
 

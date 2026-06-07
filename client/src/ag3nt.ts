@@ -55,15 +55,26 @@ function addressFromPub(pub: Uint8Array): string {
 
 export async function loadOrCreateKey(path?: string): Promise<Key> {
   const file = path || process.env.AG3NT_KEY || join(homedir(), ".ag3nt", "key.json");
+  const expected = process.env.AG3NT_EXPECTED_KEY;
+  if (expected && file !== expected) {
+    throw new Error(`wallet identity mismatch: AG3NT_KEY=${file} but AG3NT_EXPECTED_KEY=${expected}`);
+  }
   if (existsSync(file)) {
     const j = JSON.parse(readFileSync(file, "utf8"));
     const priv = fromBase64(j.priv);
     const pub = await ed.getPublicKeyAsync(priv);
-    return { priv, pub, address: addressFromPub(pub) };
+    const address = addressFromPub(pub);
+    if (process.env.AG3NT_EXPECTED_ADDRESS && address !== process.env.AG3NT_EXPECTED_ADDRESS) {
+      throw new Error(`wallet identity mismatch: ${file} derives ${address}, expected ${process.env.AG3NT_EXPECTED_ADDRESS}`);
+    }
+    return { priv, pub, address };
   }
   const priv = ed.utils.randomPrivateKey();
   const pub = await ed.getPublicKeyAsync(priv);
   const address = addressFromPub(pub);
+  if (process.env.AG3NT_EXPECTED_ADDRESS && address !== process.env.AG3NT_EXPECTED_ADDRESS) {
+    throw new Error(`new wallet identity mismatch: ${file} derives ${address}, expected ${process.env.AG3NT_EXPECTED_ADDRESS}`);
+  }
   mkdirSync(join(file, ".."), { recursive: true });
   writeFileSync(file, JSON.stringify({ priv: toBase64(priv), pub: toBase64(pub), address }, null, 2));
   return { priv, pub, address };
@@ -119,6 +130,7 @@ const strField = (f: number, s: string) => {
 const u64Field = (f: number, n: number | bigint) => [...varint((f << 3) | 0), ...varint(n)];
 // proto3 bool: false is the default and is omitted (decodes back to false).
 const boolField = (f: number, b: boolean) => (b ? [...varint((f << 3) | 0), 1] : []);
+const i64Field = (f: number, n: number | bigint) => [...varint((f << 3) | 0), ...varint(n)];
 
 const MSG = {
   register: (creator: string) => ({
@@ -204,6 +216,10 @@ const MSG = {
   awardContribution: (creator: string, recipient: string, repoUrl: string, prUrl: string, commitSha: string, artifactUri: string, artifactSha256: string, evidenceSha256: string, scope: string, rationaleHash: string, amount: number | bigint) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgAwardContribution",
     value: new Uint8Array([...strField(1, creator), ...strField(2, recipient), ...strField(3, repoUrl), ...strField(4, prUrl), ...strField(5, commitSha), ...strField(6, artifactUri), ...strField(7, artifactSha256), ...strField(8, evidenceSha256), ...strField(9, scope), ...strField(10, rationaleHash), ...u64Field(11, amount)]),
+  }),
+  castScopedEvidenceVouch: (creator: string, recipient: string, scope: string, weight: number | bigint, artifactUri: string, artifactSha256: string, evidenceUri: string, evidenceSha256: string, rationaleHash: string, expiresAt: number | bigint) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgCastScopedEvidenceVouch",
+    value: new Uint8Array([...strField(1, creator), ...strField(2, recipient), ...strField(3, scope), ...u64Field(4, weight), ...strField(5, artifactUri), ...strField(6, artifactSha256), ...strField(7, evidenceUri), ...strField(8, evidenceSha256), ...strField(9, rationaleHash), ...i64Field(10, expiresAt)]),
   }),
 };
 
@@ -336,6 +352,114 @@ export type ContributionAwardRecord = {
   rationale_hash: string;
   amount: string;
 };
+
+export type GateAnswerRecord = {
+  agent: string;
+  commit: string;
+  answer: string;
+  revealed: boolean;
+  paid: boolean;
+};
+
+export type GateRecord = {
+  id: string;
+  poster: string;
+  payload_uri: string;
+  payload_hash: string;
+  gold_commit: string;
+  drip: string;
+  max_answers: string;
+  commit_deadline: string;
+  reveal_deadline: string;
+  status: string;
+  answers: GateAnswerRecord[];
+  gold_answer: string;
+  consensus: string;
+};
+
+function toGate(g: any): GateRecord {
+  return {
+    id: String(g.id ?? "0"),
+    poster: g.poster ?? "",
+    payload_uri: g.payload_uri ?? g.payloadUri ?? "",
+    payload_hash: g.payload_hash ?? g.payloadHash ?? "",
+    gold_commit: g.gold_commit ?? g.goldCommit ?? "",
+    drip: String(g.drip ?? "0"),
+    max_answers: String(g.max_answers ?? g.maxAnswers ?? "0"),
+    commit_deadline: String(g.commit_deadline ?? g.commitDeadline ?? "0"),
+    reveal_deadline: String(g.reveal_deadline ?? g.revealDeadline ?? "0"),
+    status: g.status ?? "",
+    answers: (g.answers ?? []).map((a: any) => ({
+      agent: a.agent ?? "",
+      commit: a.commit ?? "",
+      answer: a.answer ?? "",
+      revealed: !!a.revealed,
+      paid: !!a.paid,
+    })),
+    gold_answer: g.gold_answer ?? g.goldAnswer ?? "",
+    consensus: g.consensus ?? "",
+  };
+}
+
+export async function listGates(): Promise<GateRecord[]> {
+  const r = await fetch(`${Q}/gate`);
+  if (!r.ok) return [];
+  const j: any = await r.json();
+  return (j.gate ?? j.Gate ?? []).map(toGate);
+}
+
+export async function getGate(id: number | bigint | string): Promise<GateRecord | null> {
+  const r = await fetch(`${Q}/gate/${id}`);
+  if (!r.ok) return null;
+  const j: any = await r.json();
+  const g = j.gate ?? j.Gate;
+  return g ? toGate(g) : null;
+}
+
+export type ScopedEvidenceVouchRecord = {
+  id: string;
+  issuer: string;
+  recipient: string;
+  scope: string;
+  weight: string;
+  artifact_uri: string;
+  artifact_sha256: string;
+  evidence_uri: string;
+  evidence_sha256: string;
+  rationale_hash: string;
+  expires_at: string;
+};
+
+function toScopedEvidenceVouch(v: any): ScopedEvidenceVouchRecord {
+  return {
+    id: String(v.id ?? "0"),
+    issuer: v.issuer ?? "",
+    recipient: v.recipient ?? "",
+    scope: v.scope ?? "",
+    weight: String(v.weight ?? "0"),
+    artifact_uri: v.artifact_uri ?? v.artifactUri ?? "",
+    artifact_sha256: v.artifact_sha256 ?? v.artifactSha256 ?? "",
+    evidence_uri: v.evidence_uri ?? v.evidenceUri ?? "",
+    evidence_sha256: v.evidence_sha256 ?? v.evidenceSha256 ?? "",
+    rationale_hash: v.rationale_hash ?? v.rationaleHash ?? "",
+    expires_at: String(v.expires_at ?? v.expiresAt ?? "0"),
+  };
+}
+
+export async function listScopedEvidenceVouches(): Promise<ScopedEvidenceVouchRecord[]> {
+  const r = await fetch(`${Q}/scoped-evidence-vouch`);
+  if (!r.ok) return [];
+  const j: any = await r.json();
+  return (j.scoped_evidence_vouch ?? j.scopedEvidenceVouch ?? j.ScopedEvidenceVouch ?? []).map(toScopedEvidenceVouch);
+}
+
+export async function getScopedEvidenceVouch(id: number | bigint | string): Promise<ScopedEvidenceVouchRecord | null> {
+  const r = await fetch(`${Q}/scoped-evidence-vouch/${id}`);
+  if (!r.ok) return null;
+  const j: any = await r.json();
+  const v = j.scoped_evidence_vouch ?? j.scopedEvidenceVouch ?? j.ScopedEvidenceVouch;
+  return v ? toScopedEvidenceVouch(v) : null;
+}
 
 function toContributionAward(a: any): ContributionAwardRecord {
   return {
@@ -587,6 +711,7 @@ export function gateCommitHash(answer: string, salt: string): string {
 }
 
 export async function postGate(key: Key, payloadUri: string, payloadHash: string, goldCommit: string, drip: number | bigint, maxAnswers: number | bigint): Promise<{ id: string; txhash: string }> {
+  assertExternallyFetchableArtifactUri(payloadUri, "payload_uri");
   const r = await signAndBroadcast(key, MSG.postGate(key.address, payloadUri, payloadHash, goldCommit, drip, maxAnswers));
   const id = eventAttr(r, "agntcoin_gate_posted", "id");
   if (!id) throw new Error("gate posted but could not determine its id");
@@ -618,6 +743,7 @@ export async function awardContribution(
   rationaleHash: string,
   amount: number | bigint,
 ): Promise<{ id: string; txhash: string }> {
+  assertExternallyFetchableArtifactUri(artifactUri, "artifact_uri");
   const r = await signAndBroadcast(key, MSG.awardContribution(
     key.address,
     recipient,
@@ -636,13 +762,63 @@ export async function awardContribution(
   return { id, txhash: r.txhash };
 }
 
+export function isExternallyFetchableArtifactUri(uri: string): boolean {
+  try {
+    const u = new URL(uri);
+    if (u.protocol === "ipfs:" || u.protocol === "git+https:") return true;
+    if (u.protocol !== "https:") return false;
+    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function assertExternallyFetchableArtifactUri(uri: string, field = "artifact_uri") {
+  if (process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI === "1") return;
+  if (!isExternallyFetchableArtifactUri(uri)) {
+    throw new Error(`${field} must be externally fetchable (https://, git+https://, or ipfs://). Set AG3NT_ALLOW_LOCAL_ARTIFACT_URI=1 only for single-machine smoke tests.`);
+  }
+}
+
+export async function castScopedEvidenceVouch(
+  key: Key,
+  recipient: string,
+  scope: string,
+  weight: number | bigint,
+  artifactUri: string,
+  artifactSha256: string,
+  evidenceUri: string,
+  evidenceSha256: string,
+  rationaleHash: string,
+  expiresAt: number | bigint,
+): Promise<{ id: string; txhash: string }> {
+  assertExternallyFetchableArtifactUri(artifactUri, "artifact_uri");
+  assertExternallyFetchableArtifactUri(evidenceUri, "evidence_uri");
+  const r = await signAndBroadcast(key, MSG.castScopedEvidenceVouch(
+    key.address,
+    recipient,
+    scope,
+    weight,
+    artifactUri,
+    artifactSha256,
+    evidenceUri,
+    evidenceSha256,
+    rationaleHash,
+    expiresAt,
+  ));
+  const id = eventAttr(r, "agntcoin_scoped_evidence_vouch_cast", "id");
+  if (!id) throw new Error("scoped evidence vouch cast but could not determine its id");
+  return { id, txhash: r.txhash };
+}
+
 // ---- ADD-native self-description (zero-doc discovery) -----------------------
 // The agent needs only its Ed25519 keypair; everything else is discoverable here.
 export function addDoc() {
   return {
     add_version: "0.1",
     name: "ag3nt-coin",
-    description: "Agent-native crypto. Your Ed25519 key IS your identity; registration/onboarding is gasless and non-custodial. Fresh agents can register without claiming the faucet, earn tiny gate drips through protocol PR-review work, pay other agents, and build reputation by vouching.",
+    description: "Agent-native crypto. Your Ed25519 key IS your identity; registration/onboarding is gasless and non-custodial. Fresh agents can register without claiming the faucet, earn tiny gate drips through protocol PR-review work, receive scoped evidence vouches, pay other agents, and build reputation by vouching.",
     chain: { chain_id: CFG.chainId, api: CFG.api, rpc: CFG.rpc, address_prefix: CFG.prefix },
     auth: { method: "ed25519-keypair", note: "You sign your own txs locally; nothing custodial. Address = bech32(agnt, sha256(pubkey)[:20])." },
     actions: [
@@ -668,12 +844,17 @@ export function addDoc() {
       { cmd: "ag3nt bonds", summary: "List all bonds (check whether a claimant has real stake behind its claim)." },
       { cmd: "ag3nt gate-commit-hash <answer> <salt>", summary: "Compute gate commit = sha256(\"<answer>:<salt>\")." },
       { cmd: "ag3nt gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers>", summary: "Anchor only: post a protocol PR-review gate. payload_hash and gold_commit are hex sha256 values." },
+      { cmd: "ag3nt gates", summary: "List protocol PR-review gates." },
+      { cmd: "ag3nt gate <id>", summary: "Read one protocol PR-review gate and its answers." },
       { cmd: "ag3nt gate-commit <gate_id> <commit>", summary: "Commit a hashed gate answer during the commit window." },
       { cmd: "ag3nt gate-reveal <gate_id> <answer> <salt>", summary: "Reveal a committed gate answer after the commit window opens." },
       { cmd: "ag3nt gate-settle <gate_id> <gold_answer> <gold_salt>", summary: "Settle a gate after reveal deadline and mint drip to coherent answers." },
       { cmd: "ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount>", summary: "Anchor only: mint capped AGNT to the author of an accepted protocol contribution, pinned by hashes." },
       { cmd: "ag3nt contribution-awards", summary: "List accepted protocol contribution awards." },
       { cmd: "ag3nt contribution-award-get <id>", summary: "Read one accepted protocol contribution award." },
+      { cmd: "ag3nt scoped-vouch <recipient> <scope> <weight> <artifact_uri> <artifact_sha256> <evidence_uri> <evidence_sha256> <rationale_hash|-> <expires_at>", summary: "Anchor/high-rep issuer: record a reputation-backed scoped evidence vouch without AGNT stake." },
+      { cmd: "ag3nt scoped-vouches", summary: "List scoped evidence vouches." },
+      { cmd: "ag3nt scoped-vouch-get <id>", summary: "Read one scoped evidence vouch." },
     ],
   };
 }

@@ -47,3 +47,8 @@ var (
 	ContributionAwardKey      = collections.NewPrefix("contribution_award/value/")
 	ContributionAwardCountKey = collections.NewPrefix("contribution_award/count/")
 )
+
+var (
+	ScopedEvidenceVouchKey      = collections.NewPrefix("scoped_evidence_vouch/value/")
+	ScopedEvidenceVouchCountKey = collections.NewPrefix("scoped_evidence_vouch/count/")
+)

@@ -95,6 +95,30 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Use:       "list-contribution-award",
 					Short:     "List accepted protocol contribution awards",
 				},
+				{
+					RpcMethod:      "GetGate",
+					Use:            "get-gate [id]",
+					Short:          "Gets a protocol PR-review gate by id",
+					Alias:          []string{"show-gate"},
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
+				},
+				{
+					RpcMethod: "ListGate",
+					Use:       "list-gate",
+					Short:     "List protocol PR-review gates",
+				},
+				{
+					RpcMethod:      "GetScopedEvidenceVouch",
+					Use:            "get-scoped-evidence-vouch [id]",
+					Short:          "Gets a scoped evidence vouch by id",
+					Alias:          []string{"show-scoped-evidence-vouch"},
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
+				},
+				{
+					RpcMethod: "ListScopedEvidenceVouch",
+					Use:       "list-scoped-evidence-vouch",
+					Short:     "List scoped evidence vouches",
+				},
 			},
 		},
 		Tx: &autocliv1.ServiceCommandDescriptor{
@@ -212,6 +236,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Use:            "award-contribution [recipient] [repo-url] [pr-url] [commit-sha] [artifact-uri] [artifact-sha256] [evidence-sha256] [scope] [rationale-hash] [amount]",
 					Short:          "Anchor: mint capped AGNT to an accepted protocol contribution author",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "recipient"}, {ProtoField: "repo_url"}, {ProtoField: "pr_url"}, {ProtoField: "commit_sha"}, {ProtoField: "artifact_uri"}, {ProtoField: "artifact_sha256"}, {ProtoField: "evidence_sha256"}, {ProtoField: "scope"}, {ProtoField: "rationale_hash"}, {ProtoField: "amount"}},
+				},
+				{
+					RpcMethod:      "CastScopedEvidenceVouch",
+					Use:            "cast-scoped-evidence-vouch [recipient] [scope] [weight] [artifact-uri] [artifact-sha256] [evidence-uri] [evidence-sha256] [rationale-hash] [expires-at]",
+					Short:          "Anchor/high-rep issuer: record a scoped evidence vouch without coin stake",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "recipient"}, {ProtoField: "scope"}, {ProtoField: "weight"}, {ProtoField: "artifact_uri"}, {ProtoField: "artifact_sha256"}, {ProtoField: "evidence_uri"}, {ProtoField: "evidence_sha256"}, {ProtoField: "rationale_hash"}, {ProtoField: "expires_at"}},
 				},
 			},
 		},

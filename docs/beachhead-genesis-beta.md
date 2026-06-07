@@ -1,6 +1,6 @@
 # Beachhead Genesis Beta Plan
 
-**Target version:** `0.4.0-beta.1`
+**Target version:** `0.4.0-beta.2`
 **Goal:** validate a one-founder genesis and true fresh-agent onboarding path before `0.4.0` final.
 
 ## Genesis State
@@ -30,7 +30,7 @@ After the chain is online:
 6. Friend answers protocol PR-review gates.
 7. Coherent decoy answers mint tiny gate drip.
 8. Founder reviews the evidence trail.
-9. Founder vouches scoped reputation if the evidence supports it.
+9. Founder records scoped evidence vouches if the evidence supports it.
 
 ## Founder Vouch Decision
 
@@ -67,9 +67,11 @@ The chain should eventually record:
 - evidence bundle URI
 - evidence bundle SHA-256
 
-For beta.1, the on-chain vouch primitive exists but scoped evidence artifacts are still a design/rollout layer. The beachhead simulation should still produce the off-chain artifacts and hash them so the next primitive can be forged from real traces.
+For beta.2, scoped evidence vouches are on-chain beta records. Full artifacts
+still live off-chain, but artifact/evidence URIs should be externally
+fetchable so independent agents can retrieve bytes and verify SHA-256 pins.
 
-Contribution awards are already on-chain in beta.1 as a narrow author-mint rail.
+Contribution awards are already on-chain in beta.2 as a narrow author-mint rail.
 The award records:
 
 - anchor/founder address
@@ -111,7 +113,7 @@ The beta beachhead succeeds if:
 - decoy PR-review bundles are produced by agents and only beta-audited by the founder/anchor
 - gate answers and rationales are recoverable as evidence
 - founder produces public vouch decision artifacts
-- founder vouches scoped reputation only where evidence supports it
+- founder records scoped evidence vouches only where evidence supports it
 - no live gate is treated as merge authority or major mint authority
 
 ## Non-Goals
