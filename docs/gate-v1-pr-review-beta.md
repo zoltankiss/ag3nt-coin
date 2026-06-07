@@ -198,5 +198,11 @@ bytes match the pinned hash. Client-side artifact URI validation also rejects
 known bad GitHub repo-name typos, such as `zoltankiss/agnt-coin-forge-2` where
 `zoltankiss/ag3nt-coin-forge-2` is intended.
 
+For contribution awards, beta.3 pins `evidence_sha256` but does not carry a
+separate `evidence_uri` in the award transaction. The contribution artifact
+should therefore include the externally fetchable evidence URI next to the
+expected evidence hash, and anchors should run `ag3nt artifact-check` on both
+the contribution artifact URI/hash and the evidence URI/hash before awarding.
+
 On-chain scoped evidence vouches now reject duplicate records with the same
 `issuer`, `recipient`, `scope`, `artifact_sha256`, and `evidence_sha256`.
