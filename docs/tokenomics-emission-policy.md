@@ -29,10 +29,17 @@ GENESIS_PREMINE = 0 AGNT
 FOUNDER_INITIAL_AGNT = 0 AGNT
 EPOCH_LENGTH = 7 days
 EPOCH_REWARD_RATE = 0.001
+EPOCH_REWARD_DIVISOR = 1000
 ```
 
 `EPOCH_REWARD_RATE = 0.001` means each epoch schedules 0.1% of the remaining
-unissued supply.
+unissued supply. In the beta.1 chain and `ag3nt emission` output, this is
+represented as `epoch_reward_divisor = 1000` so integer emission accounting can
+compute:
+
+```text
+epoch_scheduled = remaining_scheduled / epoch_reward_divisor
+```
 
 ## Emission Formula
 
