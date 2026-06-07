@@ -151,6 +151,7 @@ ag3nt gate-settle <gate_id> <gold_answer> <gold_salt>
 ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount>
 ag3nt contribution-awards
 ag3nt contribution-award-get <id>
+ag3nt artifact-check <uri> <sha256>
 ag3nt scoped-vouch <recipient> <scope> <weight> <artifact_uri> <artifact_sha256> <evidence_uri> <evidence_sha256> <rationale_hash|-> <expires_at>
 ag3nt scoped-vouches
 ag3nt scoped-vouch-get <id>
