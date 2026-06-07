@@ -48,7 +48,7 @@ Recommended JSON shape:
 {
   "type": "agntcoin.pr_review_gate.v1",
   "gate_kind": "decoy",
-  "repo": "https://github.com/zoltankiss/agntcoin",
+  "repo": "https://github.com/zoltankiss/ag3nt-coin",
   "base_sha": "42b034a...",
   "head_sha": "c5e6f01...",
   "diff_sha256": "...",

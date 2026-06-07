@@ -813,11 +813,11 @@ function assertKnownGitHubArtifactRepo(uri: string, field: string) {
 }
 
 export function assertExternallyFetchableArtifactUri(uri: string, field = "artifact_uri") {
+  assertKnownGitHubArtifactRepo(uri, field);
   if (process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI === "1") return;
   if (!isExternallyFetchableArtifactUri(uri)) {
     throw new Error(`${field} must be externally fetchable (https://, git+https://, or ipfs://). Set AG3NT_ALLOW_LOCAL_ARTIFACT_URI=1 only for single-machine smoke tests.`);
   }
-  assertKnownGitHubArtifactRepo(uri, field);
 }
 
 export function artifactFetchUri(uri: string): string {
