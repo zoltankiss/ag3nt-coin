@@ -823,6 +823,9 @@ export function assertExternallyFetchableArtifactUri(uri: string, field = "artif
 export function artifactFetchUri(uri: string): string {
   const u = new URL(uri);
   if (u.protocol !== "https:") {
+    if (process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI === "1" && u.protocol === "http:") {
+      return uri;
+    }
     throw new Error(`artifact-check can fetch https:// artifacts only for now; got ${u.protocol}`);
   }
   if (u.hostname !== "github.com") return uri;

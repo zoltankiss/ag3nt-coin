@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { assertExternallyFetchableArtifactUri } from "./ag3nt";
+import { artifactFetchUri, assertExternallyFetchableArtifactUri } from "./ag3nt";
 
 const originalAllowLocal = process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI;
 
@@ -29,5 +29,13 @@ describe("artifact URI validation", () => {
     expect(() =>
       assertExternallyFetchableArtifactUri("http://127.0.0.1:4312/artifacts/payload.json"),
     ).not.toThrow();
+  });
+
+  test("local artifact override lets artifact-check fetch local http smoke-test URIs", () => {
+    process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI = "1";
+
+    expect(artifactFetchUri("http://127.0.0.1:4312/artifacts/payload.json")).toBe(
+      "http://127.0.0.1:4312/artifacts/payload.json",
+    );
   });
 });
