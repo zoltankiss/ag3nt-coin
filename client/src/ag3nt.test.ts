@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { artifactFetchUri, assertExternallyFetchableArtifactUri } from "./ag3nt";
+import { artifactFetchUri, assertExternallyFetchableArtifactUri, splitAnchorList } from "./ag3nt";
 
 const originalAllowLocal = process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI;
 
@@ -37,5 +37,16 @@ describe("artifact URI validation", () => {
     expect(artifactFetchUri("http://127.0.0.1:4312/artifacts/payload.json")).toBe(
       "http://127.0.0.1:4312/artifacts/payload.json",
     );
+  });
+});
+
+describe("anchor list parsing", () => {
+  test("splits comma and whitespace separated dev/test anchors", () => {
+    expect(splitAnchorList("agnt1aaa, agnt1bbb\nagnt1ccc\t agnt1ddd")).toEqual([
+      "agnt1aaa",
+      "agnt1bbb",
+      "agnt1ccc",
+      "agnt1ddd",
+    ]);
   });
 });

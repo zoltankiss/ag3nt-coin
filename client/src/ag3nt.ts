@@ -252,11 +252,17 @@ export async function getParams(): Promise<any> {
   const r = await fetch(`${Q}/params`);
   if (!r.ok) throw new Error(`params query failed: ${r.status} ${await r.text()}`);
   const j: any = await r.json();
-  const envAnchors = (process.env.AGNTCOIN_ANCHORS || "")
+  const paramAnchors = j.params?.anchors ?? j.Params?.Anchors ?? [];
+  const envAnchors = splitAnchorList(process.env.AGNTCOIN_ANCHORS || "");
+  const effectiveAnchors = paramAnchors.length > 0 ? paramAnchors : envAnchors;
+  return { ...j, client_env_anchors: envAnchors, effective_anchors: effectiveAnchors };
+}
+
+export function splitAnchorList(raw: string): string[] {
+  return raw
     .split(/[\s,]+/)
     .map((s) => s.trim())
     .filter(Boolean);
-  return { ...j, client_env_anchors: envAnchors };
 }
 
 export async function getEmission(): Promise<any> {
