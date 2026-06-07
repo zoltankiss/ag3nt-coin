@@ -201,6 +201,10 @@ const MSG = {
     typeUrl: "/agntcoin.agntcoin.v1.MsgSettleGate",
     value: new Uint8Array([...strField(1, creator), ...u64Field(2, gateId), ...strField(3, goldAnswer), ...strField(4, goldSalt)]),
   }),
+  awardContribution: (creator: string, recipient: string, repoUrl: string, prUrl: string, commitSha: string, artifactUri: string, artifactSha256: string, evidenceSha256: string, scope: string, rationaleHash: string, amount: number | bigint) => ({
+    typeUrl: "/agntcoin.agntcoin.v1.MsgAwardContribution",
+    value: new Uint8Array([...strField(1, creator), ...strField(2, recipient), ...strField(3, repoUrl), ...strField(4, prUrl), ...strField(5, commitSha), ...strField(6, artifactUri), ...strField(7, artifactSha256), ...strField(8, evidenceSha256), ...strField(9, scope), ...strField(10, rationaleHash), ...u64Field(11, amount)]),
+  }),
 };
 
 // ---- queries ---------------------------------------------------------------
@@ -316,6 +320,53 @@ export async function getBond(id: number | bigint | string): Promise<BondRecord 
   const j: any = await r.json();
   const b = j.bond ?? j.Bond;
   return b ? toBond(b) : null;
+}
+
+export type ContributionAwardRecord = {
+  id: string;
+  anchor: string;
+  recipient: string;
+  repo_url: string;
+  pr_url: string;
+  commit_sha: string;
+  artifact_uri: string;
+  artifact_sha256: string;
+  evidence_sha256: string;
+  scope: string;
+  rationale_hash: string;
+  amount: string;
+};
+
+function toContributionAward(a: any): ContributionAwardRecord {
+  return {
+    id: String(a.id ?? "0"),
+    anchor: a.anchor ?? "",
+    recipient: a.recipient ?? "",
+    repo_url: a.repo_url ?? a.repoUrl ?? "",
+    pr_url: a.pr_url ?? a.prUrl ?? "",
+    commit_sha: a.commit_sha ?? a.commitSha ?? "",
+    artifact_uri: a.artifact_uri ?? a.artifactUri ?? "",
+    artifact_sha256: a.artifact_sha256 ?? a.artifactSha256 ?? "",
+    evidence_sha256: a.evidence_sha256 ?? a.evidenceSha256 ?? "",
+    scope: a.scope ?? "",
+    rationale_hash: a.rationale_hash ?? a.rationaleHash ?? "",
+    amount: String(a.amount ?? "0"),
+  };
+}
+
+export async function listContributionAwards(): Promise<ContributionAwardRecord[]> {
+  const r = await fetch(`${Q}/contribution-award`);
+  if (!r.ok) return [];
+  const j: any = await r.json();
+  return (j.contribution_award ?? j.contributionAward ?? j.ContributionAward ?? []).map(toContributionAward);
+}
+
+export async function getContributionAward(id: number | bigint | string): Promise<ContributionAwardRecord | null> {
+  const r = await fetch(`${Q}/contribution-award/${id}`);
+  if (!r.ok) return null;
+  const j: any = await r.json();
+  const a = j.contribution_award ?? j.contributionAward ?? j.ContributionAward;
+  return a ? toContributionAward(a) : null;
 }
 
 // Interpretable reputation inputs (the evidence behind the score): the
@@ -554,6 +605,37 @@ export async function settleGate(key: Key, gateId: number | bigint | string, gol
   return signAndBroadcast(key, MSG.settleGate(key.address, BigInt(gateId), goldAnswer, goldSalt));
 }
 
+export async function awardContribution(
+  key: Key,
+  recipient: string,
+  repoUrl: string,
+  prUrl: string,
+  commitSha: string,
+  artifactUri: string,
+  artifactSha256: string,
+  evidenceSha256: string,
+  scope: string,
+  rationaleHash: string,
+  amount: number | bigint,
+): Promise<{ id: string; txhash: string }> {
+  const r = await signAndBroadcast(key, MSG.awardContribution(
+    key.address,
+    recipient,
+    repoUrl,
+    prUrl,
+    commitSha,
+    artifactUri,
+    artifactSha256,
+    evidenceSha256,
+    scope,
+    rationaleHash,
+    amount,
+  ));
+  const id = eventAttr(r, "agntcoin_contribution_awarded", "id");
+  if (!id) throw new Error("contribution awarded but could not determine its id");
+  return { id, txhash: r.txhash };
+}
+
 // ---- ADD-native self-description (zero-doc discovery) -----------------------
 // The agent needs only its Ed25519 keypair; everything else is discoverable here.
 export function addDoc() {
@@ -589,6 +671,9 @@ export function addDoc() {
       { cmd: "ag3nt gate-commit <gate_id> <commit>", summary: "Commit a hashed gate answer during the commit window." },
       { cmd: "ag3nt gate-reveal <gate_id> <answer> <salt>", summary: "Reveal a committed gate answer after the commit window opens." },
       { cmd: "ag3nt gate-settle <gate_id> <gold_answer> <gold_salt>", summary: "Settle a gate after reveal deadline and mint drip to coherent answers." },
+      { cmd: "ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount>", summary: "Anchor only: mint capped AGNT to the author of an accepted protocol contribution, pinned by hashes." },
+      { cmd: "ag3nt contribution-awards", summary: "List accepted protocol contribution awards." },
+      { cmd: "ag3nt contribution-award-get <id>", summary: "Read one accepted protocol contribution award." },
     ],
   };
 }

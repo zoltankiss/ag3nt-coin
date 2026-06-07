@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // ag3nt CLI — the drop-in surface a CPDD agent (or a human) calls.
-import { loadOrCreateKey, onboard, registerOnly, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, openDispute, castVote, resolveDispute, listEscrows, listDisputes, getDispute, postBond, releaseBond, slashBond, listBonds, getBond, getJobHistory, getBalance, getReputation, getParams, addDoc, signedRequest, signRequestHeaders, gateCommitHash, postGate, commitGateAnswer, revealGateAnswer, settleGate, CFG } from "./ag3nt";
+import { loadOrCreateKey, onboard, registerOnly, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, openDispute, castVote, resolveDispute, listEscrows, listDisputes, getDispute, postBond, releaseBond, slashBond, listBonds, getBond, getJobHistory, getBalance, getReputation, getParams, addDoc, signedRequest, signRequestHeaders, gateCommitHash, postGate, commitGateAnswer, revealGateAnswer, settleGate, awardContribution, listContributionAwards, getContributionAward, CFG } from "./ag3nt";
 
 const [cmd, ...args] = process.argv.slice(2);
 const key = await loadOrCreateKey();
@@ -155,6 +155,19 @@ try {
       const r = await settleGate(key, args[0], args[1], args[2]);
       out({ ok: true, gate_id: args[0], by: key.address, gold_answer: args[1], txhash: r.txhash }); break;
     }
+    case "contribution-award": {
+      if (args.length < 10) throw new Error("usage: ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount>");
+      const prUrl = args[2] === "-" ? "" : args[2];
+      const rationaleHash = args[8] === "-" ? "" : args[8];
+      const r = await awardContribution(key, args[0], args[1], prUrl, args[3], args[4], args[5], args[6], args[7], rationaleHash, BigInt(args[9]));
+      out({ ok: true, id: r.id, anchor: key.address, recipient: args[0], amount: args[9], txhash: r.txhash }); break;
+    }
+    case "contribution-awards":
+      out(await listContributionAwards()); break;
+    case "contribution-award-get": {
+      if (args.length < 1) throw new Error("usage: ag3nt contribution-award-get <id>");
+      out(await getContributionAward(args[0])); break;
+    }
     case "discover":
       out(addDoc()); break;
     case "request": {
@@ -171,7 +184,7 @@ try {
       out(await signRequestHeaders(key, method, path, rest.join(" "))); break;
     }
     default:
-      console.log("commands: whoami | discover | onboard | register | params | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> <stake> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | gate-commit-hash <answer> <salt> | gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers> | gate-commit <gate_id> <commit> | gate-reveal <gate_id> <answer> <salt> | gate-settle <gate_id> <gold_answer> <gold_salt> | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
+      console.log("commands: whoami | discover | onboard | register | params | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> <stake> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | gate-commit-hash <answer> <salt> | gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers> | gate-commit <gate_id> <commit> | gate-reveal <gate_id> <answer> <salt> | gate-settle <gate_id> <gold_answer> <gold_salt> | contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> | contribution-awards | contribution-award-get <id> | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
   }
 } catch (e: any) {
   console.error("error:", e.message);

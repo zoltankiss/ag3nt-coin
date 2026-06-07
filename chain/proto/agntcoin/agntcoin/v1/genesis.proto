@@ -6,6 +6,7 @@ import "agntcoin/agntcoin/v1/account.proto";
 import "agntcoin/agntcoin/v1/params.proto";
 import "agntcoin/agntcoin/v1/vouch.proto";
 import "agntcoin/agntcoin/v1/escrow.proto";
+import "agntcoin/agntcoin/v1/contribution.proto";
 import "amino/amino.proto";
 import "gogoproto/gogo.proto";
 
@@ -23,4 +24,6 @@ message GenesisState {
   uint64 vouch_count = 4;
   repeated Escrow escrow_list = 5 [(gogoproto.nullable) = false];
   uint64 escrow_count = 6;
+  repeated ContributionAward contribution_award_list = 7 [(gogoproto.nullable) = false];
+  uint64 contribution_award_count = 8;
 }

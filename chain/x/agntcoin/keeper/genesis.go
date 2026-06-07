@@ -33,6 +33,16 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		return err
 	}
 
+	for _, elem := range genState.ContributionAwardList {
+		if err := k.ContributionAward.Set(ctx, elem.Id, elem); err != nil {
+			return err
+		}
+	}
+
+	if err := k.ContributionAwardSeq.Set(ctx, genState.ContributionAwardCount); err != nil {
+		return err
+	}
+
 	return k.Params.Set(ctx, genState.Params)
 }
 
@@ -73,6 +83,19 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	}
 
 	genesis.EscrowCount, err = k.EscrowSeq.Peek(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = k.ContributionAward.Walk(ctx, nil, func(key uint64, elem types.ContributionAward) (bool, error) {
+		genesis.ContributionAwardList = append(genesis.ContributionAwardList, elem)
+		return false, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	genesis.ContributionAwardCount, err = k.ContributionAwardSeq.Peek(ctx)
 	if err != nil {
 		return nil, err
 	}

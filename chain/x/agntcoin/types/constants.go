@@ -99,4 +99,11 @@ const (
 	// Gate status values. OPEN settles exactly once into SETTLED.
 	GateStatusOpen    = "open"
 	GateStatusSettled = "settled"
+
+	// MaxContributionAward caps founder-mediated author mints in the beta
+	// proof-of-useful-work path. It is intentionally far below the old 10,000
+	// faucet: author mining should be evidence-rich and incremental until
+	// review sortition, duplicate checks, challenge bonds, and emission policy
+	// are forged.
+	MaxContributionAward uint64 = 500
 )

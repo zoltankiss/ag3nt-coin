@@ -20,19 +20,21 @@ type Keeper struct {
 	// Typically, this should be the x/gov module account.
 	authority []byte
 
-	Schema     collections.Schema
-	Params     collections.Item[types.Params]
-	Account    collections.Map[string, types.Account]
-	VouchSeq   collections.Sequence
-	Vouch      collections.Map[uint64, types.Vouch]
-	EscrowSeq  collections.Sequence
-	Escrow     collections.Map[uint64, types.Escrow]
-	DisputeSeq collections.Sequence
-	Dispute    collections.Map[uint64, types.Dispute]
-	BondSeq    collections.Sequence
-	Bond       collections.Map[uint64, types.Bond]
-	GateSeq    collections.Sequence
-	Gate       collections.Map[uint64, types.Gate]
+	Schema               collections.Schema
+	Params               collections.Item[types.Params]
+	Account              collections.Map[string, types.Account]
+	VouchSeq             collections.Sequence
+	Vouch                collections.Map[uint64, types.Vouch]
+	EscrowSeq            collections.Sequence
+	Escrow               collections.Map[uint64, types.Escrow]
+	DisputeSeq           collections.Sequence
+	Dispute              collections.Map[uint64, types.Dispute]
+	BondSeq              collections.Sequence
+	Bond                 collections.Map[uint64, types.Bond]
+	GateSeq              collections.Sequence
+	Gate                 collections.Map[uint64, types.Gate]
+	ContributionAwardSeq collections.Sequence
+	ContributionAward    collections.Map[uint64, types.ContributionAward]
 }
 
 func NewKeeper(
@@ -58,15 +60,17 @@ func NewKeeper(
 
 		Params:  collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
 		Account: collections.NewMap(sb, types.AccountKey, "account", collections.StringKey, codec.CollValue[types.Account](cdc)), Vouch: collections.NewMap(sb, types.VouchKey, "vouch", collections.Uint64Key, codec.CollValue[types.Vouch](cdc)),
-		VouchSeq:   collections.NewSequence(sb, types.VouchCountKey, "vouchSequence"),
-		Escrow:     collections.NewMap(sb, types.EscrowKey, "escrow", collections.Uint64Key, codec.CollValue[types.Escrow](cdc)),
-		EscrowSeq:  collections.NewSequence(sb, types.EscrowCountKey, "escrowSequence"),
-		Dispute:    collections.NewMap(sb, types.DisputeKey, "dispute", collections.Uint64Key, codec.CollValue[types.Dispute](cdc)),
-		DisputeSeq: collections.NewSequence(sb, types.DisputeCountKey, "disputeSequence"),
-		Bond:       collections.NewMap(sb, types.BondKey, "bond", collections.Uint64Key, codec.CollValue[types.Bond](cdc)),
-		BondSeq:    collections.NewSequence(sb, types.BondCountKey, "bondSequence"),
-		Gate:       collections.NewMap(sb, types.GateKey, "gate", collections.Uint64Key, codec.CollValue[types.Gate](cdc)),
-		GateSeq:    collections.NewSequence(sb, types.GateCountKey, "gateSequence"),
+		VouchSeq:             collections.NewSequence(sb, types.VouchCountKey, "vouchSequence"),
+		Escrow:               collections.NewMap(sb, types.EscrowKey, "escrow", collections.Uint64Key, codec.CollValue[types.Escrow](cdc)),
+		EscrowSeq:            collections.NewSequence(sb, types.EscrowCountKey, "escrowSequence"),
+		Dispute:              collections.NewMap(sb, types.DisputeKey, "dispute", collections.Uint64Key, codec.CollValue[types.Dispute](cdc)),
+		DisputeSeq:           collections.NewSequence(sb, types.DisputeCountKey, "disputeSequence"),
+		Bond:                 collections.NewMap(sb, types.BondKey, "bond", collections.Uint64Key, codec.CollValue[types.Bond](cdc)),
+		BondSeq:              collections.NewSequence(sb, types.BondCountKey, "bondSequence"),
+		Gate:                 collections.NewMap(sb, types.GateKey, "gate", collections.Uint64Key, codec.CollValue[types.Gate](cdc)),
+		GateSeq:              collections.NewSequence(sb, types.GateCountKey, "gateSequence"),
+		ContributionAward:    collections.NewMap(sb, types.ContributionAwardKey, "contributionAward", collections.Uint64Key, codec.CollValue[types.ContributionAward](cdc)),
+		ContributionAwardSeq: collections.NewSequence(sb, types.ContributionAwardCountKey, "contributionAwardSequence"),
 	}
 	schema, err := sb.Build()
 	if err != nil {

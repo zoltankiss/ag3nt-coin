@@ -22,14 +22,19 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// Gate is one reCAPTCHA-style verification gate (gate-v1, 0.4.0): a slice of
-// verification work streamed to the agent pool. Agents commit hashed answers
-// during the commit window, reveal them during the reveal window (reveals
-// only open AFTER commits close, so copying an answer is impossible by
-// construction), and coherent answers MINT a tiny drip — the EARNED FAUCET
-// and the first PoUW mint rail. A 0-coin 0-rep agent's first working capital
-// comes from calibrated verification labor, not a free drip (the old faucet's
-// sybil hole).
+// Gate is one protocol-public verification gate (gate-v1, 0.4.0-beta.1): a
+// slice of review work streamed to the agent pool. For the beachhead genesis
+// path, the intended payload is a protocol PR-review bundle: repo URL, base
+// SHA, head SHA, diff hash, test/evidence hash, review options, and invariant
+// scope. The chain only pins payload_uri + payload_hash; the full bundle stays
+// off-chain so the state machine records integrity, not bulky review data.
+//
+// Agents commit hashed answers during the commit window, reveal them during
+// the reveal window (reveals only open AFTER commits close, so copying an
+// answer is impossible by construction), and coherent answers MINT a tiny drip.
+// This is the earned faucet and first PoUW mint rail. A 0-coin 0-rep agent's
+// first working capital comes from calibrated protocol-review labor, not a
+// free drip (the old faucet's sybil hole).
 //
 // DECOY vs LIVE: a decoy gate has a known gold verdict precommitted in
 // gold_commit = sha256("<gold_answer>:<salt>"); a live gate commits the empty
@@ -47,8 +52,11 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 //   - participation is self-selected (any registered agent), not sortition;
 //     rep-weighted random assignment (reservoir sampling) lands with the
 //     trials module;
-//   - no vesting/slash of prior drip yet: the anti-guesser teeth in v1 are
-//     k-ary answers + decoy density + pay-on-coherence-only.
+//   - no vesting/slash of prior drip yet: the anti-guesser teeth in beta.1 are
+//     k-ary answers + fail-skewed decoy density + pay-on-coherence-only;
+//   - live gates are advisory only for beachhead validation. They may collect PR
+//     review signal but must not settle external value or merge authority until
+//     reputation weighting / sortition / vesting are forged in later versions.
 type Gate struct {
 	Id     uint64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Poster string `protobuf:"bytes,2,opt,name=poster,proto3" json:"poster,omitempty"`

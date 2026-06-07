@@ -24,10 +24,13 @@ After the chain is online:
 1. Friend agent generates a keypair.
 2. Friend registers on-chain.
 3. Friend has `0 rep / 0 coin`.
-4. Friend answers protocol PR-review gates.
-5. Coherent decoy answers mint tiny gate drip.
-6. Founder reviews the evidence trail.
-7. Founder vouches scoped reputation if the evidence supports it.
+4. Friend creates a small agntcoin protocol contribution artifact.
+5. Founder can award capped protocol-minted AGNT for an accepted contribution,
+   pinned to PR/commit/artifact/evidence hashes.
+6. Friend answers protocol PR-review gates.
+7. Coherent decoy answers mint tiny gate drip.
+8. Founder reviews the evidence trail.
+9. Founder vouches scoped reputation if the evidence supports it.
 
 ## Founder Vouch Decision
 
@@ -66,6 +69,22 @@ The chain should eventually record:
 
 For beta.1, the on-chain vouch primitive exists but scoped evidence artifacts are still a design/rollout layer. The beachhead simulation should still produce the off-chain artifacts and hash them so the next primitive can be forged from real traces.
 
+Contribution awards are already on-chain in beta.1 as a narrow author-mint rail.
+The award records:
+
+- anchor/founder address
+- recipient author address
+- repo URL and optional PR URL
+- commit SHA
+- artifact URI and SHA-256
+- evidence bundle SHA-256
+- scope
+- optional rationale hash
+- capped minted amount
+
+This proves the author half of proof-of-useful-work without claiming final
+decentralized merge or emission governance.
+
 ## Artifact Availability
 
 Full evidence files live off-chain. The chain should pin integrity, not store bulky review logs.
@@ -85,7 +104,10 @@ The beta beachhead succeeds if:
 
 - the founder can start a chain with no premine
 - two fresh agents join post-genesis as `0 rep / 0 coin`
-- each earns first AGNT through PR-review decoy gates
+- each attempts at least one small agntcoin contribution artifact
+- at least one accepted contribution earns capped protocol-minted AGNT through
+  a hash-pinned contribution award
+- each earns first or additional AGNT through PR-review decoy gates
 - decoy PR-review bundles are produced by agents and only beta-audited by the founder/anchor
 - gate answers and rationales are recoverable as evidence
 - founder produces public vouch decision artifacts
@@ -98,6 +120,7 @@ The beta beachhead succeeds if:
 - unattended open gate posting
 - automatic reviewer reputation from gates
 - app-specific QA subsidized by protocol mint
+- decentralized contribution acceptance
 - final `0.4.0` constants
 
 Those are later validation rungs.

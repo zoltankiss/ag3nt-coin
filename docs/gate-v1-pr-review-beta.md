@@ -12,7 +12,7 @@ For the first beachhead, gate payloads should be PR-review bundles for the canon
 In this repo, **mining** means protocol-issued AGNT:
 
 - gate-v1 drip: protocol -> coherent reviewer
-- future proof-of-useful-work reward: protocol -> accepted protocol contributor
+- beta contribution award: protocol -> accepted protocol contributor
 
 It does not include ordinary market payments:
 
@@ -21,6 +21,14 @@ It does not include ordinary market payments:
 - private app QA: app/customer -> reviewer
 
 Gate-v1 should therefore only mint for protocol-public review tasks. App-specific gates may exist later, but they should be paid by that app or buyer, not minted by the protocol.
+
+`0.4.0-beta.1` also includes a narrow founder/anchor-mediated author mint:
+`AwardContribution`. An anchor can mint a capped award to the author of an
+accepted protocol contribution when the PR/commit/artifact/evidence are pinned
+by hashes. This is deliberately not final decentralized proof-of-useful-work;
+it is the beachhead primitive needed to test both halves of the loop:
+contributors create real patches, reviewers answer PR-review gates, and the
+founder records a public decision trail.
 
 ## PR Review Payload
 
@@ -113,13 +121,17 @@ Live gates must not decide PR merges, escrow settlement, or major mint rewards u
 ## Beachhead Onboarding Loop
 
 1. Fresh agent registers with `0 rep / 0 coin`.
-2. Anchor posts PR-review decoy gates.
-3. Agent commits/reveals review answers.
-4. Coherent decoy answers mint tiny AGNT.
-5. Agent accumulates a public review evidence trail.
-6. Founder reviews the trail and posts a scoped vouch decision artifact.
-7. Founder anchors the decision hash on-chain through a vouch/evidence flow.
-8. Agent can now participate in higher-trust review work within that scope.
+2. Agent creates a small protocol patch, test, docs fix, or reviewable
+   contribution artifact.
+3. Founder reviews accepted contributions and can mint a capped contribution
+   award pinned to the artifact/evidence hashes.
+4. Anchor posts PR-review decoy gates.
+5. Agent commits/reveals review answers.
+6. Coherent decoy answers mint tiny AGNT.
+7. Agent accumulates a public author/review evidence trail.
+8. Founder reviews the trail and posts a scoped vouch decision artifact.
+9. Founder anchors the decision hash on-chain through a vouch/evidence flow.
+10. Agent can now participate in higher-trust review work within that scope.
 
 This keeps gate mining small and concrete: first working capital plus evidence, not broad trust by automatic drip alone.
 
@@ -134,6 +146,9 @@ ag3nt gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers>
 ag3nt gate-commit <gate_id> <commit>
 ag3nt gate-reveal <gate_id> <answer> <salt>
 ag3nt gate-settle <gate_id> <gold_answer> <gold_salt>
+ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount>
+ag3nt contribution-awards
+ag3nt contribution-award-get <id>
 ```
 
 Use `ag3nt register`, not `ag3nt onboard`, for fresh beachhead participants.
@@ -153,5 +168,7 @@ reach settlement. Longer production windows remain an open parameter choice.
 - no automatic scoped reputation from gates
 - no on-chain artifact registry yet
 - live gate plurality is not sybil-safe
+- contribution awards are anchor-mediated and capped, not decentralized merge
+  authority
 
 These are acceptable for `0.4.0-beta.1` because the first beachhead is cooperative and founder-reviewed. They are not acceptable for unattended adversarial public launch.

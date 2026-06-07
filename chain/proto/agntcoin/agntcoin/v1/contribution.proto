@@ -1,0 +1,25 @@
+syntax = "proto3";
+package agntcoin.agntcoin.v1;
+
+option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
+
+// ContributionAward records a beta proof-of-useful-work author mint.
+//
+// In 0.4.0-beta.1 this is ANCHOR-mediated: a founder/trust-root accepts a
+// small protocol contribution and mints capped AGNT to the author while pinning
+// the public evidence by hash. The full PR, patch, tests, and rationale stay
+// off-chain; the chain records integrity and payout.
+message ContributionAward {
+  uint64 id = 1;
+  string anchor = 2;
+  string recipient = 3;
+  string repo_url = 4;
+  string pr_url = 5;
+  string commit_sha = 6;
+  string artifact_uri = 7;
+  string artifact_sha256 = 8;
+  string evidence_sha256 = 9;
+  string scope = 10;
+  string rationale_hash = 11;
+  uint64 amount = 12;
+}

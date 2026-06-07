@@ -6,7 +6,7 @@ import "fmt"
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
 		Params:     DefaultParams(),
-		AccountMap: []Account{}, VouchList: []Vouch{}, EscrowList: []Escrow{}}
+		AccountMap: []Account{}, VouchList: []Vouch{}, EscrowList: []Escrow{}, ContributionAwardList: []ContributionAward{}}
 }
 
 // Validate performs basic genesis state validation returning an error upon any
@@ -43,6 +43,18 @@ func (gs GenesisState) Validate() error {
 			return fmt.Errorf("escrow id should be lower or equal than the last id")
 		}
 		escrowIdMap[elem.Id] = true
+	}
+
+	contributionAwardIdMap := make(map[uint64]bool)
+	contributionAwardCount := gs.GetContributionAwardCount()
+	for _, elem := range gs.ContributionAwardList {
+		if _, ok := contributionAwardIdMap[elem.Id]; ok {
+			return fmt.Errorf("duplicated id for contribution award")
+		}
+		if elem.Id >= contributionAwardCount {
+			return fmt.Errorf("contribution award id should be lower or equal than the last id")
+		}
+		contributionAwardIdMap[elem.Id] = true
 	}
 
 	return gs.Params.Validate()

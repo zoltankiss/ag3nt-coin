@@ -42,3 +42,8 @@ var (
 	GateKey      = collections.NewPrefix("gate/value/")
 	GateCountKey = collections.NewPrefix("gate/count/")
 )
+
+var (
+	ContributionAwardKey      = collections.NewPrefix("contribution_award/value/")
+	ContributionAwardCountKey = collections.NewPrefix("contribution_award/count/")
+)
