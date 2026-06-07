@@ -65,12 +65,31 @@ func (k msgServer) ResolveDispute(ctx context.Context, msg *types.MsgResolveDisp
 	if err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
-	if escrow.Status != types.EscrowStatusInJury {
+	// challenged (verifier-v1) = a post-release fraud claim against the
+	// attesters: the payout already happened and is NEVER clawed back from the
+	// payee — the verdict settles the BONDS (the attester's stake insured the
+	// bounty; a fraud verdict pays the payer from it). in_jury = the
+	// pre-settlement case where the verdict settles the escrow money itself.
+	challenged := escrow.Status == types.EscrowStatusChallenged
+	if escrow.Status != types.EscrowStatusInJury && !challenged {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "escrow is not under jury control (status=%s)", escrow.Status)
 	}
 
 	var resolution string
-	if accept > reject {
+	if challenged {
+		// No escrow money moves: accept = the release was valid; reject = the
+		// release was fraudulent, and the payer is made whole below from the
+		// slashed attestation-stakes (each >= the bounty by the coverage
+		// rule), while the payee keeps the payout — that's precisely what the
+		// verifier's collateral insured. Either way the escrow returns to its
+		// terminal released state.
+		if accept > reject {
+			resolution = types.DisputeResolutionAccept
+		} else {
+			resolution = types.DisputeResolutionReject
+		}
+		escrow.Status = types.EscrowStatusReleased
+	} else if accept > reject {
 		// Accept: release the escrow to the payee (auto-registering a new payee).
 		payeeBytes, err := k.addressCodec.StringToBytes(escrow.Payee)
 		if err != nil {
@@ -119,6 +138,18 @@ func (k msgServer) ResolveDispute(ctx context.Context, msg *types.MsgResolveDisp
 				recipient = escrow.Payee
 			} else {
 				recipient = escrow.Payer
+			}
+			if challenged {
+				// A lost post-release fraud challenge griefed the ATTESTER —
+				// the party the claim accused and whose stake it froze — not
+				// the payee (verifier-v1; cry-wolf has a price and the
+				// harassed party is compensated). v1: first pass-attester.
+				for _, a := range escrow.Attestations {
+					if a.Passed {
+						recipient = a.Verifier
+						break
+					}
+				}
 			}
 			bond.Status = types.BondStatusSlashed
 		}
@@ -186,6 +217,55 @@ func (k msgServer) ResolveDispute(ctx context.Context, msg *types.MsgResolveDisp
 			sdk.NewEvent("agntcoin_juror_stake_settled",
 				sdk.NewAttribute("dispute_id", strconv.FormatUint(dispute.Id, 10)),
 				sdk.NewAttribute("juror", v.Juror),
+				sdk.NewAttribute("bond_id", strconv.FormatUint(bond.Id, 10)),
+				sdk.NewAttribute("status", bond.Status),
+				sdk.NewAttribute("recipient", recipient),
+				sdk.NewAttribute("amount", strconv.FormatUint(bond.Amount, 10)),
+			),
+		)
+	}
+
+	// Settle each verifier's ATTESTATION-STAKE by coherence with the verdict
+	// (verifier-v1) — the same shape as juror stakes, because the attester is
+	// just a juror who ruled FIRST and at higher stakes. accept (work good /
+	// release valid) vindicates pass attestations and convicts fail ones;
+	// reject vindicates fail attestations and convicts pass ones. A convicted
+	// stake is slashed to the party the lie tried to wrong (`winner`): a
+	// false-pass tried to drain the payer, a false-fail tried to stiff the
+	// payee. Coverage rule (stake >= bounty) means a fraud verdict makes the
+	// payer whole here even though the payout itself stays with the payee.
+	// Coherent stakes are released. One provable lie costs the verifier more
+	// than honest verification of many deals earns — that's the deterrent.
+	attPurpose := "attestation:" + strconv.FormatUint(escrow.Id, 10)
+	for _, a := range escrow.Attestations {
+		bond, err := k.Bond.Get(ctx, a.BondId)
+		if err != nil || bond.Status != types.BondStatusActive || bond.Purpose != attPurpose {
+			continue
+		}
+		recipient := a.Verifier // coherent → stake returned to the verifier
+		if a.Passed == verdictAccept {
+			bond.Status = types.BondStatusReleased
+		} else {
+			recipient = winner // incoherent → slashed to the wronged party
+			bond.Status = types.BondStatusSlashed
+		}
+		acct, err := k.Account.Get(ctx, recipient)
+		if err != nil {
+			return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+		}
+		acct.Balance += bond.Amount
+		if err := k.Account.Set(ctx, recipient, acct); err != nil {
+			return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+		}
+		if err := k.Bond.Set(ctx, bond.Id, bond); err != nil {
+			return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+		}
+		sdkCtxA := sdk.UnwrapSDKContext(ctx)
+		sdkCtxA.EventManager().EmitEvent(
+			sdk.NewEvent("agntcoin_attestation_bond_settled",
+				sdk.NewAttribute("dispute_id", strconv.FormatUint(dispute.Id, 10)),
+				sdk.NewAttribute("escrow_id", strconv.FormatUint(escrow.Id, 10)),
+				sdk.NewAttribute("verifier", a.Verifier),
 				sdk.NewAttribute("bond_id", strconv.FormatUint(bond.Id, 10)),
 				sdk.NewAttribute("status", bond.Status),
 				sdk.NewAttribute("recipient", recipient),

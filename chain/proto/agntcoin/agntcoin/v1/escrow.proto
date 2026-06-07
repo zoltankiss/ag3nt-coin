@@ -4,7 +4,8 @@ package agntcoin.agntcoin.v1;
 option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
 
 // Escrow defines a native conditional-payment record.
-// status is one of: "locked" | "released" | "refunded".
+// status is one of: "locked" | "submitted" | "disputed" | "in_jury" |
+// "fail_attested" | "challenged" | "released" | "refunded".
 message Escrow {
   uint64 id = 1;
   string payer = 2;
@@ -17,7 +18,9 @@ message Escrow {
   // jury-bound escrow can only be settled by the payer or by the jury, never by
   // the payee waiting out the deadline and self-paying (it13 finding #19). Set
   // by the payer at lock time for un-verifiable / jury-bound work. Default false
-  // preserves the it7 anti-ghosting behavior for ordinary escrows.
+  // preserves the it7 anti-ghosting behavior for ordinary escrows. ALWAYS true
+  // for verifier-bound escrows (verifier-v1) — otherwise the payee could skip
+  // the verifier entirely and wait out the clock.
   bool no_auto_release = 8;
   // delivery_hash is a hex sha256 of the delivered artifact, committed by the
   // payee at submit time. It cryptographically pins the exhibit the jury judges:
@@ -26,4 +29,50 @@ message Escrow {
   // silently altered after submission — the exhibit's integrity stops resting on
   // trusting the platform. Empty if the payee submitted no hash.
   string delivery_hash = 9;
+
+  // ---- verifier-release (verifier-v1, 0.3.0): bonded optimistic attestation
+  // ---- + atomic key reveal. Off-chain test execution, on-chain settlement.
+
+  // verifier_addrs is the named verifier set fixed by the payer at lock time.
+  // Non-empty => the escrow is VERIFIER-BOUND: release happens via (a) the
+  // payer, (b) a quorum of staked pass-attestations (VerifiedRelease), or
+  // (c) the jury. Never the clock (no_auto_release is forced true).
+  repeated string verifier_addrs = 10;
+  // verifier_quorum is how many distinct pass-attestations VerifiedRelease
+  // needs (m-of-n; 1 for the v1 single-verifier case). Repeated set + threshold
+  // from day one so quorum is a parameter, not a migration.
+  uint64 verifier_quorum = 11;
+  // acceptance_hash is a hex sha256 of the precommitted acceptance criteria
+  // (test suite + hermetic environment spec: image digest, no-network, timeout),
+  // committed by the payer at lock time. Closes the moved-goalposts hole: the
+  // tests the verifier (and any later jury) runs are pinned before work starts.
+  string acceptance_hash = 12;
+  // key_hash is a hex sha256 of the symmetric key the payee encrypted the
+  // artifact with, committed at submit time. VerifiedRelease must carry the
+  // preimage, which is emitted in the release event — payment and key reveal
+  // are ONE atomic tx (fair exchange enforced by the chain, not the platform).
+  string key_hash = 13;
+  // challenge_deadline (unix sec, block time) bounds the post-settlement
+  // adversarial window: after a VerifiedRelease the payer may open a fraud
+  // challenge until this time; after a fail attestation the payee may contest
+  // until this time (refund unlocks only once it passes uncontested — the
+  // false-fail+instant-refund hole). 0 = no window opened.
+  int64 challenge_deadline = 14;
+  // attestations are the verifiers' signed verdicts (tx-authenticated — the
+  // verifier's own signature on the AttestEscrow tx is the authority, so there
+  // is no detached "canonical JSON" signature to get wrong). Each one locks a
+  // per-attestation slashable stake >= amount, so concurrent deals can never
+  // share (and over-promise) one bond.
+  repeated Attestation attestations = 15;
+}
+
+// Attestation is one verifier's on-chain verdict over a submitted escrow:
+// "I ran the precommitted tests (acceptance_hash) against the delivered
+// artifact (delivery_hash/key_hash) and they passed/failed." The bond is the
+// attestation-stake backing it: released if unchallenged/coherent with a jury
+// verdict, slashed to the wronged party if the jury proves it false.
+message Attestation {
+  string verifier = 1;
+  bool passed = 2;
+  uint64 bond_id = 3;
 }

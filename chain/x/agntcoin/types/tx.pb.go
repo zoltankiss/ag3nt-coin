@@ -603,7 +603,19 @@ type MsgLockEscrow struct {
 	// no_auto_release marks the escrow jury-bound: the payee can never self-release
 	// (even past the deadline) — un-verifiable work settles via the jury. Set this
 	// for no-test / prose tasks (it13 finding #19). Default false = ordinary escrow.
+	// Forced TRUE when verifier_addrs is non-empty (a verifier-bound escrow that
+	// kept the clock path would let the payee skip the verifier entirely).
 	NoAutoRelease bool `protobuf:"varint,6,opt,name=no_auto_release,json=noAutoRelease,proto3" json:"no_auto_release,omitempty"`
+	// verifier_addrs: the named verifier set (verifier-v1). Non-empty makes the
+	// escrow verifier-bound: a quorum of staked pass-attestations becomes a
+	// release authority alongside the payer and the jury.
+	VerifierAddrs []string `protobuf:"bytes,7,rep,name=verifier_addrs,json=verifierAddrs,proto3" json:"verifier_addrs,omitempty"`
+	// verifier_quorum: how many distinct pass-attestations VerifiedRelease needs.
+	// Required >= 1 and <= len(verifier_addrs) when verifiers are named.
+	VerifierQuorum uint64 `protobuf:"varint,8,opt,name=verifier_quorum,json=verifierQuorum,proto3" json:"verifier_quorum,omitempty"`
+	// acceptance_hash: hex sha256 precommitting the acceptance criteria (tests +
+	// hermetic environment spec) so goalposts can't move after funding.
+	AcceptanceHash string `protobuf:"bytes,9,opt,name=acceptance_hash,json=acceptanceHash,proto3" json:"acceptance_hash,omitempty"`
 }
 
 func (m *MsgLockEscrow) Reset()         { *m = MsgLockEscrow{} }
@@ -679,6 +691,27 @@ func (m *MsgLockEscrow) GetNoAutoRelease() bool {
 		return m.NoAutoRelease
 	}
 	return false
+}
+
+func (m *MsgLockEscrow) GetVerifierAddrs() []string {
+	if m != nil {
+		return m.VerifierAddrs
+	}
+	return nil
+}
+
+func (m *MsgLockEscrow) GetVerifierQuorum() uint64 {
+	if m != nil {
+		return m.VerifierQuorum
+	}
+	return 0
+}
+
+func (m *MsgLockEscrow) GetAcceptanceHash() string {
+	if m != nil {
+		return m.AcceptanceHash
+	}
+	return ""
 }
 
 // MsgLockEscrowResponse defines the MsgLockEscrowResponse message.
@@ -916,6 +949,14 @@ type MsgSubmitEscrow struct {
 	// delivery_hash: hex sha256 of the delivered artifact, pinning the exhibit the
 	// jury will judge on-chain so it can't be altered after submission. Optional.
 	DeliveryHash string `protobuf:"bytes,3,opt,name=delivery_hash,json=deliveryHash,proto3" json:"delivery_hash,omitempty"`
+	// key_hash: hex sha256 of the symmetric key the artifact ciphertext was
+	// encrypted with (verifier-v1 fair exchange). VerifiedRelease must present the
+	// preimage, which the release event publishes — so the buyer can only ever
+	// read the plaintext in the same tx that pays the seller. Optional; platforms
+	// SHOULD require it for verifier-bound deals (custodial plaintext withholding
+	// generates unadjudicable "verifier leaked it" disputes; the hash-committed
+	// key reveal is the same effort and chain-enforced).
+	KeyHash string `protobuf:"bytes,4,opt,name=key_hash,json=keyHash,proto3" json:"key_hash,omitempty"`
 }
 
 func (m *MsgSubmitEscrow) Reset()         { *m = MsgSubmitEscrow{} }
@@ -968,6 +1009,13 @@ func (m *MsgSubmitEscrow) GetId() uint64 {
 func (m *MsgSubmitEscrow) GetDeliveryHash() string {
 	if m != nil {
 		return m.DeliveryHash
+	}
+	return ""
+}
+
+func (m *MsgSubmitEscrow) GetKeyHash() string {
+	if m != nil {
+		return m.KeyHash
 	}
 	return ""
 }
@@ -1753,6 +1801,332 @@ func (m *MsgSlashBondResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgSlashBondResponse proto.InternalMessageInfo
 
+// MsgAttestEscrow records a named verifier's verdict on a SUBMITTED
+// verifier-bound escrow: "I ran the precommitted tests (acceptance_hash)
+// against the committed delivery (delivery_hash/key_hash); they
+// passed/failed." The verifier's own tx signature is the attestation
+// authority — deterministic proto signing, no detached canonical-JSON
+// signature to get wrong. The verdict must be backed by a slashable
+// ATTESTATION-STAKE >= the escrow amount, posted per attestation (so N
+// concurrent deals lock N stakes — a shared standing bond can never
+// over-promise). passed=true counts toward the VerifiedRelease quorum;
+// passed=false moves the escrow to fail_attested and opens the payee's
+// contest window (refund unlocks only after it passes uncontested).
+type MsgAttestEscrow struct {
+	Creator     string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
+	EscrowId    uint64 `protobuf:"varint,2,opt,name=escrow_id,json=escrowId,proto3" json:"escrow_id,omitempty"`
+	Passed      bool   `protobuf:"varint,3,opt,name=passed,proto3" json:"passed,omitempty"`
+	StakeAmount uint64 `protobuf:"varint,4,opt,name=stake_amount,json=stakeAmount,proto3" json:"stake_amount,omitempty"`
+}
+
+func (m *MsgAttestEscrow) Reset()         { *m = MsgAttestEscrow{} }
+func (m *MsgAttestEscrow) String() string { return proto.CompactTextString(m) }
+func (*MsgAttestEscrow) ProtoMessage()    {}
+func (*MsgAttestEscrow) Descriptor() ([]byte, []int) {
+	return fileDescriptor_95d2c4daf2ff11ec, []int{34}
+}
+func (m *MsgAttestEscrow) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgAttestEscrow) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgAttestEscrow.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgAttestEscrow) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgAttestEscrow.Merge(m, src)
+}
+func (m *MsgAttestEscrow) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgAttestEscrow) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgAttestEscrow.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgAttestEscrow proto.InternalMessageInfo
+
+func (m *MsgAttestEscrow) GetCreator() string {
+	if m != nil {
+		return m.Creator
+	}
+	return ""
+}
+
+func (m *MsgAttestEscrow) GetEscrowId() uint64 {
+	if m != nil {
+		return m.EscrowId
+	}
+	return 0
+}
+
+func (m *MsgAttestEscrow) GetPassed() bool {
+	if m != nil {
+		return m.Passed
+	}
+	return false
+}
+
+func (m *MsgAttestEscrow) GetStakeAmount() uint64 {
+	if m != nil {
+		return m.StakeAmount
+	}
+	return 0
+}
+
+// MsgAttestEscrowResponse returns the attestation-stake bond id.
+type MsgAttestEscrowResponse struct {
+	BondId uint64 `protobuf:"varint,1,opt,name=bond_id,json=bondId,proto3" json:"bond_id,omitempty"`
+}
+
+func (m *MsgAttestEscrowResponse) Reset()         { *m = MsgAttestEscrowResponse{} }
+func (m *MsgAttestEscrowResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgAttestEscrowResponse) ProtoMessage()    {}
+func (*MsgAttestEscrowResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_95d2c4daf2ff11ec, []int{35}
+}
+func (m *MsgAttestEscrowResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgAttestEscrowResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgAttestEscrowResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgAttestEscrowResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgAttestEscrowResponse.Merge(m, src)
+}
+func (m *MsgAttestEscrowResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgAttestEscrowResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgAttestEscrowResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgAttestEscrowResponse proto.InternalMessageInfo
+
+func (m *MsgAttestEscrowResponse) GetBondId() uint64 {
+	if m != nil {
+		return m.BondId
+	}
+	return 0
+}
+
+// MsgVerifiedRelease settles a verifier-attested escrow without the payer:
+// anyone may submit it (the staked attestations are the authority, not the
+// submitter). Requires a quorum of pass-attestations and, if the payee
+// committed a key_hash, the key preimage — the payee is paid and the key is
+// emitted in the release event in ONE tx (atomic fair exchange: the buyer
+// can't read the plaintext without the seller getting paid). Opens the
+// challenge window: until escrow.challenge_deadline the payer may OpenDispute
+// a fraud claim, recoverable from the attesters' stakes.
+type MsgVerifiedRelease struct {
+	Creator  string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
+	EscrowId uint64 `protobuf:"varint,2,opt,name=escrow_id,json=escrowId,proto3" json:"escrow_id,omitempty"`
+	// key: preimage of the escrow's key_hash (the artifact decryption key).
+	// Must be empty when no key_hash was committed.
+	Key string `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+}
+
+func (m *MsgVerifiedRelease) Reset()         { *m = MsgVerifiedRelease{} }
+func (m *MsgVerifiedRelease) String() string { return proto.CompactTextString(m) }
+func (*MsgVerifiedRelease) ProtoMessage()    {}
+func (*MsgVerifiedRelease) Descriptor() ([]byte, []int) {
+	return fileDescriptor_95d2c4daf2ff11ec, []int{36}
+}
+func (m *MsgVerifiedRelease) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgVerifiedRelease) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgVerifiedRelease.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgVerifiedRelease) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgVerifiedRelease.Merge(m, src)
+}
+func (m *MsgVerifiedRelease) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgVerifiedRelease) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgVerifiedRelease.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgVerifiedRelease proto.InternalMessageInfo
+
+func (m *MsgVerifiedRelease) GetCreator() string {
+	if m != nil {
+		return m.Creator
+	}
+	return ""
+}
+
+func (m *MsgVerifiedRelease) GetEscrowId() uint64 {
+	if m != nil {
+		return m.EscrowId
+	}
+	return 0
+}
+
+func (m *MsgVerifiedRelease) GetKey() string {
+	if m != nil {
+		return m.Key
+	}
+	return ""
+}
+
+// MsgVerifiedReleaseResponse defines the MsgVerifiedRelease response.
+type MsgVerifiedReleaseResponse struct {
+}
+
+func (m *MsgVerifiedReleaseResponse) Reset()         { *m = MsgVerifiedReleaseResponse{} }
+func (m *MsgVerifiedReleaseResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgVerifiedReleaseResponse) ProtoMessage()    {}
+func (*MsgVerifiedReleaseResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_95d2c4daf2ff11ec, []int{37}
+}
+func (m *MsgVerifiedReleaseResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgVerifiedReleaseResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgVerifiedReleaseResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgVerifiedReleaseResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgVerifiedReleaseResponse.Merge(m, src)
+}
+func (m *MsgVerifiedReleaseResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgVerifiedReleaseResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgVerifiedReleaseResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgVerifiedReleaseResponse proto.InternalMessageInfo
+
+// MsgReclaimAttestationBonds releases the attestation-stakes of a settled
+// escrow whose challenge window passed uncontested (or that the payer settled
+// directly, in which case no window ever opened). Permissionless trigger —
+// the chain has no end-blocker sweep, so freeing locked stakes is a tx, like
+// ResolveDispute. A challenged escrow settles its stakes through the jury
+// verdict instead (coherent => released, incoherent => slashed).
+type MsgReclaimAttestationBonds struct {
+	Creator  string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
+	EscrowId uint64 `protobuf:"varint,2,opt,name=escrow_id,json=escrowId,proto3" json:"escrow_id,omitempty"`
+}
+
+func (m *MsgReclaimAttestationBonds) Reset()         { *m = MsgReclaimAttestationBonds{} }
+func (m *MsgReclaimAttestationBonds) String() string { return proto.CompactTextString(m) }
+func (*MsgReclaimAttestationBonds) ProtoMessage()    {}
+func (*MsgReclaimAttestationBonds) Descriptor() ([]byte, []int) {
+	return fileDescriptor_95d2c4daf2ff11ec, []int{38}
+}
+func (m *MsgReclaimAttestationBonds) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgReclaimAttestationBonds) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgReclaimAttestationBonds.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgReclaimAttestationBonds) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgReclaimAttestationBonds.Merge(m, src)
+}
+func (m *MsgReclaimAttestationBonds) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgReclaimAttestationBonds) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgReclaimAttestationBonds.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgReclaimAttestationBonds proto.InternalMessageInfo
+
+func (m *MsgReclaimAttestationBonds) GetCreator() string {
+	if m != nil {
+		return m.Creator
+	}
+	return ""
+}
+
+func (m *MsgReclaimAttestationBonds) GetEscrowId() uint64 {
+	if m != nil {
+		return m.EscrowId
+	}
+	return 0
+}
+
+// MsgReclaimAttestationBondsResponse defines the response.
+type MsgReclaimAttestationBondsResponse struct {
+}
+
+func (m *MsgReclaimAttestationBondsResponse) Reset()         { *m = MsgReclaimAttestationBondsResponse{} }
+func (m *MsgReclaimAttestationBondsResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgReclaimAttestationBondsResponse) ProtoMessage()    {}
+func (*MsgReclaimAttestationBondsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_95d2c4daf2ff11ec, []int{39}
+}
+func (m *MsgReclaimAttestationBondsResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgReclaimAttestationBondsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgReclaimAttestationBondsResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgReclaimAttestationBondsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgReclaimAttestationBondsResponse.Merge(m, src)
+}
+func (m *MsgReclaimAttestationBondsResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgReclaimAttestationBondsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgReclaimAttestationBondsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgReclaimAttestationBondsResponse proto.InternalMessageInfo
+
 func init() {
 	proto.RegisterType((*MsgUpdateParams)(nil), "agntcoin.agntcoin.v1.MsgUpdateParams")
 	proto.RegisterType((*MsgUpdateParamsResponse)(nil), "agntcoin.agntcoin.v1.MsgUpdateParamsResponse")
@@ -1788,91 +2162,112 @@ func init() {
 	proto.RegisterType((*MsgReleaseBondResponse)(nil), "agntcoin.agntcoin.v1.MsgReleaseBondResponse")
 	proto.RegisterType((*MsgSlashBond)(nil), "agntcoin.agntcoin.v1.MsgSlashBond")
 	proto.RegisterType((*MsgSlashBondResponse)(nil), "agntcoin.agntcoin.v1.MsgSlashBondResponse")
+	proto.RegisterType((*MsgAttestEscrow)(nil), "agntcoin.agntcoin.v1.MsgAttestEscrow")
+	proto.RegisterType((*MsgAttestEscrowResponse)(nil), "agntcoin.agntcoin.v1.MsgAttestEscrowResponse")
+	proto.RegisterType((*MsgVerifiedRelease)(nil), "agntcoin.agntcoin.v1.MsgVerifiedRelease")
+	proto.RegisterType((*MsgVerifiedReleaseResponse)(nil), "agntcoin.agntcoin.v1.MsgVerifiedReleaseResponse")
+	proto.RegisterType((*MsgReclaimAttestationBonds)(nil), "agntcoin.agntcoin.v1.MsgReclaimAttestationBonds")
+	proto.RegisterType((*MsgReclaimAttestationBondsResponse)(nil), "agntcoin.agntcoin.v1.MsgReclaimAttestationBondsResponse")
 }
 
 func init() { proto.RegisterFile("agntcoin/agntcoin/v1/tx.proto", fileDescriptor_95d2c4daf2ff11ec) }
 
 var fileDescriptor_95d2c4daf2ff11ec = []byte{
-	// 1260 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x58, 0xcf, 0x6e, 0xdb, 0x46,
-	0x13, 0x37, 0x1d, 0x5b, 0xb6, 0x46, 0xb2, 0x93, 0x30, 0x8a, 0x2d, 0xf3, 0xfb, 0x22, 0xcb, 0x72,
-	0x1c, 0xab, 0x6e, 0x22, 0x21, 0x2e, 0x90, 0x43, 0x7a, 0x28, 0xec, 0xfe, 0x41, 0x03, 0x54, 0x48,
-	0x40, 0x37, 0x45, 0xd1, 0x02, 0x15, 0x56, 0xe4, 0x9a, 0x62, 0x6d, 0x71, 0x05, 0xee, 0xd2, 0x89,
-	0x7b, 0x2a, 0x72, 0x2a, 0x7a, 0xea, 0xa1, 0x40, 0x5f, 0x21, 0x3d, 0x14, 0xf0, 0xa1, 0x4f, 0xd0,
-	0x53, 0x8e, 0x41, 0x4f, 0x3d, 0x15, 0x85, 0x7d, 0xf0, 0xb1, 0xaf, 0x50, 0x70, 0x97, 0x5c, 0x51,
-	0x34, 0x49, 0x09, 0x8a, 0x73, 0x11, 0xb8, 0xb3, 0xbf, 0x9d, 0xf9, 0xcd, 0xec, 0xec, 0xcc, 0x40,
-	0x70, 0x0b, 0x59, 0x0e, 0x33, 0x88, 0xed, 0x34, 0xe5, 0xc7, 0xd1, 0xfd, 0x26, 0x7b, 0xde, 0xe8,
-	0xbb, 0x84, 0x11, 0xb5, 0x14, 0x4a, 0x1b, 0xf2, 0xe3, 0xe8, 0xbe, 0xb6, 0x96, 0x78, 0xa8, 0x8f,
-	0x5c, 0xd4, 0xa3, 0xe2, 0xa0, 0x76, 0x1d, 0xf5, 0x6c, 0x87, 0x34, 0xf9, 0x6f, 0x20, 0x5a, 0x36,
-	0x08, 0xed, 0x11, 0xda, 0xec, 0x51, 0xcb, 0x87, 0xf7, 0xa8, 0x15, 0x6c, 0xac, 0x88, 0x8d, 0x36,
-	0x5f, 0x35, 0xc5, 0x22, 0xd8, 0x2a, 0x59, 0xc4, 0x22, 0x42, 0xee, 0x7f, 0x09, 0x69, 0xed, 0x0f,
-	0x05, 0xae, 0xb6, 0xa8, 0xf5, 0xb4, 0x6f, 0x22, 0x86, 0x9f, 0x70, 0xb3, 0xea, 0x03, 0xc8, 0x23,
-	0x8f, 0x75, 0x89, 0x6b, 0xb3, 0xe3, 0xb2, 0x52, 0x55, 0xea, 0xf9, 0xdd, 0xf2, 0x9f, 0xbf, 0xdf,
-	0x2b, 0x05, 0xea, 0x76, 0x4c, 0xd3, 0xc5, 0x94, 0xee, 0x31, 0xd7, 0x76, 0x2c, 0x7d, 0x00, 0x55,
-	0x3f, 0x80, 0x9c, 0x20, 0x5e, 0x9e, 0xae, 0x2a, 0xf5, 0xc2, 0xf6, 0xff, 0x1b, 0x49, 0x2e, 0x37,
-	0x84, 0x95, 0xdd, 0xfc, 0xab, 0xbf, 0x57, 0xa7, 0x5e, 0x9e, 0x9f, 0x6c, 0x29, 0x7a, 0x70, 0xec,
-	0xe1, 0x83, 0x17, 0xe7, 0x27, 0x5b, 0x03, 0x85, 0x3f, 0x9e, 0x9f, 0x6c, 0xad, 0xcb, 0xb0, 0x3c,
-	0x1f, 0x44, 0x28, 0x46, 0xb8, 0xb6, 0x02, 0xcb, 0x31, 0x91, 0x8e, 0x69, 0x9f, 0x38, 0x14, 0xd7,
-	0x1e, 0x43, 0xa1, 0x45, 0x2d, 0x1d, 0x5b, 0x36, 0x65, 0xd8, 0x55, 0xb7, 0x61, 0xce, 0x70, 0x31,
-	0x62, 0xc4, 0x1d, 0xe9, 0x58, 0x08, 0x7c, 0x58, 0xf4, 0x59, 0x85, 0xab, 0xda, 0x4d, 0xb8, 0x11,
-	0x51, 0x28, 0xed, 0xb4, 0x20, 0xdf, 0xa2, 0xd6, 0x27, 0xc8, 0x33, 0x30, 0xbb, 0x04, 0x2b, 0x37,
-	0xe0, 0xba, 0x54, 0x27, 0x6d, 0xfc, 0xac, 0x70, 0x67, 0x3e, 0x77, 0x91, 0x43, 0xf7, 0x27, 0x73,
-	0x46, 0x5d, 0x86, 0x39, 0x46, 0xda, 0xc8, 0x34, 0x5d, 0x7e, 0x49, 0x79, 0x3d, 0xc7, 0x88, 0x0f,
-	0x55, 0x97, 0x20, 0x87, 0x7a, 0xc4, 0x73, 0x58, 0xf9, 0x4a, 0x55, 0xa9, 0xcf, 0xe8, 0xc1, 0x4a,
-	0x55, 0x61, 0xa6, 0x87, 0x7b, 0xa4, 0x3c, 0xc3, 0xd1, 0xfc, 0x3b, 0x31, 0x22, 0x21, 0x2b, 0xc9,
-	0xf6, 0x17, 0x05, 0x8a, 0x2d, 0x6a, 0x7d, 0x88, 0x28, 0x3b, 0x22, 0x9e, 0xd1, 0xbd, 0x74, 0xba,
-	0xcf, 0xb0, 0x6d, 0x75, 0x25, 0x5d, 0xb1, 0x52, 0x4b, 0x30, 0x4b, 0x19, 0x3a, 0xc0, 0x9c, 0xef,
-	0x8c, 0x2e, 0x16, 0x31, 0xc2, 0x4b, 0x50, 0x8a, 0x12, 0x93, 0x8c, 0x2d, 0x00, 0x3f, 0x8d, 0x9c,
-	0xcb, 0xa7, 0x1b, 0x23, 0x50, 0x02, 0x75, 0x60, 0x48, 0x9a, 0x3f, 0x55, 0x60, 0xa1, 0x45, 0xad,
-	0xcf, 0x88, 0x71, 0xf0, 0x31, 0x35, 0x5c, 0xf2, 0x6c, 0x22, 0x0a, 0x25, 0x98, 0xed, 0xa3, 0x63,
-	0x8c, 0x03, 0x02, 0x62, 0x91, 0x7a, 0xbb, 0xd7, 0xe0, 0x8a, 0x8b, 0xf7, 0x83, 0xcb, 0xf5, 0x3f,
-	0xd5, 0x4d, 0xb8, 0x6a, 0xda, 0xb4, 0xef, 0x31, 0xdc, 0xa6, 0xd8, 0x20, 0x8e, 0x49, 0xcb, 0xb3,
-	0xfc, 0xc8, 0x62, 0x20, 0xde, 0x13, 0x52, 0xf5, 0x0e, 0x5c, 0x75, 0x48, 0x1b, 0x79, 0x8c, 0xb4,
-	0x5d, 0x7c, 0x88, 0x11, 0xc5, 0xe5, 0x5c, 0x55, 0xa9, 0xcf, 0xeb, 0x0b, 0x0e, 0xd9, 0xf1, 0x18,
-	0xd1, 0x85, 0x30, 0xe6, 0xfa, 0x26, 0xdc, 0x1c, 0xf2, 0x31, 0xf4, 0x5e, 0x5d, 0x84, 0x69, 0xdb,
-	0xe4, 0x6e, 0xce, 0xe8, 0xd3, 0xb6, 0x59, 0x33, 0xe1, 0x1a, 0x7f, 0x67, 0x5c, 0xc9, 0x1b, 0xc4,
-	0x43, 0xe8, 0x9d, 0x0e, 0xf5, 0xc6, 0xe8, 0x68, 0x50, 0x8e, 0x5b, 0x91, 0xf7, 0x61, 0xf0, 0xca,
-	0xa8, 0xe3, 0x7d, 0xcf, 0x31, 0xdf, 0x1a, 0x01, 0x51, 0xba, 0xa2, 0x46, 0xa4, 0xfd, 0x1f, 0x44,
-	0x69, 0xde, 0xf3, 0x3a, 0x3d, 0x9b, 0x5d, 0x1e, 0x01, 0x75, 0x1d, 0x16, 0x4c, 0x7c, 0x68, 0x1f,
-	0x61, 0xf7, 0xb8, 0xdd, 0x45, 0xb4, 0xcb, 0x53, 0x22, 0xaf, 0x17, 0x43, 0xe1, 0xa7, 0x88, 0x76,
-	0x13, 0x59, 0x46, 0x99, 0x48, 0x96, 0xe2, 0x9e, 0x3e, 0x12, 0xb9, 0xf1, 0x96, 0xef, 0x69, 0xc8,
-	0x8a, 0x64, 0xf0, 0x52, 0x81, 0xc5, 0x16, 0xb5, 0x1e, 0xf7, 0xb1, 0x13, 0x00, 0x26, 0x22, 0xf0,
-	0x3f, 0xc8, 0x63, 0xae, 0xb8, 0x2d, 0x79, 0xcc, 0x0b, 0xc1, 0x23, 0xd3, 0x7f, 0x3f, 0x2e, 0x46,
-	0x94, 0x38, 0x41, 0xb0, 0x82, 0x95, 0xba, 0x0a, 0x85, 0x0e, 0x71, 0xcc, 0x76, 0xf0, 0xb8, 0x44,
-	0xd1, 0x01, 0x5f, 0xb4, 0xc3, 0x25, 0x31, 0x37, 0xea, 0xb0, 0x34, 0xcc, 0x34, 0x35, 0xfd, 0x7f,
-	0x15, 0xb5, 0xde, 0x2f, 0x52, 0x5f, 0x90, 0x09, 0x3d, 0xba, 0x05, 0x10, 0x3e, 0x65, 0xe9, 0x52,
-	0x3e, 0x90, 0x08, 0x9f, 0x90, 0x61, 0xe0, 0xbe, 0xa8, 0x09, 0xf3, 0x7a, 0xb0, 0x52, 0xd7, 0xa0,
-	0xc8, 0xab, 0xe6, 0xb0, 0x53, 0x05, 0x2e, 0x4b, 0xf4, 0x4a, 0x34, 0x80, 0x90, 0xaa, 0xbc, 0x17,
-	0xc6, 0x7b, 0x98, 0x8e, 0x29, 0x39, 0x3c, 0xc2, 0x6f, 0x72, 0x33, 0xd9, 0x7e, 0xc4, 0xc8, 0xbc,
-	0x0f, 0x2b, 0x17, 0xac, 0xca, 0x28, 0x57, 0x00, 0x5c, 0x7f, 0xc7, 0x63, 0x36, 0x71, 0x04, 0x01,
-	0x3d, 0x22, 0xa9, 0xfd, 0x26, 0xa2, 0xfe, 0x84, 0x50, 0xb6, 0x4b, 0x1c, 0x73, 0x22, 0xb6, 0x83,
-	0x52, 0x3b, 0x3d, 0x54, 0x6a, 0xcb, 0x30, 0xd7, 0xf7, 0xdc, 0x3e, 0xa1, 0x38, 0xc8, 0xa1, 0x70,
-	0xe9, 0xef, 0xd0, 0x43, 0x44, 0xbb, 0xd8, 0x0d, 0x0a, 0x71, 0xb8, 0x0c, 0xcb, 0xf3, 0xac, 0x2c,
-	0xcf, 0x31, 0x67, 0x37, 0x78, 0xe4, 0x43, 0xba, 0xa9, 0xc9, 0xd4, 0xe1, 0x0f, 0x24, 0xa8, 0x72,
-	0x13, 0x3b, 0x96, 0xfd, 0x42, 0xcb, 0x3c, 0xb5, 0x23, 0x36, 0x64, 0x1e, 0xbc, 0x10, 0x83, 0xc0,
-	0x9e, 0xef, 0xd3, 0x65, 0x19, 0x57, 0xab, 0x50, 0xe8, 0x60, 0x07, 0xef, 0xdb, 0x86, 0x8d, 0xdc,
-	0xe3, 0x20, 0xa2, 0x51, 0x51, 0x62, 0xcf, 0x97, 0x1c, 0x42, 0x72, 0xdb, 0xff, 0x16, 0xe1, 0x4a,
-	0x8b, 0x5a, 0xaa, 0x09, 0xc5, 0xa1, 0x19, 0x78, 0x23, 0x79, 0x76, 0x8d, 0x8d, 0x99, 0xda, 0xbd,
-	0xb1, 0x60, 0xf2, 0x62, 0xbe, 0x84, 0x79, 0x39, 0x8a, 0xae, 0xa5, 0x1e, 0x0d, 0x21, 0xda, 0x3b,
-	0x23, 0x21, 0x52, 0xb3, 0x0e, 0xb9, 0x60, 0xf8, 0x5c, 0x4d, 0x3d, 0x24, 0x00, 0xda, 0xe6, 0x08,
-	0x40, 0x94, 0xad, 0x9c, 0x35, 0xd3, 0xd9, 0x86, 0x90, 0x0c, 0xb6, 0xf1, 0xd9, 0x50, 0xfd, 0x1a,
-	0xf2, 0x83, 0xb9, 0xb0, 0x96, 0x7a, 0x4e, 0x62, 0xb4, 0xad, 0xd1, 0x18, 0xa9, 0xfc, 0x1b, 0x80,
-	0xc8, 0x0c, 0xb5, 0x9e, 0x7a, 0x72, 0x00, 0xd2, 0xde, 0x1d, 0x03, 0x24, 0xf5, 0x5b, 0xb0, 0x30,
-	0x3c, 0x96, 0xdc, 0xc9, 0xb8, 0xa6, 0x08, 0x4e, 0x6b, 0x8c, 0x87, 0x93, 0x86, 0x4c, 0x28, 0x0e,
-	0x4d, 0x1f, 0x1b, 0x19, 0xe7, 0x07, 0xb0, 0x8c, 0x9c, 0x4c, 0x1a, 0x33, 0x7c, 0x2b, 0x43, 0x23,
-	0x46, 0xba, 0x95, 0x28, 0x2c, 0xc3, 0x4a, 0xd2, 0x98, 0xe0, 0x07, 0x6d, 0x78, 0x46, 0x48, 0x0f,
-	0xda, 0x10, 0x2e, 0x23, 0x68, 0x89, 0xd3, 0x80, 0xfa, 0x14, 0xe6, 0xc2, 0x09, 0xbe, 0x9a, 0xfe,
-	0x38, 0x05, 0x42, 0xab, 0x8f, 0x42, 0x48, 0xb5, 0x08, 0x0a, 0xd1, 0x01, 0xe3, 0x76, 0xea, 0xc1,
-	0x08, 0x4a, 0xbb, 0x3b, 0x0e, 0x2a, 0xfa, 0xdc, 0x64, 0xbb, 0x5f, 0xcb, 0xcc, 0x77, 0x1f, 0x92,
-	0xf1, 0xdc, 0xe2, 0x9d, 0x58, 0xfd, 0x16, 0x16, 0x63, 0x6d, 0x78, 0x33, 0x23, 0x47, 0xa2, 0x40,
-	0xad, 0x39, 0x26, 0x30, 0xea, 0x85, 0x6c, 0x9f, 0xe9, 0x5e, 0x84, 0x90, 0x0c, 0x2f, 0x2e, 0x74,
-	0x35, 0x04, 0x85, 0x68, 0x0b, 0xbb, 0x3d, 0xea, 0x35, 0x71, 0xfd, 0x77, 0xc7, 0x41, 0x45, 0xeb,
-	0xd2, 0xa0, 0x4d, 0xa5, 0xd7, 0x25, 0x89, 0xc9, 0xa8, 0x4b, 0x17, 0x5a, 0x8d, 0x36, 0xfb, 0xfd,
-	0xf9, 0xc9, 0x96, 0xb2, 0xfb, 0xe8, 0xd5, 0x69, 0x45, 0x79, 0x7d, 0x5a, 0x51, 0xfe, 0x39, 0xad,
-	0x28, 0x3f, 0x9d, 0x55, 0xa6, 0x5e, 0x9f, 0x55, 0xa6, 0xfe, 0x3a, 0xab, 0x4c, 0x7d, 0xd5, 0xb4,
-	0x6c, 0xd6, 0xf5, 0x3a, 0x0d, 0x83, 0xf4, 0x9a, 0xdf, 0x91, 0x43, 0x86, 0x9c, 0x03, 0x9b, 0xd2,
-	0x66, 0xd2, 0x3f, 0x20, 0xec, 0xb8, 0x8f, 0x69, 0x27, 0xc7, 0xff, 0xc3, 0x79, 0xef, 0xbf, 0x00,
-	0x00, 0x00, 0xff, 0xff, 0xf4, 0xaa, 0xf4, 0x85, 0x7a, 0x12, 0x00, 0x00,
+	// 1490 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x58, 0x4d, 0x6f, 0xdb, 0x46,
+	0x13, 0x36, 0xfd, 0x21, 0x59, 0x23, 0x7f, 0x24, 0x8c, 0x12, 0xcb, 0x7c, 0x13, 0x45, 0x56, 0xe2,
+	0x58, 0xaf, 0x9b, 0x58, 0x89, 0x0b, 0x04, 0x45, 0x7a, 0x28, 0xec, 0x7e, 0xa0, 0x01, 0x2a, 0x24,
+	0xa5, 0x9b, 0xa0, 0x68, 0x81, 0x0a, 0x6b, 0x72, 0x4d, 0xb1, 0xb6, 0xb8, 0x2a, 0x77, 0xe9, 0xc4,
+	0xed, 0xa5, 0x08, 0x90, 0x4b, 0x4f, 0x3d, 0x14, 0xe8, 0x0f, 0xe8, 0x25, 0x45, 0x51, 0xc0, 0x87,
+	0xfe, 0x82, 0x9e, 0x72, 0xe8, 0x21, 0xe8, 0xa9, 0x40, 0x81, 0xa2, 0x48, 0x0e, 0xfe, 0x1b, 0x05,
+	0x77, 0xc9, 0x15, 0x45, 0x93, 0x94, 0xe2, 0x28, 0x17, 0x81, 0x3b, 0xfb, 0xec, 0xce, 0x33, 0x33,
+	0x3b, 0xb3, 0xb3, 0x82, 0x0b, 0xc8, 0x72, 0x98, 0x41, 0x6c, 0xa7, 0x21, 0x3f, 0xf6, 0x6f, 0x34,
+	0xd8, 0xc3, 0xb5, 0xae, 0x4b, 0x18, 0x51, 0x4b, 0xa1, 0x74, 0x4d, 0x7e, 0xec, 0xdf, 0xd0, 0x96,
+	0x12, 0x17, 0x75, 0x91, 0x8b, 0x3a, 0x54, 0x2c, 0xd4, 0x4e, 0xa3, 0x8e, 0xed, 0x90, 0x06, 0xff,
+	0x0d, 0x44, 0x0b, 0x06, 0xa1, 0x1d, 0x42, 0x1b, 0x1d, 0x6a, 0xf9, 0xf0, 0x0e, 0xb5, 0x82, 0x89,
+	0x45, 0x31, 0xd1, 0xe2, 0xa3, 0x86, 0x18, 0x04, 0x53, 0x25, 0x8b, 0x58, 0x44, 0xc8, 0xfd, 0x2f,
+	0x21, 0xad, 0xfd, 0xae, 0xc0, 0x7c, 0x93, 0x5a, 0xf7, 0xba, 0x26, 0x62, 0xf8, 0x2e, 0x57, 0xab,
+	0xde, 0x84, 0x02, 0xf2, 0x58, 0x9b, 0xb8, 0x36, 0x3b, 0x28, 0x2b, 0x55, 0xa5, 0x5e, 0xd8, 0x2c,
+	0xff, 0xf9, 0xdb, 0xb5, 0x52, 0xb0, 0xdd, 0x86, 0x69, 0xba, 0x98, 0xd2, 0x2d, 0xe6, 0xda, 0x8e,
+	0xa5, 0xf7, 0xa0, 0xea, 0x3b, 0x90, 0x13, 0xc4, 0xcb, 0xe3, 0x55, 0xa5, 0x5e, 0x5c, 0x3f, 0xbf,
+	0x96, 0x64, 0xf2, 0x9a, 0xd0, 0xb2, 0x59, 0x78, 0xfa, 0xcf, 0xc5, 0xb1, 0x27, 0x47, 0x87, 0xab,
+	0x8a, 0x1e, 0x2c, 0xbb, 0x75, 0xf3, 0xd1, 0xd1, 0xe1, 0x6a, 0x6f, 0xc3, 0xef, 0x8e, 0x0e, 0x57,
+	0x2f, 0x49, 0xb7, 0x3c, 0xec, 0x79, 0x28, 0x46, 0xb8, 0xb6, 0x08, 0x0b, 0x31, 0x91, 0x8e, 0x69,
+	0x97, 0x38, 0x14, 0xd7, 0xee, 0x40, 0xb1, 0x49, 0x2d, 0x1d, 0x5b, 0x36, 0x65, 0xd8, 0x55, 0xd7,
+	0x21, 0x6f, 0xb8, 0x18, 0x31, 0xe2, 0x0e, 0x34, 0x2c, 0x04, 0xde, 0x9a, 0xf1, 0x59, 0x85, 0xa3,
+	0xda, 0x59, 0x38, 0x13, 0xd9, 0x50, 0xea, 0x69, 0x42, 0xa1, 0x49, 0xad, 0x0f, 0x90, 0x67, 0x60,
+	0x36, 0x02, 0x2d, 0x67, 0xe0, 0xb4, 0xdc, 0x4e, 0xea, 0xf8, 0x41, 0xe1, 0xc6, 0x7c, 0xe2, 0x22,
+	0x87, 0xee, 0x9c, 0xcc, 0x18, 0x75, 0x01, 0xf2, 0x8c, 0xb4, 0x90, 0x69, 0xba, 0x3c, 0x48, 0x05,
+	0x3d, 0xc7, 0x88, 0x0f, 0x55, 0xcf, 0x41, 0x0e, 0x75, 0x88, 0xe7, 0xb0, 0xf2, 0x44, 0x55, 0xa9,
+	0x4f, 0xea, 0xc1, 0x48, 0x55, 0x61, 0xb2, 0x83, 0x3b, 0xa4, 0x3c, 0xc9, 0xd1, 0xfc, 0x3b, 0xd1,
+	0x23, 0x21, 0x2b, 0xc9, 0xf6, 0x47, 0x05, 0x66, 0x9a, 0xd4, 0x7a, 0x17, 0x51, 0xb6, 0x4f, 0x3c,
+	0xa3, 0x3d, 0x72, 0xba, 0x0f, 0xb0, 0x6d, 0xb5, 0x25, 0x5d, 0x31, 0x52, 0x4b, 0x30, 0x45, 0x19,
+	0xda, 0xc5, 0x9c, 0xef, 0xa4, 0x2e, 0x06, 0x31, 0xc2, 0xe7, 0xa0, 0x14, 0x25, 0x26, 0x19, 0x5b,
+	0x00, 0xfe, 0x31, 0x72, 0x46, 0x4f, 0x37, 0x46, 0xa0, 0x04, 0x6a, 0x4f, 0x91, 0x54, 0xff, 0xf7,
+	0x38, 0xcc, 0x36, 0xa9, 0xf5, 0x11, 0x31, 0x76, 0xdf, 0xa7, 0x86, 0x4b, 0x1e, 0x9c, 0x88, 0x42,
+	0x09, 0xa6, 0xba, 0xe8, 0x00, 0xe3, 0x80, 0x80, 0x18, 0xa4, 0x46, 0xf7, 0x14, 0x4c, 0xb8, 0x78,
+	0x27, 0x08, 0xae, 0xff, 0xa9, 0xae, 0xc0, 0xbc, 0x69, 0xd3, 0xae, 0xc7, 0x70, 0x8b, 0x62, 0x83,
+	0x38, 0x26, 0x2d, 0x4f, 0xf1, 0x25, 0x73, 0x81, 0x78, 0x4b, 0x48, 0xd5, 0x2b, 0x30, 0xef, 0x90,
+	0x16, 0xf2, 0x18, 0x69, 0xb9, 0x78, 0x0f, 0x23, 0x8a, 0xcb, 0xb9, 0xaa, 0x52, 0x9f, 0xd6, 0x67,
+	0x1d, 0xb2, 0xe1, 0x31, 0xa2, 0x0b, 0xa1, 0xba, 0x0c, 0x73, 0xfb, 0xd8, 0xb5, 0x77, 0x6c, 0xec,
+	0x72, 0xcf, 0xd0, 0x72, 0xbe, 0x3a, 0x51, 0x2f, 0xe8, 0xb3, 0xa1, 0xd4, 0x37, 0x84, 0xfa, 0x7a,
+	0x25, 0xec, 0x2b, 0x8f, 0xb8, 0x5e, 0xa7, 0x3c, 0x2d, 0xf4, 0x86, 0xe2, 0x8f, 0xb9, 0xd4, 0x07,
+	0x22, 0xc3, 0xc0, 0x5d, 0x86, 0x1c, 0x03, 0xb7, 0xda, 0x88, 0xb6, 0xcb, 0x05, 0x4e, 0x7f, 0xae,
+	0x27, 0xfe, 0x10, 0xd1, 0x76, 0xcc, 0xe7, 0x2b, 0x70, 0xb6, 0xcf, 0xb9, 0xa1, 0xdb, 0xd5, 0x39,
+	0x18, 0xb7, 0x4d, 0xee, 0xdf, 0x49, 0x7d, 0xdc, 0x36, 0x6b, 0x26, 0x9c, 0xe2, 0x09, 0xce, 0xd9,
+	0xbf, 0x42, 0x20, 0xc4, 0xbe, 0xe3, 0xe1, 0xbe, 0x31, 0x3a, 0x1a, 0x94, 0xe3, 0x5a, 0xe4, 0x41,
+	0x30, 0x78, 0x49, 0xd6, 0xf1, 0x8e, 0xe7, 0x98, 0xaf, 0x8d, 0x80, 0xa8, 0x99, 0x51, 0x25, 0x52,
+	0xff, 0x4f, 0xe2, 0x4e, 0xd8, 0xf2, 0xb6, 0x3b, 0x36, 0x1b, 0x1d, 0x01, 0xf5, 0x12, 0xcc, 0x9a,
+	0x78, 0xcf, 0xde, 0xc7, 0xee, 0x81, 0x88, 0xdb, 0x04, 0x8f, 0xdb, 0x4c, 0x28, 0xf4, 0xa3, 0xa6,
+	0x2e, 0xc2, 0xf4, 0x2e, 0x0e, 0xe6, 0xc5, 0xb1, 0xcc, 0xef, 0xe2, 0x83, 0x84, 0x80, 0x0a, 0x03,
+	0xa2, 0x24, 0xa5, 0x01, 0x22, 0x84, 0xef, 0x89, 0xf3, 0xfa, 0x9a, 0x43, 0xd8, 0xa7, 0x45, 0x32,
+	0x78, 0xa2, 0xc0, 0x5c, 0x93, 0x5a, 0x77, 0xba, 0xd8, 0x09, 0x00, 0x27, 0x22, 0xf0, 0x3f, 0x28,
+	0x60, 0xbe, 0x71, 0x4b, 0xf2, 0x98, 0x16, 0x82, 0xdb, 0xa6, 0x9f, 0xd3, 0x2e, 0x46, 0x94, 0x38,
+	0x81, 0x1f, 0x83, 0x91, 0x7a, 0x11, 0x8a, 0xdb, 0xc4, 0x31, 0x5b, 0x41, 0xc2, 0x8b, 0x42, 0x08,
+	0xbe, 0x68, 0x83, 0x4b, 0x62, 0x66, 0xd4, 0xe1, 0x5c, 0x3f, 0xd3, 0xd4, 0xcc, 0xf8, 0x59, 0xdc,
+	0x3f, 0x7e, 0xe1, 0xbc, 0x4f, 0x4e, 0x68, 0xd1, 0x05, 0x80, 0xb0, 0xbc, 0x48, 0x93, 0x0a, 0x81,
+	0x44, 0xd8, 0x24, 0xb2, 0x98, 0xdb, 0x34, 0xad, 0x07, 0x23, 0x75, 0x09, 0x66, 0x78, 0x25, 0xef,
+	0x37, 0xaa, 0xc8, 0x65, 0x89, 0x56, 0x89, 0x4b, 0x29, 0xa4, 0x2a, 0xe3, 0xc2, 0xf8, 0xbd, 0xaa,
+	0x63, 0x4a, 0xf6, 0xf6, 0xf1, 0xab, 0x44, 0x26, 0xdb, 0x8e, 0x18, 0x99, 0xb7, 0x61, 0xf1, 0x98,
+	0x56, 0xe9, 0xe5, 0x0a, 0x80, 0xeb, 0xcf, 0x78, 0xcc, 0x26, 0x8e, 0x20, 0xa0, 0x47, 0x24, 0xb5,
+	0x5f, 0x85, 0xd7, 0xef, 0x12, 0xca, 0x36, 0x89, 0x63, 0x9e, 0x88, 0x6d, 0xaf, 0xfc, 0x8f, 0xf7,
+	0x95, 0xff, 0x32, 0xe4, 0xbb, 0x9e, 0xdb, 0x25, 0x14, 0x07, 0x67, 0x28, 0x1c, 0xfa, 0x33, 0x74,
+	0x0f, 0xd1, 0x36, 0x76, 0xc3, 0x2c, 0x0c, 0x86, 0xe1, 0x95, 0x31, 0x25, 0xaf, 0x8c, 0x98, 0xb1,
+	0xcb, 0xdc, 0xf3, 0x21, 0xdd, 0xd4, 0xc3, 0xb4, 0xcd, 0x13, 0x24, 0x28, 0x80, 0x27, 0x36, 0x2c,
+	0x3b, 0x43, 0xcb, 0xfc, 0x68, 0x47, 0x74, 0xc8, 0x73, 0xf0, 0x48, 0x34, 0x27, 0x5b, 0xbe, 0x4d,
+	0xa3, 0x52, 0xae, 0x56, 0xa1, 0xb8, 0x8d, 0x1d, 0xbc, 0x63, 0x1b, 0x36, 0x72, 0x0f, 0x02, 0x8f,
+	0x46, 0x45, 0x89, 0x7d, 0x88, 0xe4, 0x20, 0xc9, 0xfd, 0x22, 0xea, 0xef, 0x06, 0x63, 0x98, 0xbe,
+	0x4a, 0xfd, 0x1d, 0x54, 0x3d, 0xba, 0x88, 0x52, 0x6c, 0x86, 0x99, 0x26, 0x46, 0x2f, 0x9f, 0x69,
+	0xeb, 0xbc, 0x0e, 0x47, 0xc9, 0xca, 0x98, 0x2f, 0x40, 0x9e, 0x57, 0x22, 0x19, 0xf8, 0x9c, 0x3f,
+	0xbc, 0x6d, 0xd6, 0x1e, 0x2b, 0xbc, 0x03, 0xba, 0x2f, 0x6e, 0x76, 0x33, 0x6c, 0x15, 0x46, 0x6e,
+	0xe4, 0x29, 0x98, 0xd8, 0xc5, 0x61, 0x24, 0xfc, 0xcf, 0x18, 0xf7, 0xf3, 0xa0, 0x1d, 0xa7, 0x21,
+	0xe3, 0xf0, 0x0d, 0x9f, 0xd5, 0xb1, 0xb1, 0x87, 0xec, 0x8e, 0x30, 0x10, 0xf9, 0x29, 0xb9, 0xc9,
+	0xfb, 0x9f, 0x51, 0x93, 0x8d, 0x51, 0xbb, 0x0c, 0xb5, 0x74, 0xe5, 0x21, 0xc5, 0xf5, 0x3f, 0xe6,
+	0x61, 0xa2, 0x49, 0x2d, 0xd5, 0x84, 0x99, 0xbe, 0x27, 0xdc, 0x72, 0xf2, 0xd3, 0x2b, 0xf6, 0x4a,
+	0xd2, 0xae, 0x0d, 0x05, 0x93, 0xf1, 0xfc, 0x14, 0xa6, 0xe5, 0x4b, 0x6a, 0x29, 0x75, 0x69, 0x08,
+	0xd1, 0xfe, 0x3f, 0x10, 0x22, 0x77, 0xd6, 0x21, 0x17, 0xbc, 0x9d, 0x2e, 0xa6, 0x2e, 0x12, 0x00,
+	0x6d, 0x65, 0x00, 0x20, 0xca, 0x56, 0x3e, 0x95, 0xd2, 0xd9, 0x86, 0x90, 0x0c, 0xb6, 0xf1, 0xa7,
+	0x8d, 0xfa, 0x39, 0x14, 0x7a, 0xcf, 0x9a, 0x5a, 0xea, 0x3a, 0x89, 0xd1, 0x56, 0x07, 0x63, 0xe4,
+	0xe6, 0x5f, 0x00, 0x44, 0x9e, 0x00, 0x97, 0x52, 0x57, 0xf6, 0x40, 0xda, 0x1b, 0x43, 0x80, 0xe4,
+	0xfe, 0x16, 0xcc, 0xf6, 0x37, 0xb7, 0x57, 0x32, 0xc2, 0x14, 0xc1, 0x69, 0x6b, 0xc3, 0xe1, 0xa4,
+	0x22, 0x13, 0x66, 0xfa, 0x7a, 0xd8, 0xe5, 0x8c, 0xf5, 0x3d, 0x58, 0xc6, 0x99, 0x4c, 0x6a, 0x56,
+	0x7d, 0x2d, 0x7d, 0x8d, 0x6a, 0xba, 0x96, 0x28, 0x2c, 0x43, 0x4b, 0x52, 0x47, 0xe9, 0x3b, 0xad,
+	0xbf, 0x9d, 0x4c, 0x77, 0x5a, 0x1f, 0x2e, 0xc3, 0x69, 0x89, 0x8d, 0xa3, 0x7a, 0x0f, 0xf2, 0xe1,
+	0x03, 0xb4, 0x9a, 0x9e, 0x9c, 0x02, 0xa1, 0xd5, 0x07, 0x21, 0xe4, 0xb6, 0x08, 0x8a, 0xd1, 0x5e,
+	0xf4, 0x72, 0xea, 0xc2, 0x08, 0x4a, 0xbb, 0x3a, 0x0c, 0x2a, 0x9a, 0x6e, 0xb2, 0x33, 0x5c, 0xca,
+	0x3c, 0xef, 0x3e, 0x24, 0x23, 0xdd, 0xe2, 0x4d, 0x9b, 0xfa, 0x25, 0xcc, 0xc5, 0x3a, 0xb6, 0x95,
+	0x8c, 0x33, 0x12, 0x05, 0x6a, 0x8d, 0x21, 0x81, 0x51, 0x2b, 0x64, 0xa7, 0x95, 0x6e, 0x45, 0x08,
+	0xc9, 0xb0, 0xe2, 0x58, 0x03, 0x84, 0xa0, 0x18, 0xed, 0x76, 0x2e, 0x0f, 0xca, 0x26, 0xbe, 0xff,
+	0xd5, 0x61, 0x50, 0xd1, 0xba, 0xd4, 0xeb, 0x68, 0xd2, 0xeb, 0x92, 0xc4, 0x64, 0xd4, 0xa5, 0x63,
+	0x5d, 0x89, 0x9f, 0x68, 0x7d, 0x1d, 0x49, 0x7a, 0xa2, 0x45, 0x61, 0x19, 0x89, 0x96, 0xd8, 0x32,
+	0x74, 0x60, 0x3e, 0xde, 0x15, 0xa4, 0x9f, 0xf2, 0x18, 0x52, 0xbb, 0x3e, 0x2c, 0x52, 0xaa, 0x7b,
+	0xac, 0xc0, 0x42, 0xda, 0x05, 0x7f, 0x3d, 0xc3, 0xf7, 0x89, 0x2b, 0xb4, 0xb7, 0x5e, 0x76, 0x45,
+	0xc8, 0x43, 0x9b, 0xfa, 0xf6, 0xe8, 0x70, 0x55, 0xd9, 0xbc, 0xfd, 0xf4, 0x79, 0x45, 0x79, 0xf6,
+	0xbc, 0xa2, 0xfc, 0xfb, 0xbc, 0xa2, 0x7c, 0xff, 0xa2, 0x32, 0xf6, 0xec, 0x45, 0x65, 0xec, 0xaf,
+	0x17, 0x95, 0xb1, 0xcf, 0x1a, 0x96, 0xcd, 0xda, 0xde, 0xf6, 0x9a, 0x41, 0x3a, 0x8d, 0xaf, 0xc9,
+	0x1e, 0x43, 0xce, 0xae, 0x4d, 0x69, 0x23, 0xe9, 0xdf, 0x51, 0x76, 0xd0, 0xc5, 0x74, 0x3b, 0xc7,
+	0xff, 0xdf, 0x7d, 0xf3, 0xbf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xf4, 0xe8, 0x00, 0x32, 0x96, 0x16,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1922,6 +2317,15 @@ type MsgClient interface {
 	ReleaseBond(ctx context.Context, in *MsgReleaseBond, opts ...grpc.CallOption) (*MsgReleaseBondResponse, error)
 	// SlashBond (slasher only) punishes a bond, paying the beneficiary (or burning).
 	SlashBond(ctx context.Context, in *MsgSlashBond, opts ...grpc.CallOption) (*MsgSlashBondResponse, error)
+	// AttestEscrow: a named verifier posts its staked pass/fail verdict on a
+	// submitted verifier-bound escrow.
+	AttestEscrow(ctx context.Context, in *MsgAttestEscrow, opts ...grpc.CallOption) (*MsgAttestEscrowResponse, error)
+	// VerifiedRelease settles a verifier-attested escrow: quorum of staked pass
+	// attestations + key preimage => pay the payee and reveal the key atomically.
+	VerifiedRelease(ctx context.Context, in *MsgVerifiedRelease, opts ...grpc.CallOption) (*MsgVerifiedReleaseResponse, error)
+	// ReclaimAttestationBonds frees attestation stakes once the challenge window
+	// has passed uncontested.
+	ReclaimAttestationBonds(ctx context.Context, in *MsgReclaimAttestationBonds, opts ...grpc.CallOption) (*MsgReclaimAttestationBondsResponse, error)
 }
 
 type msgClient struct {
@@ -2085,6 +2489,33 @@ func (c *msgClient) SlashBond(ctx context.Context, in *MsgSlashBond, opts ...grp
 	return out, nil
 }
 
+func (c *msgClient) AttestEscrow(ctx context.Context, in *MsgAttestEscrow, opts ...grpc.CallOption) (*MsgAttestEscrowResponse, error) {
+	out := new(MsgAttestEscrowResponse)
+	err := c.cc.Invoke(ctx, "/agntcoin.agntcoin.v1.Msg/AttestEscrow", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) VerifiedRelease(ctx context.Context, in *MsgVerifiedRelease, opts ...grpc.CallOption) (*MsgVerifiedReleaseResponse, error) {
+	out := new(MsgVerifiedReleaseResponse)
+	err := c.cc.Invoke(ctx, "/agntcoin.agntcoin.v1.Msg/VerifiedRelease", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) ReclaimAttestationBonds(ctx context.Context, in *MsgReclaimAttestationBonds, opts ...grpc.CallOption) (*MsgReclaimAttestationBondsResponse, error) {
+	out := new(MsgReclaimAttestationBondsResponse)
+	err := c.cc.Invoke(ctx, "/agntcoin.agntcoin.v1.Msg/ReclaimAttestationBonds", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
 	// UpdateParams defines a (governance) operation for updating the module
@@ -2122,6 +2553,15 @@ type MsgServer interface {
 	ReleaseBond(context.Context, *MsgReleaseBond) (*MsgReleaseBondResponse, error)
 	// SlashBond (slasher only) punishes a bond, paying the beneficiary (or burning).
 	SlashBond(context.Context, *MsgSlashBond) (*MsgSlashBondResponse, error)
+	// AttestEscrow: a named verifier posts its staked pass/fail verdict on a
+	// submitted verifier-bound escrow.
+	AttestEscrow(context.Context, *MsgAttestEscrow) (*MsgAttestEscrowResponse, error)
+	// VerifiedRelease settles a verifier-attested escrow: quorum of staked pass
+	// attestations + key preimage => pay the payee and reveal the key atomically.
+	VerifiedRelease(context.Context, *MsgVerifiedRelease) (*MsgVerifiedReleaseResponse, error)
+	// ReclaimAttestationBonds frees attestation stakes once the challenge window
+	// has passed uncontested.
+	ReclaimAttestationBonds(context.Context, *MsgReclaimAttestationBonds) (*MsgReclaimAttestationBondsResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
@@ -2178,6 +2618,15 @@ func (*UnimplementedMsgServer) ReleaseBond(ctx context.Context, req *MsgReleaseB
 }
 func (*UnimplementedMsgServer) SlashBond(ctx context.Context, req *MsgSlashBond) (*MsgSlashBondResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SlashBond not implemented")
+}
+func (*UnimplementedMsgServer) AttestEscrow(ctx context.Context, req *MsgAttestEscrow) (*MsgAttestEscrowResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AttestEscrow not implemented")
+}
+func (*UnimplementedMsgServer) VerifiedRelease(ctx context.Context, req *MsgVerifiedRelease) (*MsgVerifiedReleaseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VerifiedRelease not implemented")
+}
+func (*UnimplementedMsgServer) ReclaimAttestationBonds(ctx context.Context, req *MsgReclaimAttestationBonds) (*MsgReclaimAttestationBondsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReclaimAttestationBonds not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
@@ -2490,6 +2939,60 @@ func _Msg_SlashBond_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_AttestEscrow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgAttestEscrow)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).AttestEscrow(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agntcoin.agntcoin.v1.Msg/AttestEscrow",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).AttestEscrow(ctx, req.(*MsgAttestEscrow))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_VerifiedRelease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgVerifiedRelease)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).VerifiedRelease(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agntcoin.agntcoin.v1.Msg/VerifiedRelease",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).VerifiedRelease(ctx, req.(*MsgVerifiedRelease))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_ReclaimAttestationBonds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgReclaimAttestationBonds)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).ReclaimAttestationBonds(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agntcoin.agntcoin.v1.Msg/ReclaimAttestationBonds",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).ReclaimAttestationBonds(ctx, req.(*MsgReclaimAttestationBonds))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Msg_serviceDesc = _Msg_serviceDesc
 var _Msg_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "agntcoin.agntcoin.v1.Msg",
@@ -2562,6 +3065,18 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SlashBond",
 			Handler:    _Msg_SlashBond_Handler,
+		},
+		{
+			MethodName: "AttestEscrow",
+			Handler:    _Msg_AttestEscrow_Handler,
+		},
+		{
+			MethodName: "VerifiedRelease",
+			Handler:    _Msg_VerifiedRelease_Handler,
+		},
+		{
+			MethodName: "ReclaimAttestationBonds",
+			Handler:    _Msg_ReclaimAttestationBonds_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -2959,6 +3474,27 @@ func (m *MsgLockEscrow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.AcceptanceHash) > 0 {
+		i -= len(m.AcceptanceHash)
+		copy(dAtA[i:], m.AcceptanceHash)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.AcceptanceHash)))
+		i--
+		dAtA[i] = 0x4a
+	}
+	if m.VerifierQuorum != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.VerifierQuorum))
+		i--
+		dAtA[i] = 0x40
+	}
+	if len(m.VerifierAddrs) > 0 {
+		for iNdEx := len(m.VerifierAddrs) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.VerifierAddrs[iNdEx])
+			copy(dAtA[i:], m.VerifierAddrs[iNdEx])
+			i = encodeVarintTx(dAtA, i, uint64(len(m.VerifierAddrs[iNdEx])))
+			i--
+			dAtA[i] = 0x3a
+		}
+	}
 	if m.NoAutoRelease {
 		i--
 		if m.NoAutoRelease {
@@ -3167,6 +3703,13 @@ func (m *MsgSubmitEscrow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.KeyHash) > 0 {
+		i -= len(m.KeyHash)
+		copy(dAtA[i:], m.KeyHash)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.KeyHash)))
+		i--
+		dAtA[i] = 0x22
+	}
 	if len(m.DeliveryHash) > 0 {
 		i -= len(m.DeliveryHash)
 		copy(dAtA[i:], m.DeliveryHash)
@@ -3690,6 +4233,207 @@ func (m *MsgSlashBondResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *MsgAttestEscrow) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgAttestEscrow) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgAttestEscrow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.StakeAmount != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.StakeAmount))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.Passed {
+		i--
+		if m.Passed {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.EscrowId != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.EscrowId))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.Creator) > 0 {
+		i -= len(m.Creator)
+		copy(dAtA[i:], m.Creator)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Creator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgAttestEscrowResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgAttestEscrowResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgAttestEscrowResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.BondId != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.BondId))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgVerifiedRelease) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgVerifiedRelease) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgVerifiedRelease) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Key) > 0 {
+		i -= len(m.Key)
+		copy(dAtA[i:], m.Key)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Key)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.EscrowId != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.EscrowId))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.Creator) > 0 {
+		i -= len(m.Creator)
+		copy(dAtA[i:], m.Creator)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Creator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgVerifiedReleaseResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgVerifiedReleaseResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgVerifiedReleaseResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgReclaimAttestationBonds) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgReclaimAttestationBonds) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgReclaimAttestationBonds) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.EscrowId != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.EscrowId))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.Creator) > 0 {
+		i -= len(m.Creator)
+		copy(dAtA[i:], m.Creator)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Creator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgReclaimAttestationBondsResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgReclaimAttestationBondsResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgReclaimAttestationBondsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	offset -= sovTx(v)
 	base := offset
@@ -3887,6 +4631,19 @@ func (m *MsgLockEscrow) Size() (n int) {
 	if m.NoAutoRelease {
 		n += 2
 	}
+	if len(m.VerifierAddrs) > 0 {
+		for _, s := range m.VerifierAddrs {
+			l = len(s)
+			n += 1 + l + sovTx(uint64(l))
+		}
+	}
+	if m.VerifierQuorum != 0 {
+		n += 1 + sovTx(uint64(m.VerifierQuorum))
+	}
+	l = len(m.AcceptanceHash)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
 	return n
 }
 
@@ -3966,6 +4723,10 @@ func (m *MsgSubmitEscrow) Size() (n int) {
 		n += 1 + sovTx(uint64(m.Id))
 	}
 	l = len(m.DeliveryHash)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.KeyHash)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
@@ -4187,6 +4948,94 @@ func (m *MsgSlashBond) Size() (n int) {
 }
 
 func (m *MsgSlashBondResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgAttestEscrow) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Creator)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.EscrowId != 0 {
+		n += 1 + sovTx(uint64(m.EscrowId))
+	}
+	if m.Passed {
+		n += 2
+	}
+	if m.StakeAmount != 0 {
+		n += 1 + sovTx(uint64(m.StakeAmount))
+	}
+	return n
+}
+
+func (m *MsgAttestEscrowResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.BondId != 0 {
+		n += 1 + sovTx(uint64(m.BondId))
+	}
+	return n
+}
+
+func (m *MsgVerifiedRelease) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Creator)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.EscrowId != 0 {
+		n += 1 + sovTx(uint64(m.EscrowId))
+	}
+	l = len(m.Key)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgVerifiedReleaseResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgReclaimAttestationBonds) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Creator)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.EscrowId != 0 {
+		n += 1 + sovTx(uint64(m.EscrowId))
+	}
+	return n
+}
+
+func (m *MsgReclaimAttestationBondsResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -5394,6 +6243,89 @@ func (m *MsgLockEscrow) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.NoAutoRelease = bool(v != 0)
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VerifierAddrs", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.VerifierAddrs = append(m.VerifierAddrs, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VerifierQuorum", wireType)
+			}
+			m.VerifierQuorum = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.VerifierQuorum |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AcceptanceHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AcceptanceHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])
@@ -5897,6 +6829,38 @@ func (m *MsgSubmitEscrow) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.DeliveryHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field KeyHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.KeyHash = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -7291,6 +8255,549 @@ func (m *MsgSlashBondResponse) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: MsgSlashBondResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgAttestEscrow) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgAttestEscrow: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgAttestEscrow: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Creator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Creator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EscrowId", wireType)
+			}
+			m.EscrowId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.EscrowId |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Passed", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Passed = bool(v != 0)
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StakeAmount", wireType)
+			}
+			m.StakeAmount = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.StakeAmount |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgAttestEscrowResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgAttestEscrowResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgAttestEscrowResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BondId", wireType)
+			}
+			m.BondId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BondId |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgVerifiedRelease) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgVerifiedRelease: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgVerifiedRelease: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Creator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Creator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EscrowId", wireType)
+			}
+			m.EscrowId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.EscrowId |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Key", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Key = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgVerifiedReleaseResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgVerifiedReleaseResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgVerifiedReleaseResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgReclaimAttestationBonds) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgReclaimAttestationBonds: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgReclaimAttestationBonds: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Creator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Creator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EscrowId", wireType)
+			}
+			m.EscrowId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.EscrowId |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgReclaimAttestationBondsResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgReclaimAttestationBondsResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgReclaimAttestationBondsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:

@@ -24,6 +24,28 @@ const (
 	EscrowStatusInJury    = "in_jury"   // escalated to a k-of-n jury → only a verdict settles it
 	EscrowStatusReleased  = "released"
 	EscrowStatusRefunded  = "refunded"
+	// EscrowStatusFailAttested (verifier-v1): a verifier posted a staked
+	// passed=false attestation. The payee's CONTEST window is open until
+	// challenge_deadline (OpenDispute → jury; a proven false-fail slashes the
+	// attester's stake to the payee). Only after the window passes uncontested
+	// does RefundEscrow unlock for the payer — a fail attestation that unlocked
+	// refund instantly would let a colluding buyer+verifier take delivered work
+	// for free (the false-fail symmetry hole).
+	EscrowStatusFailAttested = "fail_attested"
+	// EscrowStatusChallenged (verifier-v1): the payer opened a post-release
+	// fraud challenge inside the challenge window. The payout already happened
+	// and is NOT clawed back from the payee — the jury verdict settles the
+	// attestation-stakes instead (fraud => slashed to the payer, who is made
+	// whole from the verifier's collateral; valid => challenger's dispute-bond
+	// slashed to the griefed attester).
+	EscrowStatusChallenged = "challenged"
+
+	// ChallengeWindowSeconds (verifier-v1) bounds the post-settlement
+	// adversarial window: after VerifiedRelease, how long the payer may open a
+	// fraud challenge; after a fail attestation, how long the payee may contest
+	// before refund unlocks. Deadline math uses BLOCK time at tx inclusion —
+	// never a party-supplied timestamp (the chain can't trust anyone's clock).
+	ChallengeWindowSeconds int64 = 72 * 3600
 
 	// MinDisputeBond is the minimum slashable collateral an opener must post to
 	// OpenDispute. Opening a dispute freezes the escrow + loads the jury, so a

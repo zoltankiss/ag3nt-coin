@@ -74,5 +74,17 @@ func RegisterInterfaces(registrar codectypes.InterfaceRegistry) {
 	registrar.RegisterImplementations((*sdk.Msg)(nil),
 		&MsgSlashBond{},
 	)
+
+	registrar.RegisterImplementations((*sdk.Msg)(nil),
+		&MsgAttestEscrow{},
+	)
+
+	registrar.RegisterImplementations((*sdk.Msg)(nil),
+		&MsgVerifiedRelease{},
+	)
+
+	registrar.RegisterImplementations((*sdk.Msg)(nil),
+		&MsgReclaimAttestationBonds{},
+	)
 	msgservice.RegisterMsgServiceDesc(registrar, &_Msg_serviceDesc)
 }

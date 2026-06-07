@@ -27,7 +27,8 @@ func (k msgServer) ReleaseEscrow(ctx context.Context, msg *types.MsgReleaseEscro
 		}
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
-	if escrow.Status != types.EscrowStatusLocked && escrow.Status != types.EscrowStatusSubmitted && escrow.Status != types.EscrowStatusDisputed {
+	if escrow.Status != types.EscrowStatusLocked && escrow.Status != types.EscrowStatusSubmitted &&
+		escrow.Status != types.EscrowStatusDisputed && escrow.Status != types.EscrowStatusFailAttested {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "escrow is not releasable (status=%s)", escrow.Status)
 	}
 

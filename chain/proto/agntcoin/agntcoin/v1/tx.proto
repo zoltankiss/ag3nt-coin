@@ -65,6 +65,18 @@ service Msg {
 
   // SlashBond (slasher only) punishes a bond, paying the beneficiary (or burning).
   rpc SlashBond(MsgSlashBond) returns (MsgSlashBondResponse);
+
+  // AttestEscrow: a named verifier posts its staked pass/fail verdict on a
+  // submitted verifier-bound escrow.
+  rpc AttestEscrow(MsgAttestEscrow) returns (MsgAttestEscrowResponse);
+
+  // VerifiedRelease settles a verifier-attested escrow: quorum of staked pass
+  // attestations + key preimage => pay the payee and reveal the key atomically.
+  rpc VerifiedRelease(MsgVerifiedRelease) returns (MsgVerifiedReleaseResponse);
+
+  // ReclaimAttestationBonds frees attestation stakes once the challenge window
+  // has passed uncontested.
+  rpc ReclaimAttestationBonds(MsgReclaimAttestationBonds) returns (MsgReclaimAttestationBondsResponse);
 }
 
 // MsgUpdateParams is the Msg/UpdateParams request type.
@@ -154,7 +166,19 @@ message MsgLockEscrow {
   // no_auto_release marks the escrow jury-bound: the payee can never self-release
   // (even past the deadline) — un-verifiable work settles via the jury. Set this
   // for no-test / prose tasks (it13 finding #19). Default false = ordinary escrow.
+  // Forced TRUE when verifier_addrs is non-empty (a verifier-bound escrow that
+  // kept the clock path would let the payee skip the verifier entirely).
   bool no_auto_release = 6;
+  // verifier_addrs: the named verifier set (verifier-v1). Non-empty makes the
+  // escrow verifier-bound: a quorum of staked pass-attestations becomes a
+  // release authority alongside the payer and the jury.
+  repeated string verifier_addrs = 7;
+  // verifier_quorum: how many distinct pass-attestations VerifiedRelease needs.
+  // Required >= 1 and <= len(verifier_addrs) when verifiers are named.
+  uint64 verifier_quorum = 8;
+  // acceptance_hash: hex sha256 precommitting the acceptance criteria (tests +
+  // hermetic environment spec) so goalposts can't move after funding.
+  string acceptance_hash = 9;
 }
 
 // MsgLockEscrowResponse defines the MsgLockEscrowResponse message.
@@ -193,6 +217,14 @@ message MsgSubmitEscrow {
   // delivery_hash: hex sha256 of the delivered artifact, pinning the exhibit the
   // jury will judge on-chain so it can't be altered after submission. Optional.
   string delivery_hash = 3;
+  // key_hash: hex sha256 of the symmetric key the artifact ciphertext was
+  // encrypted with (verifier-v1 fair exchange). VerifiedRelease must present the
+  // preimage, which the release event publishes — so the buyer can only ever
+  // read the plaintext in the same tx that pays the seller. Optional; platforms
+  // SHOULD require it for verifier-bound deals (custodial plaintext withholding
+  // generates unadjudicable "verifier leaked it" disputes; the hash-committed
+  // key reveal is the same effort and chain-enforced).
+  string key_hash = 4;
 }
 
 // MsgSubmitEscrowResponse defines the MsgSubmitEscrowResponse message.
@@ -301,3 +333,60 @@ message MsgSlashBond {
 
 // MsgSlashBondResponse defines the MsgSlashBond response.
 message MsgSlashBondResponse {}
+
+// MsgAttestEscrow records a named verifier's verdict on a SUBMITTED
+// verifier-bound escrow: "I ran the precommitted tests (acceptance_hash)
+// against the committed delivery (delivery_hash/key_hash); they
+// passed/failed." The verifier's own tx signature is the attestation
+// authority — deterministic proto signing, no detached canonical-JSON
+// signature to get wrong. The verdict must be backed by a slashable
+// ATTESTATION-STAKE >= the escrow amount, posted per attestation (so N
+// concurrent deals lock N stakes — a shared standing bond can never
+// over-promise). passed=true counts toward the VerifiedRelease quorum;
+// passed=false moves the escrow to fail_attested and opens the payee's
+// contest window (refund unlocks only after it passes uncontested).
+message MsgAttestEscrow {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 escrow_id = 2;
+  bool passed = 3;
+  uint64 stake_amount = 4;
+}
+
+// MsgAttestEscrowResponse returns the attestation-stake bond id.
+message MsgAttestEscrowResponse { uint64 bond_id = 1; }
+
+// MsgVerifiedRelease settles a verifier-attested escrow without the payer:
+// anyone may submit it (the staked attestations are the authority, not the
+// submitter). Requires a quorum of pass-attestations and, if the payee
+// committed a key_hash, the key preimage — the payee is paid and the key is
+// emitted in the release event in ONE tx (atomic fair exchange: the buyer
+// can't read the plaintext without the seller getting paid). Opens the
+// challenge window: until escrow.challenge_deadline the payer may OpenDispute
+// a fraud claim, recoverable from the attesters' stakes.
+message MsgVerifiedRelease {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 escrow_id = 2;
+  // key: preimage of the escrow's key_hash (the artifact decryption key).
+  // Must be empty when no key_hash was committed.
+  string key = 3;
+}
+
+// MsgVerifiedReleaseResponse defines the MsgVerifiedRelease response.
+message MsgVerifiedReleaseResponse {}
+
+// MsgReclaimAttestationBonds releases the attestation-stakes of a settled
+// escrow whose challenge window passed uncontested (or that the payer settled
+// directly, in which case no window ever opened). Permissionless trigger —
+// the chain has no end-blocker sweep, so freeing locked stakes is a tx, like
+// ResolveDispute. A challenged escrow settles its stakes through the jury
+// verdict instead (coherent => released, incoherent => slashed).
+message MsgReclaimAttestationBonds {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 escrow_id = 2;
+}
+
+// MsgReclaimAttestationBondsResponse defines the response.
+message MsgReclaimAttestationBondsResponse {}

@@ -38,6 +38,14 @@ func (k msgServer) DisputeEscrow(ctx context.Context, msg *types.MsgDisputeEscro
 	if msg.Creator != escrow.Payer {
 		return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "only the payer may dispute")
 	}
+	// Verifier-bound escrows (verifier-v1) deny the payer this FREE freeze: it
+	// would let a buyer costlessly stall the verifier-triggered release the
+	// primitive exists to provide (and strand the attester's stake). The
+	// buyer's pre-release escalation is the bonded OpenDispute; its
+	// post-release protection is the bonded fraud challenge.
+	if len(escrow.VerifierAddrs) > 0 {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "verifier-bound escrow: use OpenDispute (bonded) — the free freeze would stall verified release")
+	}
 
 	escrow.Status = types.EscrowStatusDisputed
 	if err := k.Escrow.Set(ctx, escrow.Id, escrow); err != nil {

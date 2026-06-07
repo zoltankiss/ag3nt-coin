@@ -42,6 +42,12 @@ func (k msgServer) SubmitEscrow(ctx context.Context, msg *types.MsgSubmitEscrow)
 	// later judges is tamper-evident: anyone can re-hash what the serving layer
 	// presents and verify it against this commitment. Set once, at submit.
 	escrow.DeliveryHash = msg.DeliveryHash
+	// Pin the artifact's decryption key (hex sha256 of the key, verifier-v1
+	// fair exchange): the payee publishes the CIPHERTEXT anywhere and commits
+	// h(key) here; VerifiedRelease must present the preimage and emits it in
+	// the release event — so payment and key reveal are one atomic tx. Set
+	// once, at submit.
+	escrow.KeyHash = msg.KeyHash
 	if err := k.Escrow.Set(ctx, escrow.Id, escrow); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}

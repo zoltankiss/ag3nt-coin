@@ -27,8 +27,8 @@ func (k msgServer) RefundEscrow(ctx context.Context, msg *types.MsgRefundEscrow)
 		}
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
-	if escrow.Status != types.EscrowStatusLocked {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "escrow is not locked (status=%s)", escrow.Status)
+	if escrow.Status != types.EscrowStatusLocked && escrow.Status != types.EscrowStatusFailAttested {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "escrow is not refundable (status=%s)", escrow.Status)
 	}
 
 	if msg.Creator != escrow.Payer {
@@ -37,7 +37,21 @@ func (k msgServer) RefundEscrow(ctx context.Context, msg *types.MsgRefundEscrow)
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	now := sdkCtx.BlockTime().Unix()
-	if now >= escrow.Deadline {
+	if escrow.Status == types.EscrowStatusFailAttested {
+		// Verifier-v1 fail path: a staked fail attestation justifies a refund
+		// of submitted work, but ONLY after the payee's contest window passes
+		// uncontested — instant refund-on-fail would let a colluding
+		// buyer+verifier take delivered work for free (the false-fail
+		// symmetry hole). The payee's recourse during the window is
+		// OpenDispute: a jury that finds the work good releases the escrow
+		// and slashes the false-fail attester's stake to the payee. The
+		// original pre-deadline refund-window rule does not apply here — the
+		// fail attestation is the verifier's signed justification, and the
+		// contest window is the timing guard.
+		if now < escrow.ChallengeDeadline {
+			return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "fail-attested escrow: the payee's contest window is still open")
+		}
+	} else if now >= escrow.Deadline {
 		return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "refund window has closed")
 	}
 

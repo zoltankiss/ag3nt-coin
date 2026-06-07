@@ -30,11 +30,47 @@ func (k msgServer) OpenDispute(ctx context.Context, msg *types.MsgOpenDispute) (
 		}
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
-	if escrow.Status != types.EscrowStatusSubmitted && escrow.Status != types.EscrowStatusDisputed {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "escrow must be submitted or disputed to open a jury case (status=%s)", escrow.Status)
-	}
 	if msg.Creator != escrow.Payer && msg.Creator != escrow.Payee {
 		return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "only the escrow payer or payee may open a dispute")
+	}
+	sdkCtxNow := sdk.UnwrapSDKContext(ctx).BlockTime().Unix()
+	// frozenStatus is what the escrow moves to while the jury sits. in_jury
+	// settles the escrow money by verdict; challenged (post-release fraud
+	// claim, verifier-v1) settles only the attestation/dispute bonds — the
+	// payout already happened and is never clawed back from the payee.
+	frozenStatus := types.EscrowStatusInJury
+	switch escrow.Status {
+	case types.EscrowStatusSubmitted, types.EscrowStatusDisputed:
+		// the pre-settlement jury case (it13+): either side may open.
+	case types.EscrowStatusFailAttested:
+		// Verifier-v1 CONTEST: only the payee may dispute a staked fail
+		// attestation, and only inside the contest window (after it the fail
+		// stands by default and refund unlocks). A jury-accept releases the
+		// escrow to the payee AND slashes the false-fail attester's stake to
+		// the payee (the false-fail symmetry of the fraud challenge).
+		if msg.Creator != escrow.Payee {
+			return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "only the payee may contest a fail attestation")
+		}
+		if sdkCtxNow >= escrow.ChallengeDeadline {
+			return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "the contest window has closed")
+		}
+	case types.EscrowStatusReleased:
+		// Verifier-v1 post-release FRAUD CHALLENGE: only against a
+		// verifier-triggered release (attestations + an open challenge
+		// window), only by the payer. A payer-goodwill or jury release is
+		// final — there is no attester collateral behind it to claim from.
+		if msg.Creator != escrow.Payer {
+			return nil, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "only the payer may challenge a verified release")
+		}
+		if len(escrow.Attestations) == 0 || escrow.ChallengeDeadline == 0 {
+			return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "released escrow has no challengeable attestations")
+		}
+		if sdkCtxNow >= escrow.ChallengeDeadline {
+			return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "the challenge window has closed")
+		}
+		frozenStatus = types.EscrowStatusChallenged
+	default:
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "escrow is not disputable (status=%s)", escrow.Status)
 	}
 
 	// Opening a dispute requires a slashable DISPUTE-BOND (it18 RED → it19): a free
@@ -95,7 +131,7 @@ func (k msgServer) OpenDispute(ctx context.Context, msg *types.MsgOpenDispute) (
 	}
 
 	// Freeze the escrow under jury control: only ResolveDispute can settle it now.
-	escrow.Status = types.EscrowStatusInJury
+	escrow.Status = frozenStatus
 	if err := k.Escrow.Set(ctx, escrow.Id, escrow); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}

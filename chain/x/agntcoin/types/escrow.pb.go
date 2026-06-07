@@ -23,7 +23,8 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // Escrow defines a native conditional-payment record.
-// status is one of: "locked" | "released" | "refunded".
+// status is one of: "locked" | "submitted" | "disputed" | "in_jury" |
+// "fail_attested" | "challenged" | "released" | "refunded".
 type Escrow struct {
 	Id       uint64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Payer    string `protobuf:"bytes,2,opt,name=payer,proto3" json:"payer,omitempty"`
@@ -36,7 +37,9 @@ type Escrow struct {
 	// jury-bound escrow can only be settled by the payer or by the jury, never by
 	// the payee waiting out the deadline and self-paying (it13 finding #19). Set
 	// by the payer at lock time for un-verifiable / jury-bound work. Default false
-	// preserves the it7 anti-ghosting behavior for ordinary escrows.
+	// preserves the it7 anti-ghosting behavior for ordinary escrows. ALWAYS true
+	// for verifier-bound escrows (verifier-v1) — otherwise the payee could skip
+	// the verifier entirely and wait out the clock.
 	NoAutoRelease bool `protobuf:"varint,8,opt,name=no_auto_release,json=noAutoRelease,proto3" json:"no_auto_release,omitempty"`
 	// delivery_hash is a hex sha256 of the delivered artifact, committed by the
 	// payee at submit time. It cryptographically pins the exhibit the jury judges:
@@ -45,6 +48,37 @@ type Escrow struct {
 	// silently altered after submission — the exhibit's integrity stops resting on
 	// trusting the platform. Empty if the payee submitted no hash.
 	DeliveryHash string `protobuf:"bytes,9,opt,name=delivery_hash,json=deliveryHash,proto3" json:"delivery_hash,omitempty"`
+	// verifier_addrs is the named verifier set fixed by the payer at lock time.
+	// Non-empty => the escrow is VERIFIER-BOUND: release happens via (a) the
+	// payer, (b) a quorum of staked pass-attestations (VerifiedRelease), or
+	// (c) the jury. Never the clock (no_auto_release is forced true).
+	VerifierAddrs []string `protobuf:"bytes,10,rep,name=verifier_addrs,json=verifierAddrs,proto3" json:"verifier_addrs,omitempty"`
+	// verifier_quorum is how many distinct pass-attestations VerifiedRelease
+	// needs (m-of-n; 1 for the v1 single-verifier case). Repeated set + threshold
+	// from day one so quorum is a parameter, not a migration.
+	VerifierQuorum uint64 `protobuf:"varint,11,opt,name=verifier_quorum,json=verifierQuorum,proto3" json:"verifier_quorum,omitempty"`
+	// acceptance_hash is a hex sha256 of the precommitted acceptance criteria
+	// (test suite + hermetic environment spec: image digest, no-network, timeout),
+	// committed by the payer at lock time. Closes the moved-goalposts hole: the
+	// tests the verifier (and any later jury) runs are pinned before work starts.
+	AcceptanceHash string `protobuf:"bytes,12,opt,name=acceptance_hash,json=acceptanceHash,proto3" json:"acceptance_hash,omitempty"`
+	// key_hash is a hex sha256 of the symmetric key the payee encrypted the
+	// artifact with, committed at submit time. VerifiedRelease must carry the
+	// preimage, which is emitted in the release event — payment and key reveal
+	// are ONE atomic tx (fair exchange enforced by the chain, not the platform).
+	KeyHash string `protobuf:"bytes,13,opt,name=key_hash,json=keyHash,proto3" json:"key_hash,omitempty"`
+	// challenge_deadline (unix sec, block time) bounds the post-settlement
+	// adversarial window: after a VerifiedRelease the payer may open a fraud
+	// challenge until this time; after a fail attestation the payee may contest
+	// until this time (refund unlocks only once it passes uncontested — the
+	// false-fail+instant-refund hole). 0 = no window opened.
+	ChallengeDeadline int64 `protobuf:"varint,14,opt,name=challenge_deadline,json=challengeDeadline,proto3" json:"challenge_deadline,omitempty"`
+	// attestations are the verifiers' signed verdicts (tx-authenticated — the
+	// verifier's own signature on the AttestEscrow tx is the authority, so there
+	// is no detached "canonical JSON" signature to get wrong). Each one locks a
+	// per-attestation slashable stake >= amount, so concurrent deals can never
+	// share (and over-promise) one bond.
+	Attestations []*Attestation `protobuf:"bytes,15,rep,name=attestations,proto3" json:"attestations,omitempty"`
 }
 
 func (m *Escrow) Reset()         { *m = Escrow{} }
@@ -143,33 +177,151 @@ func (m *Escrow) GetDeliveryHash() string {
 	return ""
 }
 
+func (m *Escrow) GetVerifierAddrs() []string {
+	if m != nil {
+		return m.VerifierAddrs
+	}
+	return nil
+}
+
+func (m *Escrow) GetVerifierQuorum() uint64 {
+	if m != nil {
+		return m.VerifierQuorum
+	}
+	return 0
+}
+
+func (m *Escrow) GetAcceptanceHash() string {
+	if m != nil {
+		return m.AcceptanceHash
+	}
+	return ""
+}
+
+func (m *Escrow) GetKeyHash() string {
+	if m != nil {
+		return m.KeyHash
+	}
+	return ""
+}
+
+func (m *Escrow) GetChallengeDeadline() int64 {
+	if m != nil {
+		return m.ChallengeDeadline
+	}
+	return 0
+}
+
+func (m *Escrow) GetAttestations() []*Attestation {
+	if m != nil {
+		return m.Attestations
+	}
+	return nil
+}
+
+// Attestation is one verifier's on-chain verdict over a submitted escrow:
+// "I ran the precommitted tests (acceptance_hash) against the delivered
+// artifact (delivery_hash/key_hash) and they passed/failed." The bond is the
+// attestation-stake backing it: released if unchallenged/coherent with a jury
+// verdict, slashed to the wronged party if the jury proves it false.
+type Attestation struct {
+	Verifier string `protobuf:"bytes,1,opt,name=verifier,proto3" json:"verifier,omitempty"`
+	Passed   bool   `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
+	BondId   uint64 `protobuf:"varint,3,opt,name=bond_id,json=bondId,proto3" json:"bond_id,omitempty"`
+}
+
+func (m *Attestation) Reset()         { *m = Attestation{} }
+func (m *Attestation) String() string { return proto.CompactTextString(m) }
+func (*Attestation) ProtoMessage()    {}
+func (*Attestation) Descriptor() ([]byte, []int) {
+	return fileDescriptor_be4ad29a706d10d3, []int{1}
+}
+func (m *Attestation) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Attestation) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Attestation.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Attestation) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Attestation.Merge(m, src)
+}
+func (m *Attestation) XXX_Size() int {
+	return m.Size()
+}
+func (m *Attestation) XXX_DiscardUnknown() {
+	xxx_messageInfo_Attestation.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Attestation proto.InternalMessageInfo
+
+func (m *Attestation) GetVerifier() string {
+	if m != nil {
+		return m.Verifier
+	}
+	return ""
+}
+
+func (m *Attestation) GetPassed() bool {
+	if m != nil {
+		return m.Passed
+	}
+	return false
+}
+
+func (m *Attestation) GetBondId() uint64 {
+	if m != nil {
+		return m.BondId
+	}
+	return 0
+}
+
 func init() {
 	proto.RegisterType((*Escrow)(nil), "agntcoin.agntcoin.v1.Escrow")
+	proto.RegisterType((*Attestation)(nil), "agntcoin.agntcoin.v1.Attestation")
 }
 
 func init() { proto.RegisterFile("agntcoin/agntcoin/v1/escrow.proto", fileDescriptor_be4ad29a706d10d3) }
 
 var fileDescriptor_be4ad29a706d10d3 = []byte{
-	// 294 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x44, 0x90, 0x4f, 0x4b, 0xfb, 0x30,
-	0x1c, 0xc6, 0x97, 0xfd, 0xe9, 0x6f, 0x0b, 0xbf, 0xa9, 0x84, 0x21, 0xc1, 0x43, 0xa8, 0x0a, 0xd2,
-	0xd3, 0xca, 0xf0, 0x15, 0x28, 0x08, 0x7a, 0xed, 0xd1, 0xcb, 0xc8, 0xd6, 0xaf, 0x6b, 0xb0, 0x4b,
-	0x4a, 0x92, 0x56, 0xeb, 0xab, 0xf0, 0x65, 0x79, 0xdc, 0xd1, 0xa3, 0xb4, 0x2f, 0xc0, 0xb7, 0x20,
-	0xcb, 0xd6, 0xf6, 0xf6, 0x7c, 0x3e, 0x79, 0xc2, 0x17, 0x1e, 0x7c, 0xc9, 0x37, 0xd2, 0xae, 0x95,
-	0x90, 0x61, 0x1b, 0x8a, 0x45, 0x08, 0x66, 0xad, 0xd5, 0xdb, 0x3c, 0xd3, 0xca, 0x2a, 0x32, 0x6b,
-	0x5e, 0xe6, 0x6d, 0x28, 0x16, 0x57, 0xbf, 0x08, 0x7b, 0x0f, 0xae, 0x46, 0x4e, 0x70, 0x5f, 0xc4,
-	0x14, 0xf9, 0x28, 0x18, 0x46, 0x7d, 0x11, 0x93, 0x19, 0x1e, 0x65, 0xbc, 0x04, 0x4d, 0xfb, 0x3e,
-	0x0a, 0x26, 0xd1, 0x01, 0x1a, 0x0b, 0x74, 0xd0, 0x59, 0x20, 0xe7, 0xd8, 0xe3, 0x5b, 0x95, 0x4b,
-	0x4b, 0x87, 0xee, 0xff, 0x91, 0xc8, 0x19, 0x1e, 0x68, 0x78, 0xa1, 0x23, 0xd7, 0xdd, 0xc7, 0x7d,
-	0xd3, 0x58, 0x6e, 0x73, 0x43, 0x3d, 0x27, 0x8f, 0x44, 0x2e, 0xf0, 0x38, 0x06, 0x1e, 0xa7, 0x42,
-	0x02, 0xfd, 0xe7, 0xa3, 0x60, 0x10, 0xb5, 0x4c, 0x6e, 0xf0, 0xa9, 0x54, 0x4b, 0x9e, 0x5b, 0xb5,
-	0xd4, 0x90, 0x02, 0x37, 0x40, 0xc7, 0x3e, 0x0a, 0xc6, 0xd1, 0x54, 0xaa, 0xbb, 0xdc, 0xaa, 0xe8,
-	0x20, 0xc9, 0x35, 0x9e, 0xc6, 0x90, 0x8a, 0x02, 0x74, 0xb9, 0x4c, 0xb8, 0x49, 0xe8, 0xc4, 0x9d,
-	0xf8, 0xdf, 0xc8, 0x47, 0x6e, 0x92, 0xfb, 0xa7, 0xaf, 0x8a, 0xa1, 0x5d, 0xc5, 0xd0, 0x4f, 0xc5,
-	0xd0, 0x67, 0xcd, 0x7a, 0xbb, 0x9a, 0xf5, 0xbe, 0x6b, 0xd6, 0x7b, 0x0e, 0x37, 0xc2, 0x26, 0xf9,
-	0x6a, 0xbe, 0x56, 0xdb, 0xf0, 0x43, 0xa5, 0x96, 0xcb, 0x57, 0x61, 0x4c, 0xb7, 0xe8, 0x7b, 0x17,
-	0x6d, 0x99, 0x81, 0x59, 0x79, 0x6e, 0xd9, 0xdb, 0xbf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xcc, 0x8f,
-	0xe6, 0xb3, 0x7e, 0x01, 0x00, 0x00,
+	// 459 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x92, 0xcd, 0x8e, 0xd3, 0x30,
+	0x10, 0xc7, 0x37, 0x4d, 0xb7, 0x1f, 0xee, 0x17, 0x58, 0x2b, 0x30, 0x1c, 0xa2, 0xec, 0x22, 0x20,
+	0x17, 0x52, 0x2d, 0x3c, 0x41, 0x11, 0x2b, 0xb1, 0x47, 0x7c, 0xdc, 0x4b, 0xe4, 0xc6, 0xb3, 0x8d,
+	0xd5, 0xd4, 0x0e, 0xb6, 0x53, 0x28, 0x4f, 0xc1, 0x63, 0x71, 0xdc, 0x23, 0x47, 0xd4, 0x3e, 0x05,
+	0x37, 0x14, 0xb7, 0x49, 0x40, 0xe2, 0x36, 0xff, 0xdf, 0xfc, 0x47, 0x63, 0xcf, 0x0c, 0xba, 0x64,
+	0x2b, 0x69, 0x53, 0x25, 0xe4, 0xbc, 0x09, 0xb6, 0xd7, 0x73, 0x30, 0xa9, 0x56, 0x5f, 0xe2, 0x42,
+	0x2b, 0xab, 0xf0, 0x45, 0x9d, 0x89, 0x9b, 0x60, 0x7b, 0x7d, 0xf5, 0xdb, 0x47, 0xbd, 0x1b, 0x67,
+	0xc3, 0x53, 0xd4, 0x11, 0x9c, 0x78, 0xa1, 0x17, 0x75, 0x69, 0x47, 0x70, 0x7c, 0x81, 0xce, 0x0b,
+	0xb6, 0x03, 0x4d, 0x3a, 0xa1, 0x17, 0x0d, 0xe9, 0x51, 0xd4, 0x14, 0x88, 0xdf, 0x52, 0xc0, 0x4f,
+	0x50, 0x8f, 0x6d, 0x54, 0x29, 0x2d, 0xe9, 0xba, 0xfa, 0x93, 0xc2, 0x8f, 0x90, 0xaf, 0xe1, 0x9e,
+	0x9c, 0x3b, 0x6f, 0x15, 0x56, 0x4e, 0x63, 0x99, 0x2d, 0x0d, 0xe9, 0x39, 0x78, 0x52, 0xf8, 0x39,
+	0x1a, 0x70, 0x60, 0x3c, 0x17, 0x12, 0x48, 0x3f, 0xf4, 0x22, 0x9f, 0x36, 0x1a, 0xbf, 0x42, 0x33,
+	0xa9, 0x12, 0x56, 0x5a, 0x95, 0x68, 0xc8, 0x81, 0x19, 0x20, 0x83, 0xd0, 0x8b, 0x06, 0x74, 0x22,
+	0xd5, 0xa2, 0xb4, 0x8a, 0x1e, 0x21, 0x7e, 0x81, 0x26, 0x1c, 0x72, 0xb1, 0x05, 0xbd, 0x4b, 0x32,
+	0x66, 0x32, 0x32, 0x74, 0x2d, 0xc6, 0x35, 0xfc, 0xc8, 0x4c, 0x86, 0x5f, 0xa2, 0xe9, 0x16, 0xb4,
+	0xb8, 0x17, 0xa0, 0x13, 0xc6, 0xb9, 0x36, 0x04, 0x85, 0x7e, 0x34, 0xa4, 0x93, 0x9a, 0x2e, 0x2a,
+	0x88, 0x5f, 0xa3, 0x59, 0x63, 0xfb, 0x5c, 0x2a, 0x5d, 0x6e, 0xc8, 0xc8, 0x7d, 0xad, 0xa9, 0xfe,
+	0xe4, 0x68, 0x65, 0x64, 0x69, 0x0a, 0x85, 0x65, 0x32, 0x85, 0x63, 0xdb, 0xb1, 0x6b, 0x3b, 0x6d,
+	0xb1, 0x6b, 0xfc, 0x0c, 0x0d, 0xd6, 0x70, 0x7a, 0xd8, 0xc4, 0x39, 0xfa, 0x6b, 0x38, 0xbe, 0xe9,
+	0x0d, 0xc2, 0x69, 0xc6, 0xf2, 0x1c, 0xe4, 0x0a, 0x92, 0x66, 0x0c, 0x53, 0x37, 0x86, 0xc7, 0x4d,
+	0xe6, 0x43, 0x3d, 0x8f, 0x1b, 0x34, 0x66, 0xd6, 0x42, 0x35, 0x39, 0xa1, 0xa4, 0x21, 0xb3, 0xd0,
+	0x8f, 0x46, 0x6f, 0x2f, 0xe3, 0xff, 0x6d, 0x38, 0x5e, 0xb4, 0x4e, 0xfa, 0x4f, 0xd9, 0xd5, 0x1d,
+	0x1a, 0xfd, 0x95, 0xac, 0x36, 0x50, 0x7f, 0xcd, 0x5d, 0xc1, 0x90, 0x36, 0xba, 0xda, 0x5a, 0xc1,
+	0x8c, 0x01, 0xee, 0x8e, 0x61, 0x40, 0x4f, 0x0a, 0x3f, 0x45, 0xfd, 0xa5, 0x92, 0x3c, 0x11, 0xdc,
+	0xdd, 0x43, 0x97, 0xf6, 0x2a, 0x79, 0xcb, 0xdf, 0xdf, 0xfe, 0xd8, 0x07, 0xde, 0xc3, 0x3e, 0xf0,
+	0x7e, 0xed, 0x03, 0xef, 0xfb, 0x21, 0x38, 0x7b, 0x38, 0x04, 0x67, 0x3f, 0x0f, 0xc1, 0xd9, 0xdd,
+	0x7c, 0x25, 0x6c, 0x56, 0x2e, 0xe3, 0x54, 0x6d, 0xe6, 0xdf, 0x54, 0x6e, 0x99, 0x5c, 0x0b, 0x63,
+	0xda, 0xbb, 0xfd, 0xda, 0x86, 0x76, 0x57, 0x80, 0x59, 0xf6, 0xdc, 0xfd, 0xbe, 0xfb, 0x13, 0x00,
+	0x00, 0xff, 0xff, 0xce, 0x84, 0x9d, 0xf0, 0xe4, 0x02, 0x00, 0x00,
 }
 
 func (m *Escrow) Marshal() (dAtA []byte, err error) {
@@ -192,6 +344,53 @@ func (m *Escrow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Attestations) > 0 {
+		for iNdEx := len(m.Attestations) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Attestations[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintEscrow(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x7a
+		}
+	}
+	if m.ChallengeDeadline != 0 {
+		i = encodeVarintEscrow(dAtA, i, uint64(m.ChallengeDeadline))
+		i--
+		dAtA[i] = 0x70
+	}
+	if len(m.KeyHash) > 0 {
+		i -= len(m.KeyHash)
+		copy(dAtA[i:], m.KeyHash)
+		i = encodeVarintEscrow(dAtA, i, uint64(len(m.KeyHash)))
+		i--
+		dAtA[i] = 0x6a
+	}
+	if len(m.AcceptanceHash) > 0 {
+		i -= len(m.AcceptanceHash)
+		copy(dAtA[i:], m.AcceptanceHash)
+		i = encodeVarintEscrow(dAtA, i, uint64(len(m.AcceptanceHash)))
+		i--
+		dAtA[i] = 0x62
+	}
+	if m.VerifierQuorum != 0 {
+		i = encodeVarintEscrow(dAtA, i, uint64(m.VerifierQuorum))
+		i--
+		dAtA[i] = 0x58
+	}
+	if len(m.VerifierAddrs) > 0 {
+		for iNdEx := len(m.VerifierAddrs) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.VerifierAddrs[iNdEx])
+			copy(dAtA[i:], m.VerifierAddrs[iNdEx])
+			i = encodeVarintEscrow(dAtA, i, uint64(len(m.VerifierAddrs[iNdEx])))
+			i--
+			dAtA[i] = 0x52
+		}
+	}
 	if len(m.DeliveryHash) > 0 {
 		i -= len(m.DeliveryHash)
 		copy(dAtA[i:], m.DeliveryHash)
@@ -255,6 +454,51 @@ func (m *Escrow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *Attestation) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Attestation) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Attestation) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.BondId != 0 {
+		i = encodeVarintEscrow(dAtA, i, uint64(m.BondId))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.Passed {
+		i--
+		if m.Passed {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.Verifier) > 0 {
+		i -= len(m.Verifier)
+		copy(dAtA[i:], m.Verifier)
+		i = encodeVarintEscrow(dAtA, i, uint64(len(m.Verifier)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintEscrow(dAtA []byte, offset int, v uint64) int {
 	offset -= sovEscrow(v)
 	base := offset
@@ -303,6 +547,51 @@ func (m *Escrow) Size() (n int) {
 	l = len(m.DeliveryHash)
 	if l > 0 {
 		n += 1 + l + sovEscrow(uint64(l))
+	}
+	if len(m.VerifierAddrs) > 0 {
+		for _, s := range m.VerifierAddrs {
+			l = len(s)
+			n += 1 + l + sovEscrow(uint64(l))
+		}
+	}
+	if m.VerifierQuorum != 0 {
+		n += 1 + sovEscrow(uint64(m.VerifierQuorum))
+	}
+	l = len(m.AcceptanceHash)
+	if l > 0 {
+		n += 1 + l + sovEscrow(uint64(l))
+	}
+	l = len(m.KeyHash)
+	if l > 0 {
+		n += 1 + l + sovEscrow(uint64(l))
+	}
+	if m.ChallengeDeadline != 0 {
+		n += 1 + sovEscrow(uint64(m.ChallengeDeadline))
+	}
+	if len(m.Attestations) > 0 {
+		for _, e := range m.Attestations {
+			l = e.Size()
+			n += 1 + l + sovEscrow(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *Attestation) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Verifier)
+	if l > 0 {
+		n += 1 + l + sovEscrow(uint64(l))
+	}
+	if m.Passed {
+		n += 2
+	}
+	if m.BondId != 0 {
+		n += 1 + sovEscrow(uint64(m.BondId))
 	}
 	return n
 }
@@ -579,6 +868,295 @@ func (m *Escrow) Unmarshal(dAtA []byte) error {
 			}
 			m.DeliveryHash = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VerifierAddrs", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEscrow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthEscrow
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEscrow
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.VerifierAddrs = append(m.VerifierAddrs, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 11:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VerifierQuorum", wireType)
+			}
+			m.VerifierQuorum = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEscrow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.VerifierQuorum |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AcceptanceHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEscrow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthEscrow
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEscrow
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AcceptanceHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 13:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field KeyHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEscrow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthEscrow
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEscrow
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.KeyHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChallengeDeadline", wireType)
+			}
+			m.ChallengeDeadline = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEscrow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ChallengeDeadline |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Attestations", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEscrow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEscrow
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEscrow
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Attestations = append(m.Attestations, &Attestation{})
+			if err := m.Attestations[len(m.Attestations)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipEscrow(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthEscrow
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *Attestation) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowEscrow
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Attestation: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Attestation: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Verifier", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEscrow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthEscrow
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEscrow
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Verifier = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Passed", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEscrow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Passed = bool(v != 0)
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BondId", wireType)
+			}
+			m.BondId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEscrow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BondId |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipEscrow(dAtA[iNdEx:])

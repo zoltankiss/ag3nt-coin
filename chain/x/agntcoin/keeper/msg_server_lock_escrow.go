@@ -27,6 +27,36 @@ func (k msgServer) LockEscrow(ctx context.Context, msg *types.MsgLockEscrow) (*t
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "payee cannot be the payer")
 	}
 
+	// Verifier-bound escrow validation (verifier-v1): the verifier set and
+	// quorum are fixed at funding time, before any work exists to judge.
+	noAutoRelease := msg.NoAutoRelease
+	if len(msg.VerifierAddrs) > 0 {
+		if msg.VerifierQuorum == 0 || msg.VerifierQuorum > uint64(len(msg.VerifierAddrs)) {
+			return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "verifier_quorum must be 1..%d", len(msg.VerifierAddrs))
+		}
+		seen := map[string]bool{}
+		for _, v := range msg.VerifierAddrs {
+			if _, err := k.addressCodec.StringToBytes(v); err != nil {
+				return nil, errorsmod.Wrapf(err, "invalid verifier address %s", v)
+			}
+			if v == msg.Creator || v == msg.Payee {
+				return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "a verifier cannot be the payer or the payee")
+			}
+			if seen[v] {
+				return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "duplicate verifier address")
+			}
+			seen[v] = true
+		}
+		// A verifier-bound escrow NEVER releases by the clock: if the deadline
+		// self-release path stayed open, the payee could skip the verifier
+		// entirely and wait it out — recreating it13 finding #19 against the
+		// verifier instead of the jury. Release authorities are exactly: the
+		// payer, a quorum of staked pass-attestations, or the jury.
+		noAutoRelease = true
+	} else if msg.VerifierQuorum > 0 {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "verifier_quorum requires verifier_addrs")
+	}
+
 	// Payer must be registered with sufficient balance.
 	payer, err := k.Account.Get(ctx, msg.Creator)
 	if err != nil || !payer.Registered {
@@ -62,14 +92,17 @@ func (k msgServer) LockEscrow(ctx context.Context, msg *types.MsgLockEscrow) (*t
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
 	escrow := types.Escrow{
-		Id:            id,
-		Payer:         msg.Creator,
-		Payee:         msg.Payee,
-		Amount:        msg.Amount,
-		Ref:           msg.Ref,
-		Status:        types.EscrowStatusLocked,
-		Deadline:      deadline,
-		NoAutoRelease: msg.NoAutoRelease,
+		Id:             id,
+		Payer:          msg.Creator,
+		Payee:          msg.Payee,
+		Amount:         msg.Amount,
+		Ref:            msg.Ref,
+		Status:         types.EscrowStatusLocked,
+		Deadline:       deadline,
+		NoAutoRelease:  noAutoRelease,
+		VerifierAddrs:  msg.VerifierAddrs,
+		VerifierQuorum: msg.VerifierQuorum,
+		AcceptanceHash: msg.AcceptanceHash,
 	}
 	if err := k.Escrow.Set(ctx, id, escrow); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
