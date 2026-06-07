@@ -231,7 +231,12 @@ export async function getReputation(address: string): Promise<string> {
 export async function getParams(): Promise<any> {
   const r = await fetch(`${Q}/params`);
   if (!r.ok) throw new Error(`params query failed: ${r.status} ${await r.text()}`);
-  return r.json();
+  const j: any = await r.json();
+  const envAnchors = (process.env.AGNTCOIN_ANCHORS || "")
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return { ...j, client_env_anchors: envAnchors };
 }
 
 export type EscrowRecord = { id: string; payer: string; payee: string; amount: string; ref: string; status: string; deadline: string };
