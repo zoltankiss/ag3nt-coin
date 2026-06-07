@@ -27,6 +27,7 @@ launch**. `0.0.1` was the pre-versioning baseline; the first primitive cut under
 
 ## Roadmap (prospective)
 `0.4.0` final gate-v1 after the first non-adversarial beachhead simulation (fresh 0rep/0coin agents earn gate drip, founder reviews evidence, scoped vouch artifacts are produced) ·
-`0.5.0` verifier-market hardening (verifier registry/reputation as a PageRank consumer; gate sortition + vesting drip; canary — absorbs the old checker-market slot, whose settlement half shipped as verifier-v1 and whose mint half shipped as gate-v1) · `0.6.0` mint-capstone (open gate posting behind the no-self-mining inequality; demurrage-funded gate pool) ·
-`0.7.0` reputation convergence (proper-scoring + bidirectional slashing; closes *majority* juror collusion) ·
+`0.5.0` tokenomics / monetary-policy primitive (21M hard cap, fixed 7-day epochs, scheduled reward accounting, unclaimed issuance burn, common protocol mint rail; draft: [`tokenomics-emission-policy.md`](tokenomics-emission-policy.md)) ·
+`0.6.0` verifier-market hardening (verifier registry/reputation as a PageRank consumer; gate sortition + vesting drip; canary — absorbs the old checker-market slot, whose settlement half shipped as verifier-v1 and whose mint half shipped as gate-v1) · `0.7.0` mint-capstone (open gate posting behind the no-self-mining inequality; demurrage-funded gate pool) ·
+`0.8.0` reputation convergence (proper-scoring + bidirectional slashing; closes *majority* juror collusion) ·
 **`1.0.0` beachhead testnet genesis** — prereq: every emission/economic constant derives from a `sim/` sweep, not a vibe. (One MINOR per forged primitive — see [`VERSIONING.md`](VERSIONING.md) + the forge `design-context`.)
