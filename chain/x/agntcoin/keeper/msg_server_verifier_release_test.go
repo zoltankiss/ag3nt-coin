@@ -33,10 +33,27 @@ func hexHash(s string) string {
 }
 
 const (
-	artifactKey  = "decryption-key-K-7f3a"
-	acceptHash   = "61626162ab12" // placeholder precommitment; opaque to the chain
-	deliveryHash = "feedc0de"
+	artifactKey        = "decryption-key-K-7f3a"
+	artifactCiphertext = "ciphertext-of-the-deliverable-v1"
 )
+
+// Real hex-sha256 commitments: the chain rejects anything a juror could never
+// re-check by hashing actual bytes (a malformed "hash" only looks like evidence).
+var (
+	acceptHash   = hexHash("pytest-suite+hermetic-env-spec-v1") // precommitment; CONTENT opaque to the chain
+	deliveryHash = hexHash(artifactCiphertext)
+)
+
+// attestMsg builds a verdict that RESTATES the standard test deal's
+// commitments — delivery_hash, key_hash, acceptance_hash — as the chain
+// requires (an attestation that names different bytes or a different
+// procedure than the escrow record is rejected).
+func attestMsg(creator string, id uint64, passed bool, stake uint64) *types.MsgAttestEscrow {
+	return &types.MsgAttestEscrow{
+		Creator: creator, EscrowId: id, Passed: passed, StakeAmount: stake,
+		DeliveryHash: deliveryHash, KeyHash: hexHash(artifactKey), AcceptanceHash: acceptHash,
+	}
+}
 
 // lockVerified locks a 400 payer→payee escrow bound to the given verifier set.
 func lockVerified(t *testing.T, f *fixture, ms types.MsgServer, quorum uint64, verifiers ...string) uint64 {
@@ -92,9 +109,7 @@ func TestVerifiedReleaseHappyPathNonCooperativeBuyer(t *testing.T) {
 
 	// Verifier runs the precommitted acceptance procedure off-chain, attests
 	// pass with a stake covering the bounty. Stake debited + locked.
-	ar, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{
-		Creator: verifier, EscrowId: id, Passed: true, StakeAmount: 400,
-	})
+	ar, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), attestMsg(verifier, id, true, 400))
 	require.NoError(t, err)
 	require.Equal(t, uint64(600), balanceOf(t, f, verifier))
 
@@ -137,9 +152,7 @@ func TestFailAttestationGatesRefundBehindContestWindow(t *testing.T) {
 	submitEncrypted(t, f, ms, id)
 
 	// 2/3 tests fail → staked fail verdict. Escrow enters the contest window.
-	_, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{
-		Creator: verifier, EscrowId: id, Passed: false, StakeAmount: 400,
-	})
+	_, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), attestMsg(verifier, id, false, 400))
 	require.NoError(t, err)
 	esc, _ := f.keeper.Escrow.Get(f.ctx, id)
 	require.Equal(t, types.EscrowStatusFailAttested, esc.Status)
@@ -185,9 +198,7 @@ func TestLyingVerifierSlashedToBuyerViaChallenge(t *testing.T) {
 
 	id := lockVerified(t, f, ms, 1, verifier)
 	submitEncrypted(t, f, ms, id)
-	_, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{
-		Creator: verifier, EscrowId: id, Passed: true, StakeAmount: 400, // the lie
-	})
+	_, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), attestMsg(verifier, id, true, 400)) // the lie
 	require.NoError(t, err)
 	_, err = ms.VerifiedRelease(setBlockTime(f.ctx, 120), &types.MsgVerifiedRelease{Creator: addrPayee, EscrowId: id, Key: artifactKey})
 	require.NoError(t, err)
@@ -274,9 +285,7 @@ func TestFrivolousChallengeSlashedToVerifier(t *testing.T) {
 
 	id := lockVerified(t, f, ms, 1, verifier)
 	submitEncrypted(t, f, ms, id)
-	_, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{
-		Creator: verifier, EscrowId: id, Passed: true, StakeAmount: 400, // honest
-	})
+	_, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), attestMsg(verifier, id, true, 400)) // honest
 	require.NoError(t, err)
 	_, err = ms.VerifiedRelease(setBlockTime(f.ctx, 120), &types.MsgVerifiedRelease{Creator: addrPayee, EscrowId: id, Key: artifactKey})
 	require.NoError(t, err)
@@ -315,9 +324,7 @@ func TestFalseFailContestSlashesVerifierToSeller(t *testing.T) {
 
 	id := lockVerified(t, f, ms, 1, verifier)
 	submitEncrypted(t, f, ms, id)
-	_, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{
-		Creator: verifier, EscrowId: id, Passed: false, StakeAmount: 400, // the false fail
-	})
+	_, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), attestMsg(verifier, id, false, 400)) // the false fail
 	require.NoError(t, err)
 
 	// Payee contests inside the window (a payer cannot — it's not their window).
@@ -374,7 +381,11 @@ func TestVerificationMethodIsOpaqueToTheChain(t *testing.T) {
 	submitEncrypted(t, f, ms, id)
 
 	// Verifier ran haiku 5x at temp 0 off-chain: 5/5 over threshold → pass.
-	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{Creator: verifier, EscrowId: id, Passed: true, StakeAmount: 400})
+	// The verdict restates the JUDGE spec hash, same as it would a test suite.
+	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{
+		Creator: verifier, EscrowId: id, Passed: true, StakeAmount: 400,
+		DeliveryHash: deliveryHash, KeyHash: hexHash(artifactKey), AcceptanceHash: hexHash(judgeSpec),
+	})
 	require.NoError(t, err)
 	_, err = ms.VerifiedRelease(setBlockTime(f.ctx, 120), &types.MsgVerifiedRelease{Creator: addrPayee, EscrowId: id, Key: artifactKey})
 	require.NoError(t, err)
@@ -399,12 +410,12 @@ func TestQuorumTwoOfThree(t *testing.T) {
 	id := lockVerified(t, f, ms, 2, v1, v2, v3)
 	submitEncrypted(t, f, ms, id)
 
-	_, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{Creator: v1, EscrowId: id, Passed: true, StakeAmount: 400})
+	_, err := ms.AttestEscrow(setBlockTime(f.ctx, 115), attestMsg(v1, id, true, 400))
 	require.NoError(t, err)
 	_, err = ms.VerifiedRelease(setBlockTime(f.ctx, 116), &types.MsgVerifiedRelease{Creator: addrPayee, EscrowId: id, Key: artifactKey})
 	require.Error(t, err, "1 of 2 required pass attestations must not release")
 
-	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 117), &types.MsgAttestEscrow{Creator: v2, EscrowId: id, Passed: true, StakeAmount: 400})
+	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 117), attestMsg(v2, id, true, 400))
 	require.NoError(t, err)
 	_, err = ms.VerifiedRelease(setBlockTime(f.ctx, 118), &types.MsgVerifiedRelease{Creator: addrPayee, EscrowId: id, Key: artifactKey})
 	require.NoError(t, err)
@@ -443,18 +454,18 @@ func TestVerifierGuards(t *testing.T) {
 	id := lockVerified(t, f, ms, 1, verifier)
 
 	// Attestation requires a submitted escrow…
-	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 105), &types.MsgAttestEscrow{Creator: verifier, EscrowId: id, Passed: true, StakeAmount: 400})
+	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 105), attestMsg(verifier, id, true, 400))
 	require.Error(t, err, "nothing to judge before submit")
 	submitEncrypted(t, f, ms, id)
 
 	// …set membership, full bond coverage, and one verdict per verifier.
-	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{Creator: outsider, EscrowId: id, Passed: true, StakeAmount: 400})
+	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 115), attestMsg(outsider, id, true, 400))
 	require.Error(t, err, "outsider cannot attest")
-	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{Creator: verifier, EscrowId: id, Passed: true, StakeAmount: 399})
+	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 115), attestMsg(verifier, id, true, 399))
 	require.Error(t, err, "stake below the bounty is theater, not coverage")
-	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{Creator: verifier, EscrowId: id, Passed: true, StakeAmount: 400})
+	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 115), attestMsg(verifier, id, true, 400))
 	require.NoError(t, err)
-	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 116), &types.MsgAttestEscrow{Creator: verifier, EscrowId: id, Passed: false, StakeAmount: 400})
+	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 116), attestMsg(verifier, id, false, 400))
 	require.Error(t, err, "no second verdict from the same verifier")
 
 	// The free pre-release freeze is closed for verifier-bound escrows.
@@ -485,14 +496,12 @@ func TestVerifierGuards(t *testing.T) {
 	_, err = ms.OpenDispute(setBlockTime(f.ctx, 125), &types.MsgOpenDispute{Creator: addrPayer, EscrowId: id2, Reason: "x", BondAmount: 100})
 	require.Error(t, err, "no attestations -> nothing to claim fraud against")
 
-	// An uncommitted "key reveal" is theater and is rejected.
+	// A verifier-bound delivery MUST commit the fair exchange. Key-less /
+	// hash-less submits are rejected outright: otherwise a seller + truthful
+	// verifier could collect via VerifiedRelease while withholding the
+	// artifact from the buyer — the attestation would be TRUE, so the fraud
+	// challenge could never make the buyer whole.
 	id3 := lockVerified(t, f, ms, 1, verifier)
-	_, err = ms.SubmitEscrow(setBlockTime(f.ctx, 110), &types.MsgSubmitEscrow{Creator: addrPayee, Id: id3}) // no key_hash
-	require.NoError(t, err)
-	_, err = ms.AttestEscrow(setBlockTime(f.ctx, 115), &types.MsgAttestEscrow{Creator: verifier, EscrowId: id3, Passed: true, StakeAmount: 400})
-	require.NoError(t, err)
-	_, err = ms.VerifiedRelease(setBlockTime(f.ctx, 120), &types.MsgVerifiedRelease{Creator: addrPayee, EscrowId: id3, Key: "surprise"})
-	require.Error(t, err, "key without a commitment")
-	_, err = ms.VerifiedRelease(setBlockTime(f.ctx, 120), &types.MsgVerifiedRelease{Creator: addrPayee, EscrowId: id3, Key: ""})
-	require.NoError(t, err, "key-less deals (platforms SHOULD require encryption, the chain does not)")
+	_, err = ms.SubmitEscrow(setBlockTime(f.ctx, 110), &types.MsgSubmitEscrow{Creator: addrPayee, Id: id3}) // no commitments
+	require.Error(t, err, "verifier-bound submit without delivery_hash+key_hash")
 }

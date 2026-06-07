@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 
 	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
@@ -61,6 +62,20 @@ func (k msgServer) AttestEscrow(ctx context.Context, msg *types.MsgAttestEscrow)
 		}
 	}
 
+	// The verdict must RESTATE what was judged: the exact artifact bytes
+	// (delivery_hash), key commitment (key_hash) and precommitted procedure
+	// (acceptance_hash). Any mismatch with the escrow record is rejected, so
+	// an attestation can never be silently re-bound to tests the verifier
+	// didn't run or bytes it didn't check — and a verifier whose tooling
+	// drifted fails loudly here instead of staking on a verdict it never
+	// made. The pins persist on the attestation: self-contained evidence for
+	// a later jury, robust to any future state-machine change.
+	if !strings.EqualFold(msg.DeliveryHash, escrow.DeliveryHash) ||
+		!strings.EqualFold(msg.KeyHash, escrow.KeyHash) ||
+		!strings.EqualFold(msg.AcceptanceHash, escrow.AcceptanceHash) {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "attestation must restate the escrow's delivery_hash, key_hash and acceptance_hash exactly")
+	}
+
 	// Bond coverage: this attestation alone must be able to make the wronged
 	// party whole, so the stake must cover the full bounty. Chain-enforced
 	// here (not spot-checked at release) — the deterrent is arithmetic, not
@@ -95,13 +110,19 @@ func (k msgServer) AttestEscrow(ctx context.Context, msg *types.MsgAttestEscrow)
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
 
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	escrow.Attestations = append(escrow.Attestations, &types.Attestation{
 		Verifier: msg.Creator,
 		Passed:   msg.Passed,
 		BondId:   bondID,
+		// Stored in the escrow's canonical casing — the verdict's pins and the
+		// escrow's commitments stay byte-identical for any later comparison.
+		DeliveryHash:   escrow.DeliveryHash,
+		KeyHash:        escrow.KeyHash,
+		AcceptanceHash: escrow.AcceptanceHash,
+		AttestedAt:     sdkCtx.BlockTime().Unix(),
 	})
 
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	if !msg.Passed {
 		// Fail verdict: open the payee's contest window. Refund unlocks only
 		// once it passes uncontested (RefundEscrow checks this), so the fail

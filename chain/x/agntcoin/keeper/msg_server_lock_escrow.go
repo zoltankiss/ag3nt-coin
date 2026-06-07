@@ -47,6 +47,13 @@ func (k msgServer) LockEscrow(ctx context.Context, msg *types.MsgLockEscrow) (*t
 			}
 			seen[v] = true
 		}
+		// The acceptance procedure must be PINNED before any work exists to
+		// judge — an empty acceptance_hash IS the unpinned-procedure hole
+		// (verifier free to run different tests / runtime / fixtures), and a
+		// malformed one is unverifiable theater.
+		if !isHexSHA256(msg.AcceptanceHash) {
+			return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "verifier-bound escrow requires acceptance_hash (hex sha256 of the precommitted acceptance procedure)")
+		}
 		// A verifier-bound escrow NEVER releases by the clock: if the deadline
 		// self-release path stayed open, the payee could skip the verifier
 		// entirely and wait it out — recreating it13 finding #19 against the
@@ -55,6 +62,8 @@ func (k msgServer) LockEscrow(ctx context.Context, msg *types.MsgLockEscrow) (*t
 		noAutoRelease = true
 	} else if msg.VerifierQuorum > 0 {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "verifier_quorum requires verifier_addrs")
+	} else if msg.AcceptanceHash != "" && !isHexSHA256(msg.AcceptanceHash) {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "acceptance_hash must be a hex sha256")
 	}
 
 	// Payer must be registered with sufficient balance.

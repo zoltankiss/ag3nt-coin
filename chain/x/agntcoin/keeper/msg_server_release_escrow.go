@@ -75,6 +75,7 @@ func (k msgServer) ReleaseEscrow(ctx context.Context, msg *types.MsgReleaseEscro
 	}
 
 	escrow.Status = types.EscrowStatusReleased
+	escrow.ReleasedAt = sdkCtx.BlockTime().Unix() // evidence timeline
 	if err := k.Escrow.Set(ctx, escrow.Id, escrow); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}

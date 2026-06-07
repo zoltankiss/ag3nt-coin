@@ -54,11 +54,18 @@ func (k msgServer) VerifiedRelease(ctx context.Context, msg *types.MsgVerifiedRe
 	}
 
 	// Quorum: count distinct pass verdicts from the named set. AttestEscrow
-	// already enforced membership, uniqueness, and per-attestation stake >=
-	// amount, so counting is all that's left.
+	// already enforced membership, uniqueness, per-attestation stake >=
+	// amount, AND that the verdict restates the escrow's commitments — the
+	// match is re-checked here (belt-and-braces) so that even if a future
+	// code path ever stored an attestation whose pins drifted from the
+	// escrow's delivery_hash/key_hash/acceptance_hash, it could never count
+	// as a release authority.
 	var passed uint64
 	for _, a := range escrow.Attestations {
-		if a.Passed {
+		if a.Passed &&
+			strings.EqualFold(a.DeliveryHash, escrow.DeliveryHash) &&
+			strings.EqualFold(a.KeyHash, escrow.KeyHash) &&
+			strings.EqualFold(a.AcceptanceHash, escrow.AcceptanceHash) {
 			passed++
 		}
 	}
@@ -91,6 +98,8 @@ func (k msgServer) VerifiedRelease(ctx context.Context, msg *types.MsgVerifiedRe
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	escrow.Status = types.EscrowStatusReleased
+	// Evidence timeline: when settlement happened, by block time.
+	escrow.ReleasedAt = sdkCtx.BlockTime().Unix()
 	// Open the payer's fraud-challenge window (block time, never a
 	// party-supplied timestamp). The attestation stakes stay locked until it
 	// passes uncontested (ReclaimAttestationBonds) or a jury settles them.

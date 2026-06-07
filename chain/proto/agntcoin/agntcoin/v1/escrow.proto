@@ -64,6 +64,18 @@ message Escrow {
   // per-attestation slashable stake >= amount, so concurrent deals can never
   // share (and over-promise) one bond.
   repeated Attestation attestations = 15;
+  // artifact_uri is a content-addressable pointer to the submitted artifact
+  // ciphertext (e.g. ipfs://, https://), set by the payee at submit time next
+  // to delivery_hash. The chain can't guarantee availability, but pinning the
+  // canonical reference beside the hash makes the on-chain record a
+  // self-contained evidence bundle: jurors fetch bytes from here, re-hash, and
+  // compare against delivery_hash — never trusting a mutable app DB row.
+  string artifact_uri = 16;
+  // submitted_at / released_at (unix sec, block time at tx inclusion) complete
+  // the evidence bundle's timeline for jurors and fraud challenges. 0 = the
+  // event has not happened.
+  int64 submitted_at = 17;
+  int64 released_at = 18;
 }
 
 // Attestation is one verifier's on-chain verdict over a submitted escrow:
@@ -75,4 +87,16 @@ message Attestation {
   string verifier = 1;
   bool passed = 2;
   uint64 bond_id = 3;
+  // The verdict is cryptographically bound to WHAT was judged: the verifier
+  // restates the artifact commitment (delivery_hash), the key commitment
+  // (key_hash) and the precommitted acceptance procedure (acceptance_hash) in
+  // the AttestEscrow tx, and the chain rejects any mismatch with the escrow
+  // record. A verifier that ran different tests / judged different bytes
+  // cannot produce a counting attestation, and the stored attestation is
+  // self-contained evidence for a later jury.
+  string delivery_hash = 4;
+  string key_hash = 5;
+  string acceptance_hash = 6;
+  // attested_at (unix sec, block time at tx inclusion) — evidence timeline.
+  int64 attested_at = 7;
 }

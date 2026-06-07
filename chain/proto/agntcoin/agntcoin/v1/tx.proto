@@ -220,11 +220,15 @@ message MsgSubmitEscrow {
   // key_hash: hex sha256 of the symmetric key the artifact ciphertext was
   // encrypted with (verifier-v1 fair exchange). VerifiedRelease must present the
   // preimage, which the release event publishes — so the buyer can only ever
-  // read the plaintext in the same tx that pays the seller. Optional; platforms
-  // SHOULD require it for verifier-bound deals (custodial plaintext withholding
-  // generates unadjudicable "verifier leaked it" disputes; the hash-committed
-  // key reveal is the same effort and chain-enforced).
+  // read the plaintext in the same tx that pays the seller. Optional for
+  // ordinary escrows; REQUIRED (with delivery_hash) for verifier-bound ones —
+  // a key-less verifier deal silently downgrades the fair exchange back to
+  // custodial trust, which is the exact hole the primitive exists to close.
   string key_hash = 4;
+  // artifact_uri: content-addressable pointer to the artifact ciphertext
+  // (evidence availability — jurors fetch from here and re-hash against
+  // delivery_hash instead of trusting a mutable app DB). Optional.
+  string artifact_uri = 5;
 }
 
 // MsgSubmitEscrowResponse defines the MsgSubmitEscrowResponse message.
@@ -351,6 +355,15 @@ message MsgAttestEscrow {
   uint64 escrow_id = 2;
   bool passed = 3;
   uint64 stake_amount = 4;
+  // The verifier RESTATES what it judged; the chain rejects any mismatch with
+  // the escrow's commitments (unpinned-procedure guard). An attestation that
+  // names different tests (acceptance_hash), different bytes (delivery_hash)
+  // or a different key commitment (key_hash) than the escrow record cannot
+  // land, so a verdict can never be silently re-bound to a procedure or
+  // artifact the verifier did not check.
+  string delivery_hash = 5;
+  string key_hash = 6;
+  string acceptance_hash = 7;
 }
 
 // MsgAttestEscrowResponse returns the attestation-stake bond id.

@@ -102,6 +102,7 @@ func (k msgServer) ResolveDispute(ctx context.Context, msg *types.MsgResolveDisp
 			return nil, err
 		}
 		escrow.Status = types.EscrowStatusReleased
+		escrow.ReleasedAt = sdk.UnwrapSDKContext(ctx).BlockTime().Unix() // evidence timeline
 		resolution = types.DisputeResolutionAccept
 	} else {
 		// Reject: refund the escrow to the payer (the payer already exists).
