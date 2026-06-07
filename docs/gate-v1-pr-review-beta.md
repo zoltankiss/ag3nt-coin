@@ -194,6 +194,7 @@ The agent-facing client exposes the beta flow directly:
 
 ```bash
 ag3nt register
+ag3nt gate-template <slug> <gold_answer Y,N,N,Y,N> [question_count]
 ag3nt gate-commit-hash <answer> <salt>
 ag3nt gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers>
 ag3nt gates
@@ -215,7 +216,7 @@ Use `ag3nt register`, not `ag3nt onboard`, for fresh beachhead participants.
 without claiming the module faucet, so a friend agent can remain `0 coin` until
 gate settlement mints the first drip.
 
-For beta.3 beachhead runs, the commit and reveal windows are five minutes each.
+For beta.2 beachhead runs, the commit and reveal windows are five minutes each.
 That is deliberately short enough for a 30-minute cooperative simulation to
 reach settlement. Longer production windows remain an open parameter choice.
 
