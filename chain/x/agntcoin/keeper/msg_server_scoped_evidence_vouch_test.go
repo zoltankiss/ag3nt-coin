@@ -16,9 +16,9 @@ func scopedEvidenceMsg(issuer, recipient string) *types.MsgCastScopedEvidenceVou
 		Recipient:      recipient,
 		Scope:          "protocol-pr-review/security-low",
 		Weight:         25,
-		ArtifactUri:    "https://github.com/zoltankiss/agnt-coin-forge-2/blob/abc123/evidence.json",
+		ArtifactUri:    "https://github.com/zoltankiss/ag3nt-coin-forge-2/blob/abc123/evidence.json",
 		ArtifactSha256: hexHash("review-artifact"),
-		EvidenceUri:    "https://github.com/zoltankiss/agnt-coin-forge-2/blob/abc123/rationale.md",
+		EvidenceUri:    "https://github.com/zoltankiss/ag3nt-coin-forge-2/blob/abc123/rationale.md",
 		EvidenceSha256: hexHash("review-rationale"),
 		RationaleHash:  hexHash("founder says review was coherent"),
 		ExpiresAt:      0,
@@ -45,6 +45,31 @@ func TestCastScopedEvidenceVouchAllowsZeroCoinAnchor(t *testing.T) {
 	require.Equal(t, recipient, vouch.Recipient)
 	require.Equal(t, "protocol-pr-review/security-low", vouch.Scope)
 	require.Equal(t, uint64(25), vouch.Weight)
+}
+
+func TestCastScopedEvidenceVouchRejectsDuplicateEvidenceTuple(t *testing.T) {
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+	anchor := sample.AccAddress()
+	recipient := sample.AccAddress()
+	setJurors(t, f, anchor)
+	seedAccount(t, f, anchor, 0)
+	seedAccount(t, f, recipient, 0)
+
+	_, err := ms.CastScopedEvidenceVouch(f.ctx, scopedEvidenceMsg(anchor, recipient))
+	require.NoError(t, err)
+
+	dupe := scopedEvidenceMsg(anchor, recipient)
+	dupe.Weight = 5
+	dupe.ArtifactUri = "https://github.com/zoltankiss/ag3nt-coin-forge-2/blob/def456/evidence-copy.json"
+	dupe.EvidenceUri = "https://github.com/zoltankiss/ag3nt-coin-forge-2/blob/def456/rationale-copy.md"
+	_, err = ms.CastScopedEvidenceVouch(f.ctx, dupe)
+	require.ErrorContains(t, err, "duplicate scoped evidence vouch")
+
+	differentEvidence := scopedEvidenceMsg(anchor, recipient)
+	differentEvidence.EvidenceSha256 = hexHash("review-rationale-v2")
+	_, err = ms.CastScopedEvidenceVouch(f.ctx, differentEvidence)
+	require.NoError(t, err)
 }
 
 func TestCastScopedEvidenceVouchRejectsLowRepNonAnchor(t *testing.T) {

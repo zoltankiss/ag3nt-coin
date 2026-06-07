@@ -774,11 +774,91 @@ export function isExternallyFetchableArtifactUri(uri: string): boolean {
   }
 }
 
+const knownBadGitHubRepos: Record<string, string> = {
+  "zoltankiss/agnt-coin-forge-2": "zoltankiss/ag3nt-coin-forge-2",
+  "zoltankiss/agnt-coin": "zoltankiss/ag3nt-coin",
+  "zoltankiss/agntcoin": "zoltankiss/ag3nt-coin",
+};
+
+export function knownGitHubArtifactRepoProblem(uri: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(uri);
+  } catch {
+    return null;
+  }
+
+  let owner = "";
+  let repo = "";
+  if (u.hostname === "github.com") {
+    const parts = u.pathname.split("/").filter(Boolean);
+    owner = parts[0] || "";
+    repo = parts[1] || "";
+  } else if (u.hostname === "raw.githubusercontent.com") {
+    const parts = u.pathname.split("/").filter(Boolean);
+    owner = parts[0] || "";
+    repo = parts[1] || "";
+  }
+
+  if (!owner || !repo) return null;
+  const key = `${owner}/${repo}`;
+  const correction = knownBadGitHubRepos[key];
+  if (!correction) return null;
+  return `known bad GitHub artifact repo '${key}'; did you mean '${correction}'?`;
+}
+
+function assertKnownGitHubArtifactRepo(uri: string, field: string) {
+  const problem = knownGitHubArtifactRepoProblem(uri);
+  if (problem) throw new Error(`${field}: ${problem}`);
+}
+
 export function assertExternallyFetchableArtifactUri(uri: string, field = "artifact_uri") {
   if (process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI === "1") return;
   if (!isExternallyFetchableArtifactUri(uri)) {
     throw new Error(`${field} must be externally fetchable (https://, git+https://, or ipfs://). Set AG3NT_ALLOW_LOCAL_ARTIFACT_URI=1 only for single-machine smoke tests.`);
   }
+  assertKnownGitHubArtifactRepo(uri, field);
+}
+
+export function artifactFetchUri(uri: string): string {
+  const u = new URL(uri);
+  if (u.protocol !== "https:") {
+    throw new Error(`artifact-check can fetch https:// artifacts only for now; got ${u.protocol}`);
+  }
+  if (u.hostname !== "github.com") return uri;
+
+  const parts = u.pathname.split("/").filter(Boolean);
+  if (parts.length >= 5 && parts[2] === "blob") {
+    const [owner, repo, , ref, ...pathParts] = parts;
+    return `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${pathParts.join("/")}`;
+  }
+  return uri;
+}
+
+export async function artifactCheck(uri: string, expectedSha256: string) {
+  assertExternallyFetchableArtifactUri(uri, "artifact_uri");
+  if (!isHexSHA256Local(expectedSha256)) {
+    throw new Error("expected sha256 must be a hex sha256");
+  }
+  const fetchUri = artifactFetchUri(uri);
+  const r = await fetch(fetchUri);
+  if (!r.ok) {
+    throw new Error(`artifact fetch failed: HTTP ${r.status} ${r.statusText} for ${fetchUri}`);
+  }
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  const actualSha256 = bytesToHex(sha256(bytes));
+  return {
+    ok: actualSha256.toLowerCase() === expectedSha256.toLowerCase(),
+    uri,
+    fetch_uri: fetchUri,
+    expected_sha256: expectedSha256.toLowerCase(),
+    actual_sha256: actualSha256,
+    bytes: bytes.length,
+  };
+}
+
+function isHexSHA256Local(s: string): boolean {
+  return /^[0-9a-fA-F]{64}$/.test(s);
 }
 
 export async function castScopedEvidenceVouch(
@@ -852,6 +932,7 @@ export function addDoc() {
       { cmd: "ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount>", summary: "Anchor only: mint capped AGNT to the author of an accepted protocol contribution, pinned by hashes." },
       { cmd: "ag3nt contribution-awards", summary: "List accepted protocol contribution awards." },
       { cmd: "ag3nt contribution-award-get <id>", summary: "Read one accepted protocol contribution award." },
+      { cmd: "ag3nt artifact-check <uri> <sha256>", summary: "Fetch an externally reviewable artifact and verify its SHA-256; rejects known bad GitHub repo typos." },
       { cmd: "ag3nt scoped-vouch <recipient> <scope> <weight> <artifact_uri> <artifact_sha256> <evidence_uri> <evidence_sha256> <rationale_hash|-> <expires_at>", summary: "Anchor/high-rep issuer: record a reputation-backed scoped evidence vouch without AGNT stake." },
       { cmd: "ag3nt scoped-vouches", summary: "List scoped evidence vouches." },
       { cmd: "ag3nt scoped-vouch-get <id>", summary: "Read one scoped evidence vouch." },

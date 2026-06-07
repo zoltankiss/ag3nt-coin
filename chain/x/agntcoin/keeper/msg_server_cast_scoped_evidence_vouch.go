@@ -32,16 +32,20 @@ func (k msgServer) CastScopedEvidenceVouch(ctx context.Context, msg *types.MsgCa
 			return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "issuer reputation %.8f below scoped evidence threshold %.8f", score, types.MinScopedEvidenceReputation)
 		}
 	}
-	if strings.TrimSpace(msg.Scope) == "" {
+	scope := strings.TrimSpace(msg.Scope)
+	artifactURI := strings.TrimSpace(msg.ArtifactUri)
+	evidenceURI := strings.TrimSpace(msg.EvidenceUri)
+
+	if scope == "" {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "scope is required")
 	}
 	if msg.Weight == 0 || msg.Weight > types.MaxVouchWeight {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "weight must be 1..%d", types.MaxVouchWeight)
 	}
-	if strings.TrimSpace(msg.ArtifactUri) == "" {
+	if artifactURI == "" {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "artifact_uri is required")
 	}
-	if strings.TrimSpace(msg.EvidenceUri) == "" {
+	if evidenceURI == "" {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "evidence_uri is required")
 	}
 	if !isHexSHA256(msg.ArtifactSha256) {
@@ -54,6 +58,25 @@ func (k msgServer) CastScopedEvidenceVouch(ctx context.Context, msg *types.MsgCa
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "rationale_hash must be a hex sha256 when provided")
 	}
 
+	var duplicate bool
+	err = k.ScopedEvidenceVouch.Walk(ctx, nil, func(_ uint64, v types.ScopedEvidenceVouch) (bool, error) {
+		if v.Issuer == msg.Creator &&
+			v.Recipient == msg.Recipient &&
+			strings.TrimSpace(v.Scope) == scope &&
+			strings.EqualFold(v.ArtifactSha256, msg.ArtifactSha256) &&
+			strings.EqualFold(v.EvidenceSha256, msg.EvidenceSha256) {
+			duplicate = true
+			return true, nil
+		}
+		return false, nil
+	})
+	if err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+	}
+	if duplicate {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "duplicate scoped evidence vouch for issuer/recipient/scope/artifact/evidence")
+	}
+
 	id, err := k.ScopedEvidenceVouchSeq.Next(ctx)
 	if err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
@@ -62,11 +85,11 @@ func (k msgServer) CastScopedEvidenceVouch(ctx context.Context, msg *types.MsgCa
 		Id:             id,
 		Issuer:         msg.Creator,
 		Recipient:      msg.Recipient,
-		Scope:          msg.Scope,
+		Scope:          scope,
 		Weight:         msg.Weight,
-		ArtifactUri:    msg.ArtifactUri,
+		ArtifactUri:    artifactURI,
 		ArtifactSha256: msg.ArtifactSha256,
-		EvidenceUri:    msg.EvidenceUri,
+		EvidenceUri:    evidenceURI,
 		EvidenceSha256: msg.EvidenceSha256,
 		RationaleHash:  msg.RationaleHash,
 		ExpiresAt:      msg.ExpiresAt,
@@ -80,7 +103,7 @@ func (k msgServer) CastScopedEvidenceVouch(ctx context.Context, msg *types.MsgCa
 			sdk.NewAttribute("id", strconv.FormatUint(id, 10)),
 			sdk.NewAttribute("issuer", msg.Creator),
 			sdk.NewAttribute("recipient", msg.Recipient),
-			sdk.NewAttribute("scope", msg.Scope),
+			sdk.NewAttribute("scope", scope),
 			sdk.NewAttribute("weight", strconv.FormatUint(msg.Weight, 10)),
 			sdk.NewAttribute("artifact_sha256", msg.ArtifactSha256),
 			sdk.NewAttribute("evidence_sha256", msg.EvidenceSha256),

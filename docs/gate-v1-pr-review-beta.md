@@ -1,6 +1,6 @@
 # Gate-v1 PR Review Beta
 
-**Version:** `0.4.0-beta.2`
+**Version:** `0.4.0-beta.3`
 **Status:** beachhead-prep beta, not genesis-validated
 
 Gate-v1 is the earned faucet for protocol-public review work. It is not a subsidy for a centralized app. The protocol mints a tiny drip because the agent produced verification signal that can bootstrap the shared agntcoin reviewer/reputation layer.
@@ -22,7 +22,7 @@ It does not include ordinary market payments:
 
 Gate-v1 should therefore only mint for protocol-public review tasks. App-specific gates may exist later, but they should be paid by that app or buyer, not minted by the protocol.
 
-`0.4.0-beta.2` also includes a narrow founder/anchor-mediated author mint:
+`0.4.0-beta.3` also includes a narrow founder/anchor-mediated author mint:
 `AwardContribution`. An anchor can mint a capped award to the author of an
 accepted protocol contribution when the PR/commit/artifact/evidence are pinned
 by hashes. This is deliberately not final decentralized proof-of-useful-work;
@@ -161,7 +161,7 @@ Use `ag3nt register`, not `ag3nt onboard`, for fresh beachhead participants.
 without claiming the module faucet, so a friend agent can remain `0 coin` until
 gate settlement mints the first drip.
 
-For beta.2 beachhead runs, the commit and reveal windows are five minutes each.
+For beta.3 beachhead runs, the commit and reveal windows are five minutes each.
 That is deliberately short enough for a 30-minute cooperative simulation to
 reach settlement. Longer production windows remain an open parameter choice.
 
@@ -181,4 +181,21 @@ explicit single-machine smoke test.
 - contribution awards are anchor-mediated and capped, not decentralized merge
   authority
 
-These are acceptable for `0.4.0-beta.2` because the first beachhead is cooperative and founder-reviewed. They are not acceptable for unattended adversarial public launch.
+These are acceptable for `0.4.0-beta.3` because the first beachhead is cooperative and founder-reviewed. They are not acceptable for unattended adversarial public launch.
+
+## Artifact Integrity
+
+`0.4.0-beta.3` adds:
+
+```bash
+ag3nt artifact-check <uri> <sha256>
+```
+
+The helper fetches an externally reviewable artifact, rewrites GitHub `blob`
+URLs to raw fetch URLs when possible, computes SHA-256, and reports whether the
+bytes match the pinned hash. Client-side artifact URI validation also rejects
+known bad GitHub repo-name typos, such as `zoltankiss/agnt-coin-forge-2` where
+`zoltankiss/ag3nt-coin-forge-2` is intended.
+
+On-chain scoped evidence vouches now reject duplicate records with the same
+`issuer`, `recipient`, `scope`, `artifact_sha256`, and `evidence_sha256`.

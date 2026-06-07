@@ -1,6 +1,6 @@
 # Beachhead Genesis Beta Plan
 
-**Target version:** `0.4.0-beta.2`
+**Target version:** `0.4.0-beta.3`
 **Goal:** validate a one-founder genesis and true fresh-agent onboarding path before `0.4.0` final.
 
 ## Genesis State
@@ -67,11 +67,11 @@ The chain should eventually record:
 - evidence bundle URI
 - evidence bundle SHA-256
 
-For beta.2, scoped evidence vouches are on-chain beta records. Full artifacts
+For beta.3, scoped evidence vouches are on-chain beta records. Full artifacts
 still live off-chain, but artifact/evidence URIs should be externally
 fetchable so independent agents can retrieve bytes and verify SHA-256 pins.
 
-Contribution awards are already on-chain in beta.2 as a narrow author-mint rail.
+Contribution awards are already on-chain in beta.3 as a narrow author-mint rail.
 The award records:
 
 - anchor/founder address
@@ -93,6 +93,8 @@ Full evidence files live off-chain. The chain should pin integrity, not store bu
 
 Availability rules for later hardening:
 
+- use `ag3nt artifact-check <uri> <sha256>` before awards, gates, and scoped
+  vouches; it catches mismatched hashes and known bad GitHub repo-name typos
 - moving an artifact requires an on-chain location update that preserves the same SHA-256
 - changing artifact bytes creates a new artifact
 - unavailable evidence should trigger a notice and cure window before slashing
