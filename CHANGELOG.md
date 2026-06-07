@@ -13,14 +13,13 @@ full historical version log lives in [`docs/VERSIONS.md`](docs/VERSIONS.md).
   a blind gate public payload skeleton and a separate private gold-answer file.
 - Defaulted beta gate templates to a 5-question binary `Y/N` answer vector,
   with supported template bounds of 3 to 7 questions.
-- Added authenticated private GitHub artifact fetch support to
-  `ag3nt artifact-check` through `AG3NT_ALLOW_GH_PRIVATE_ARTIFACT=1` and the
-  local `gh` CLI.
 
 ### Changed
 
 - Updated artifact-check output to report the access method used for fetched
   bytes.
+- Clarified that private GitHub access is private-run operator tooling, not a
+  public-chain artifact primitive.
 - Updated `VERSION` to `0.5.0-beta.2`.
 
 ### Validated
@@ -28,10 +27,7 @@ full historical version log lives in [`docs/VERSIONS.md`](docs/VERSIONS.md).
 - Verified `ag3nt gate-template` creates a public payload with no
   `gold_answer`/`gold_salt` fields and a private settlement file containing the
   gold data.
-- Verified private GitHub artifact-check against
-  `zoltankiss/ag3nt-coin@e5f1f69` using authenticated `gh`.
-- Verified `ag3nt discover` advertises the new gate-template and private
-  GitHub artifact-check guidance.
+- Verified `ag3nt discover` advertises the new gate-template surface.
 
 ## [0.5.0-beta.1] - 2026-06-07
 

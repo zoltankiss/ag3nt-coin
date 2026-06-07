@@ -22,7 +22,6 @@ import { sha512 } from "@noble/hashes/sha512";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
 import { randomBytes } from "crypto";
-import { execFileSync } from "child_process";
 import { toBech32, toBase64, fromBase64 } from "@cosmjs/encoding";
 import { TxBody, AuthInfo, SignerInfo, Fee, SignDoc, TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { SignMode } from "cosmjs-types/cosmos/tx/signing/v1beta1/signing";
@@ -915,61 +914,23 @@ export function artifactFetchUri(uri: string): string {
   return uri;
 }
 
-function parseGitHubContentUri(uri: string): { owner: string; repo: string; ref: string; path: string } | null {
-  const u = new URL(uri);
-  const parts = u.pathname.split("/").filter(Boolean);
-  if (u.hostname === "github.com" && parts.length >= 5 && parts[2] === "blob") {
-    const [owner, repo, , ref, ...pathParts] = parts;
-    return { owner, repo, ref, path: pathParts.join("/") };
-  }
-  if (u.hostname === "raw.githubusercontent.com" && parts.length >= 4) {
-    const [owner, repo, ref, ...pathParts] = parts;
-    return { owner, repo, ref, path: pathParts.join("/") };
-  }
-  return null;
-}
-
-function fetchGitHubPrivateArtifact(uri: string): { bytes: Uint8Array; fetchUri: string; accessMethod: string } | null {
-  if (process.env.AG3NT_ALLOW_GH_PRIVATE_ARTIFACT !== "1") return null;
-  const parsed = parseGitHubContentUri(uri);
-  if (!parsed) return null;
-  const encodedPath = parsed.path.split("/").map(encodeURIComponent).join("/");
-  const apiPath = `repos/${parsed.owner}/${parsed.repo}/contents/${encodedPath}?ref=${encodeURIComponent(parsed.ref)}`;
-  const content = execFileSync("gh", ["api", apiPath, "--jq", ".content"], { encoding: "utf8" });
-  const bytes = Buffer.from(content.replace(/\s+/g, ""), "base64");
-  return {
-    bytes: new Uint8Array(bytes),
-    fetchUri: `gh api ${apiPath}`,
-    accessMethod: "gh-cli",
-  };
-}
-
 export async function artifactCheck(uri: string, expectedSha256: string) {
   assertExternallyFetchableArtifactUri(uri, "artifact_uri");
   if (!isHexSHA256Local(expectedSha256)) {
     throw new Error("expected sha256 must be a hex sha256");
   }
-  let fetchUri = artifactFetchUri(uri);
-  let accessMethod = "https";
-  let bytes: Uint8Array;
-  const ghArtifact = fetchGitHubPrivateArtifact(uri);
-  if (ghArtifact) {
-    bytes = ghArtifact.bytes;
-    fetchUri = ghArtifact.fetchUri;
-    accessMethod = ghArtifact.accessMethod;
-  } else {
-    const r = await fetch(fetchUri);
-    if (!r.ok) {
-      throw new Error(`artifact fetch failed: HTTP ${r.status} ${r.statusText} for ${fetchUri}`);
-    }
-    bytes = new Uint8Array(await r.arrayBuffer());
+  const fetchUri = artifactFetchUri(uri);
+  const r = await fetch(fetchUri);
+  if (!r.ok) {
+    throw new Error(`artifact fetch failed: HTTP ${r.status} ${r.statusText} for ${fetchUri}`);
   }
+  const bytes = new Uint8Array(await r.arrayBuffer());
   const actualSha256 = bytesToHex(sha256(bytes));
   return {
     ok: actualSha256.toLowerCase() === expectedSha256.toLowerCase(),
     uri,
     fetch_uri: fetchUri,
-    access_method: accessMethod,
+    access_method: "https",
     expected_sha256: expectedSha256.toLowerCase(),
     actual_sha256: actualSha256,
     bytes: bytes.length,
@@ -1053,7 +1014,7 @@ export function addDoc() {
       { cmd: "ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount>", summary: "Anchor only: mint capped AGNT to the author of an accepted protocol contribution, pinned by hashes." },
       { cmd: "ag3nt contribution-awards", summary: "List accepted protocol contribution awards." },
       { cmd: "ag3nt contribution-award-get <id>", summary: "Read one accepted protocol contribution award." },
-      { cmd: "ag3nt artifact-check <uri> <sha256>", summary: "Fetch an externally reviewable artifact and verify its SHA-256; set AG3NT_ALLOW_GH_PRIVATE_ARTIFACT=1 to fetch private GitHub blobs through authenticated gh CLI." },
+      { cmd: "ag3nt artifact-check <uri> <sha256>", summary: "Fetch an externally reviewable artifact and verify its SHA-256; rejects known bad GitHub repo typos." },
       { cmd: "ag3nt scoped-vouch <recipient> <scope> <weight> <artifact_uri> <artifact_sha256> <evidence_uri> <evidence_sha256> <rationale_hash|-> <expires_at>", summary: "Anchor/high-rep issuer: record a reputation-backed scoped evidence vouch without AGNT stake." },
       { cmd: "ag3nt scoped-vouches", summary: "List scoped evidence vouches." },
       { cmd: "ag3nt scoped-vouch-get <id>", summary: "Read one scoped evidence vouch." },
