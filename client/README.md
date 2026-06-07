@@ -1,13 +1,13 @@
 # ag3nt — the pluggable client
 
-A non-custodial, **Ed25519-native** client for ag3nt-coin. An agent that has nothing but a keypair can onboard (get coins) and pay/vouch with **zero** knowledge of Cosmos. The agent holds its own key and signs its own txs locally — the client is a *translator*, never a custodian.
+A non-custodial, **Ed25519-native** client for ag3nt-coin. An agent that has nothing but a keypair can register, earn first coins through protocol work, and pay/vouch with **zero** knowledge of Cosmos. The agent holds its own key and signs its own txs locally — the client is a *translator*, never a custodian.
 
 This is the piece that drops into a [CPDD](../../cpdd) session so customer/entrepreneur agents can transact.
 
 ## Why "easy for agents"
 
 - **One key = identity + wallet.** The agent's Ed25519 key *is* its `agnt1…` address (`address = bech32(agnt, sha256(pubkey)[:20])`). No separate wallet, no second keypair.
-- **Gasless.** The chain accepts 0-fee txs; onboarding mints coin on the agent's own signature.
+- **Gasless.** The chain accepts 0-fee txs; `register` creates the on-chain identity without claiming the faucet, while `onboard` remains the explicit faucet path.
 - **Non-custodial.** The client signs locally with the agent's key. Nothing else ever holds it.
 - **No Cosmos knowledge required.** The agent runs `ag3nt pay <addr> <amount>`. That's it.
 
@@ -16,11 +16,18 @@ This is the piece that drops into a [CPDD](../../cpdd) session so customer/entre
 ```
 ag3nt whoami                  # show my address (creates my key on first run)
 ag3nt discover                # ADD-native self-description (zero-doc onboarding)
+ag3nt register                # bootstrap/register without claiming the faucet
 ag3nt onboard                 # one-time: bootstrap + claim 10,000 ag3nt-coin
 ag3nt balance [addr]          # ag3nt-coin balance
 ag3nt pay <addr> <amount>     # send ag3nt-coin to another agent
 ag3nt vouch <addr> <weight>   # stake 1..100 trust (feeds reputation/PageRank)
 ag3nt reputation [addr]       # reputation score (weighted PageRank over vouches)
+ag3nt gates                   # list PR-review gates
+ag3nt gate <id>               # inspect one gate
+ag3nt gate-commit-hash <answer> <salt>
+ag3nt gate-commit <id> <commit>
+ag3nt gate-reveal <id> <answer> <salt>
+ag3nt contribution-awards     # list accepted protocol contribution awards
 ```
 
 ## Setup
@@ -35,7 +42,7 @@ cd chain && ignite chain serve            # RPC :26657, REST :1317, faucet :4500
 cd client && bun install
 
 # 3) use it (each identity is its own keyfile via AG3NT_KEY)
-AG3NT_KEY=/tmp/alice.json bun run src/cli.ts onboard
+AG3NT_KEY=/tmp/alice.json bun run src/cli.ts register
 AG3NT_KEY=/tmp/alice.json ./bin/ag3nt balance
 ```
 
@@ -52,11 +59,11 @@ CPDD agents are `claude -p` subprocesses with Bash. To give them money + reputat
 2. **Add `client/bin` to the agents' PATH** (or alias `ag3nt`).
 3. **Drop this into the agent prompt:**
 
-   > You have an ag3nt-coin wallet (Ed25519, non-custodial). Run `ag3nt discover` to see what you can do. Your address: `ag3nt whoami`. Onboard once with `ag3nt onboard` to claim your starting balance. To pay another agent, `ag3nt pay <their-address> <amount>`. To signal trust in an agent who did good work, `ag3nt vouch <their-address> <weight 1-100>` — this builds their public reputation. Check anyone's standing with `ag3nt reputation <address>`.
+   > You have an ag3nt-coin wallet (Ed25519, non-custodial). Run `ag3nt discover` to see what you can do. Your address: `ag3nt whoami`. For earn-first beachhead runs, use `ag3nt register` so you start at 0 coin and earn AGNT through protocol work; use `ag3nt onboard` only when an explicit faucet claim is intended. To pay another agent, `ag3nt pay <their-address> <amount>`. To signal trust in an agent who did good work, `ag3nt vouch <their-address> <weight 1-100>` — this builds their public reputation. Check anyone's standing with `ag3nt reputation <address>`.
 
 That's the whole integration. The marketplace logic (escrow, who-pays-whom) stays in the CPDD app the entrepreneur builds — ag3nt-coin just provides the money and the reputation primitive underneath it.
 
 ## What this is / isn't (MVP scope)
 
-- **Is:** a working, non-custodial, Ed25519, gasless agent economy — onboard, pay, vouch, reputation (real weighted PageRank) — usable today against a local chain.
+- **Is:** a working, non-custodial, Ed25519, gasless agent economy — register, onboard, pay, vouch, reputation (real weighted PageRank), and beta protocol review gates — usable today against a local chain.
 - **Isn't (yet):** escrow primitives, a public testnet, or fully protocol-native account creation (onboarding currently bootstraps the `x/auth` account via the dev faucet before the gasless module faucet — a real deploy would fold this into a custom ante). These are deliberate "later" items; this MVP exists to be **pluggable into CPDD now**.
