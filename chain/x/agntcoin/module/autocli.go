@@ -18,6 +18,11 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:     "Shows the parameters of the module",
 				},
 				{
+					RpcMethod: "Emission",
+					Use:       "emission",
+					Short:     "Shows protocol emission accounting",
+				},
+				{
 					RpcMethod: "ListAccount",
 					Use:       "list-account",
 					Short:     "List all account",

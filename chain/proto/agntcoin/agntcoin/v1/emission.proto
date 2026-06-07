@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package agntcoin.agntcoin.v1;
+
+option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
+
+// EmissionState tracks the monetary-policy primitive for protocol-minted AGNT.
+//
+// The scheduled reward for an epoch is split into actual mined supply and
+// burned-unclaimed supply:
+//
+//   scheduled_reward = actual_mined + burned_unclaimed
+//
+// This keeps MAX_SUPPLY as a hard cap while letting unused epoch issuance expire
+// forever instead of rolling forward.
+message EmissionState {
+  uint64 max_supply = 1;
+  uint64 epoch_length_seconds = 2;
+  uint64 epoch_reward_divisor = 3;
+  int64 genesis_time = 4;
+  uint64 current_epoch = 5;
+  int64 epoch_started_at = 6;
+  uint64 epoch_scheduled = 7;
+  uint64 epoch_mined = 8;
+  uint64 total_mined = 9;
+  uint64 total_burned_unclaimed = 10;
+}

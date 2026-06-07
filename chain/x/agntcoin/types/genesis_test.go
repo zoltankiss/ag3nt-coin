@@ -20,7 +20,7 @@ func TestGenesisState_Validate(t *testing.T) {
 		},
 		{
 			desc:     "valid genesis state",
-			genState: &types.GenesisState{AccountMap: []types.Account{{Address: "0"}, {Address: "1"}}, VouchList: []types.Vouch{{Id: 0}, {Id: 1}}, VouchCount: 2}, valid: true,
+			genState: &types.GenesisState{EmissionState: types.DefaultEmissionState(0), AccountMap: []types.Account{{Address: "0"}, {Address: "1"}}, VouchList: []types.Vouch{{Id: 0}, {Id: 1}}, VouchCount: 2}, valid: true,
 		}, {
 			desc: "duplicated account",
 			genState: &types.GenesisState{

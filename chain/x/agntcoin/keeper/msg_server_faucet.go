@@ -9,7 +9,8 @@ import (
 )
 
 func (k msgServer) Faucet(ctx context.Context, msg *types.MsgFaucet) (*types.MsgFaucetResponse, error) {
-	if _, err := k.addressCodec.StringToBytes(msg.Creator); err != nil {
+	creatorBytes, err := k.addressCodec.StringToBytes(msg.Creator)
+	if err != nil {
 		return nil, errorsmod.Wrap(err, "invalid creator address")
 	}
 
@@ -24,7 +25,13 @@ func (k msgServer) Faucet(ctx context.Context, msg *types.MsgFaucet) (*types.Msg
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "faucet already claimed")
 	}
 
-	acct.Balance += types.FaucetAmount
+	if err := k.mintProtocolReward(ctx, msg.Creator, creatorBytes, types.FaucetAmount, "faucet"); err != nil {
+		return nil, err
+	}
+	acct, err = k.Account.Get(ctx, msg.Creator)
+	if err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
+	}
 	acct.FaucetClaimed = true
 	if err := k.Account.Set(ctx, msg.Creator, acct); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())

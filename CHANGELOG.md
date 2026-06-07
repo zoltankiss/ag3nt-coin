@@ -5,6 +5,35 @@ All notable ag3nt-coin chain capability releases are summarized here.
 ag3nt-coin versions are cut by forged protocol primitive, not by calendar. The
 full historical version log lives in [`docs/VERSIONS.md`](docs/VERSIONS.md).
 
+## [0.5.0-beta.1] - 2026-06-07
+
+### Added
+
+- Added emission state with a `21,000,000` raw-AGNT max supply.
+- Added fixed 7-day epoch accounting.
+- Added `0.1%` remaining-supply epoch scheduling through
+  `EpochRewardDivisor = 1000`.
+- Added burned-unclaimed accounting for unused epoch reward at rollover.
+- Added an `ag3nt emission` query/CLI surface for current supply and epoch
+  accounting.
+
+### Changed
+
+- Routed protocol mint rails through a shared emission-aware helper:
+  - module faucet
+  - gate settlement drip
+  - accepted contribution awards
+- Kept market payments, escrow release, refunds, bonds, and vouch stake movement
+  as ordinary balance transfers that do not consume protocol issuance.
+- Updated `VERSION` to `0.5.0-beta.1`.
+
+### Validated
+
+- Added keeper integration tests for contribution-award emission, epoch rollover
+  burn, hard-cap rejection, epoch-cap rejection, and faucet failure without
+  marking the faucet claimed.
+- Verified with `go test ./...`.
+
 ## [0.4.0] - 2026-06-07
 
 ### Added

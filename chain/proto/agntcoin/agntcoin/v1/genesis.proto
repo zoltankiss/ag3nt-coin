@@ -7,6 +7,7 @@ import "agntcoin/agntcoin/v1/params.proto";
 import "agntcoin/agntcoin/v1/vouch.proto";
 import "agntcoin/agntcoin/v1/escrow.proto";
 import "agntcoin/agntcoin/v1/contribution.proto";
+import "agntcoin/agntcoin/v1/emission.proto";
 import "agntcoin/agntcoin/v1/evidence.proto";
 import "amino/amino.proto";
 import "gogoproto/gogo.proto";
@@ -29,4 +30,5 @@ message GenesisState {
   uint64 contribution_award_count = 8;
   repeated ScopedEvidenceVouch scoped_evidence_vouch_list = 9 [(gogoproto.nullable) = false];
   uint64 scoped_evidence_vouch_count = 10;
+  EmissionState emission_state = 11 [(gogoproto.nullable) = false];
 }

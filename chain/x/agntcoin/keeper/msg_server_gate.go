@@ -283,7 +283,7 @@ func (k msgServer) SettleGate(ctx context.Context, msg *types.MsgSettleGate) (*t
 			if err != nil {
 				return nil, errorsmod.Wrap(err, "invalid answerer address")
 			}
-			if err := k.creditAccount(ctx, a.Agent, agentBytes, gate.Drip); err != nil {
+			if err := k.mintProtocolReward(ctx, a.Agent, agentBytes, gate.Drip, "gate"); err != nil {
 				return nil, err
 			}
 			gate.Answers[i].Paid = true

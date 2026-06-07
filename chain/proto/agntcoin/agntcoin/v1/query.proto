@@ -7,6 +7,7 @@ import "agntcoin/agntcoin/v1/params.proto";
 import "agntcoin/agntcoin/v1/vouch.proto";
 import "agntcoin/agntcoin/v1/escrow.proto";
 import "agntcoin/agntcoin/v1/dispute.proto";
+import "agntcoin/agntcoin/v1/emission.proto";
 import "agntcoin/agntcoin/v1/bond.proto";
 import "agntcoin/agntcoin/v1/contribution.proto";
 import "agntcoin/agntcoin/v1/gate.proto";
@@ -113,6 +114,11 @@ service Query {
   rpc ListScopedEvidenceVouch(QueryAllScopedEvidenceVouchRequest) returns (QueryAllScopedEvidenceVouchResponse) {
     option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/scoped-evidence-vouch";
   }
+
+  // Emission queries the current protocol emission accounting state.
+  rpc Emission(QueryEmissionRequest) returns (QueryEmissionResponse) {
+    option (google.api.http).get = "/zoltankiss/agntcoin/agntcoin/v1/emission";
+  }
 }
 
 // QueryParamsRequest is request type for the Query/Params RPC method.
@@ -146,6 +152,16 @@ message QueryAllAccountRequest {
 message QueryAllAccountResponse {
   repeated Account account = 1 [(gogoproto.nullable) = false];
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+// QueryEmissionRequest is the request type for Query/Emission.
+message QueryEmissionRequest {}
+
+// QueryEmissionResponse is the response type for Query/Emission.
+message QueryEmissionResponse {
+  EmissionState emission = 1 [(gogoproto.nullable) = false];
+  uint64 remaining_scheduled = 2;
+  uint64 remaining_epoch = 3;
 }
 
 // QueryGetVouchRequest defines the QueryGetVouchRequest message.

@@ -22,6 +22,7 @@ type Keeper struct {
 
 	Schema                 collections.Schema
 	Params                 collections.Item[types.Params]
+	EmissionState          collections.Item[types.EmissionState]
 	Account                collections.Map[string, types.Account]
 	VouchSeq               collections.Sequence
 	Vouch                  collections.Map[uint64, types.Vouch]
@@ -60,8 +61,9 @@ func NewKeeper(
 		authKeeper:   authKeeper,
 		authority:    authority,
 
-		Params:  collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
-		Account: collections.NewMap(sb, types.AccountKey, "account", collections.StringKey, codec.CollValue[types.Account](cdc)), Vouch: collections.NewMap(sb, types.VouchKey, "vouch", collections.Uint64Key, codec.CollValue[types.Vouch](cdc)),
+		Params:        collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
+		EmissionState: collections.NewItem(sb, types.EmissionStateKey, "emissionState", codec.CollValue[types.EmissionState](cdc)),
+		Account:       collections.NewMap(sb, types.AccountKey, "account", collections.StringKey, codec.CollValue[types.Account](cdc)), Vouch: collections.NewMap(sb, types.VouchKey, "vouch", collections.Uint64Key, codec.CollValue[types.Vouch](cdc)),
 		VouchSeq:               collections.NewSequence(sb, types.VouchCountKey, "vouchSequence"),
 		Escrow:                 collections.NewMap(sb, types.EscrowKey, "escrow", collections.Uint64Key, codec.CollValue[types.Escrow](cdc)),
 		EscrowSeq:              collections.NewSequence(sb, types.EscrowCountKey, "escrowSequence"),

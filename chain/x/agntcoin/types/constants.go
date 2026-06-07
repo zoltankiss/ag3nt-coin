@@ -4,6 +4,20 @@ const (
 	FaucetAmount   uint64 = 10_000
 	MaxVouchWeight uint64 = 100
 
+	// ---- monetary policy (0.5.0-beta.1): hard cap + fixed weekly epochs.
+
+	// MaxSupply is the maximum protocol-mined AGNT supply over all time. The
+	// current chain uses raw uint64 AGNT units; future higher-precision base
+	// units require a migration.
+	MaxSupply uint64 = 21_000_000
+
+	// EpochLengthSeconds fixes emission epochs at seven days.
+	EpochLengthSeconds uint64 = 7 * 24 * 60 * 60
+
+	// EpochRewardDivisor encodes the 0.1% remaining-supply schedule:
+	// scheduled_reward = remaining_scheduled / 1000.
+	EpochRewardDivisor uint64 = 1000
+
 	// MinVouchStake is the minimum amount of ag3nt that must be locked behind a
 	// vouch. This is the cost-of-identity floor: every edge in the reputation
 	// graph costs real, locked stake, so a Sybil ring must lock real capital to

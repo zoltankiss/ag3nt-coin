@@ -105,7 +105,7 @@ func (k msgServer) AwardContribution(ctx context.Context, msg *types.MsgAwardCon
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
 	}
 
-	if err := k.creditAccount(ctx, msg.Recipient, recipientBytes, msg.Amount); err != nil {
+	if err := k.mintProtocolReward(ctx, msg.Recipient, recipientBytes, msg.Amount, "contribution_award"); err != nil {
 		return nil, err
 	}
 

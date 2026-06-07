@@ -18,6 +18,9 @@ const (
 // ParamsKey is the prefix to retrieve all Params
 var ParamsKey = collections.NewPrefix("p_agntcoin")
 
+// EmissionStateKey stores the singleton monetary-policy state.
+var EmissionStateKey = collections.NewPrefix("emission/state")
+
 var (
 	VouchKey      = collections.NewPrefix("vouch/value/")
 	VouchCountKey = collections.NewPrefix("vouch/count/")

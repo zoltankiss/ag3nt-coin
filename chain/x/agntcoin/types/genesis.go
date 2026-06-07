@@ -5,8 +5,42 @@ import "fmt"
 // DefaultGenesis returns the default genesis state
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
-		Params:     DefaultParams(),
-		AccountMap: []Account{}, VouchList: []Vouch{}, EscrowList: []Escrow{}, ContributionAwardList: []ContributionAward{}, ScopedEvidenceVouchList: []ScopedEvidenceVouch{}}
+		Params:        DefaultParams(),
+		EmissionState: DefaultEmissionState(0),
+		AccountMap:    []Account{}, VouchList: []Vouch{}, EscrowList: []Escrow{}, ContributionAwardList: []ContributionAward{}, ScopedEvidenceVouchList: []ScopedEvidenceVouch{}}
+}
+
+func DefaultEmissionState(startedAt int64) EmissionState {
+	return EmissionState{
+		MaxSupply:            MaxSupply,
+		EpochLengthSeconds:   EpochLengthSeconds,
+		EpochRewardDivisor:   EpochRewardDivisor,
+		GenesisTime:          startedAt,
+		CurrentEpoch:         1,
+		EpochStartedAt:       startedAt,
+		EpochScheduled:       MaxSupply / EpochRewardDivisor,
+		EpochMined:           0,
+		TotalMined:           0,
+		TotalBurnedUnclaimed: 0,
+	}
+}
+
+func RemainingScheduled(e EmissionState) uint64 {
+	if e.TotalMined >= e.MaxSupply {
+		return 0
+	}
+	remainingAfterMined := e.MaxSupply - e.TotalMined
+	if e.TotalBurnedUnclaimed >= remainingAfterMined {
+		return 0
+	}
+	return remainingAfterMined - e.TotalBurnedUnclaimed
+}
+
+func RemainingEpoch(e EmissionState) uint64 {
+	if e.EpochMined >= e.EpochScheduled {
+		return 0
+	}
+	return e.EpochScheduled - e.EpochMined
 }
 
 // Validate performs basic genesis state validation returning an error upon any
@@ -67,6 +101,27 @@ func (gs GenesisState) Validate() error {
 			return fmt.Errorf("scoped evidence vouch id should be lower or equal than the last id")
 		}
 		scopedEvidenceVouchIdMap[elem.Id] = true
+	}
+
+	if gs.EmissionState.MaxSupply == 0 {
+		return fmt.Errorf("emission max_supply is required")
+	}
+	if gs.EmissionState.EpochLengthSeconds == 0 {
+		return fmt.Errorf("emission epoch_length_seconds is required")
+	}
+	if gs.EmissionState.EpochRewardDivisor == 0 {
+		return fmt.Errorf("emission epoch_reward_divisor is required")
+	}
+	if gs.EmissionState.CurrentEpoch == 0 {
+		return fmt.Errorf("emission current_epoch must be >= 1")
+	}
+	if RemainingScheduled(gs.EmissionState) == 0 &&
+		(gs.EmissionState.TotalMined > gs.EmissionState.MaxSupply ||
+			gs.EmissionState.TotalBurnedUnclaimed > gs.EmissionState.MaxSupply-gs.EmissionState.TotalMined) {
+		return fmt.Errorf("emission mined+burned exceeds max_supply")
+	}
+	if gs.EmissionState.EpochMined > gs.EmissionState.EpochScheduled {
+		return fmt.Errorf("emission epoch_mined exceeds epoch_scheduled")
 	}
 
 	return gs.Params.Validate()

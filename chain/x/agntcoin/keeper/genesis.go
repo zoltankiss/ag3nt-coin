@@ -8,6 +8,18 @@ import (
 
 // InitGenesis initializes the module's state from a provided genesis state.
 func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) error {
+	if genState.EmissionState.MaxSupply == 0 {
+		genState.EmissionState = types.DefaultEmissionState(0)
+	}
+	if genState.EmissionState.GenesisTime == 0 {
+		now := sdkBlockTime(ctx)
+		genState.EmissionState.GenesisTime = now
+		genState.EmissionState.EpochStartedAt = now
+	}
+	if err := k.EmissionState.Set(ctx, genState.EmissionState); err != nil {
+		return err
+	}
+
 	for _, elem := range genState.AccountMap {
 		if err := k.Account.Set(ctx, elem.Address, elem); err != nil {
 			return err
@@ -62,6 +74,10 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 
 	genesis := types.DefaultGenesis()
 	genesis.Params, err = k.Params.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	genesis.EmissionState, err = k.getEmissionState(ctx)
 	if err != nil {
 		return nil, err
 	}

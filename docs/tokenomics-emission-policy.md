@@ -1,11 +1,13 @@
 # ag3ntcoin Tokenomics and Emission Policy
 
-**Status:** Design draft for the next monetary-policy primitive.
-**Current chain version at drafting:** `0.4.0-beta.3`.
+**Status:** Implemented as the `0.5.0-beta.1` emission-accounting beta, with
+raw AGNT integer accounting. This validates hard-cap, epoch, and unclaimed-burn
+mechanics before a production-denomination decision.
+**Current chain version:** `0.5.0-beta.1`.
 
-This document specifies the intended hard-cap emission model for ag3ntcoin. It
-is a design target until the chain code enforces total supply, epoch accounting,
-scheduled issuance, and burn accounting.
+This document specifies the hard-cap emission model for agntcoin. The beta.1
+chain code enforces total supply, epoch accounting, scheduled issuance, and
+burn-equivalent accounting for unclaimed scheduled reward.
 
 ## Goals
 
@@ -214,7 +216,75 @@ Proposed starting split:
 Unused reward in each pool expires at epoch close and is burned. It does not
 roll over unless a later governance primitive explicitly changes this policy.
 
-## Implementation Notes
+## `0.5.0-beta.1` Implementation Notes
+
+The beta.1 implementation uses raw AGNT integer units because the existing
+chain balances are `uint64` AGNT. That is intentionally not the final
+production precision story. It validates the monetary-policy shape while
+keeping the first implementation small enough to audit.
+
+The ideal mathematical curve is implemented discretely:
+
+```text
+epoch_scheduled = remaining_scheduled / 1000
+```
+
+When integer division would otherwise schedule `0` while a positive raw-AGNT
+remainder still exists, the beta.1 implementation schedules the remaining
+amount as the final discrete reward. This preserves the hard cap with the
+current integer balance model, but it is not a 10,000-year tail design.
+
+Production hardening choices before a real-money launch:
+
+```text
+option A: migrate all balances/amounts to a high-precision base unit
+option B: keep integer AGNT and define an explicit finite-tail rule
+option C: keep emission accounting in a high-precision accumulator while
+          wallet balances settle only claimable whole/base units
+```
+
+Ethereum-style `10^18` base units would not fit the current `uint64` amount
+fields at `21,000,000 AGNT`, so any high-precision migration is a chain-wide
+type change, not a constant tweak.
+
+Runway note: with weekly epochs, raw integer beta.1 scheduling reaches the
+final discrete tail zone around epoch `9,947`, roughly `191` years after
+genesis. That is acceptable for beta beachhead validation, but it should still
+be revisited before any irreversible production-denomination commitment.
+
+Implemented state:
+
+```text
+max_supply
+epoch_length_seconds
+epoch_reward_divisor
+genesis_time
+current_epoch
+epoch_started_at
+epoch_scheduled
+epoch_mined
+total_mined
+total_burned_unclaimed
+```
+
+Implemented protocol mint rails:
+
+```text
+module faucet
+gate settlement drip
+accepted contribution awards
+```
+
+Market payments, escrow release/refund, bonds, and vouch stake movement are not
+protocol issuance. They move existing balances and do not consume epoch reward.
+
+Implemented query/client surface:
+
+```text
+ag3nt emission
+```
+
+## Future Precision Notes
 
 The mathematical schedule has positive reward for every epoch. A real chain has
 finite integer base units, so the implementation needs fixed precision.
@@ -266,8 +336,8 @@ total_burned_unclaimed_base += burned_unclaimed_base
 
 ## Versioning Recommendation
 
-Do not bump the chain `VERSION` to `0.5.0-beta.1` until the code enforces the
-new monetary-policy primitive.
+The chain `VERSION` is `0.5.0-beta.1` once the code enforces the new
+monetary-policy primitive.
 
 Recommended sequence:
 
@@ -276,9 +346,9 @@ Recommended sequence:
   current artifact-integrity / founder-mining beta
 
 0.5.0-beta.1
-  implement MAX_SUPPLY, fixed 7-day epochs, scheduled reward accounting,
-  unclaimed burn accounting, and route gate/contribution mints through the
-  common protocol reward function
+  implements MAX_SUPPLY, fixed 7-day epochs, scheduled reward accounting,
+  unclaimed burn accounting, and routes faucet/gate/contribution mints through
+  the common protocol reward function
 
 0.5.0-beta.2
   add rail splits, artifact availability checks at mint time, and richer

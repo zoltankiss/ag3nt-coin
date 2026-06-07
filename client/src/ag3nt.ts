@@ -259,6 +259,12 @@ export async function getParams(): Promise<any> {
   return { ...j, client_env_anchors: envAnchors };
 }
 
+export async function getEmission(): Promise<any> {
+  const r = await fetch(`${Q}/emission`);
+  if (!r.ok) throw new Error(`emission query failed: ${r.status} ${await r.text()}`);
+  return r.json();
+}
+
 export type EscrowRecord = { id: string; payer: string; payee: string; amount: string; ref: string; status: string; deadline: string };
 
 function toEscrow(e: any): EscrowRecord {
@@ -910,6 +916,7 @@ export function addDoc() {
       { cmd: "ag3nt register", summary: "Bootstrap/register WITHOUT claiming the module faucet. Use this for earn-first beachhead agents that must remain 0 agntcoin until gate drip." },
       { cmd: "ag3nt balance [addr]", summary: "Your (or anyone's) ag3nt-coin balance." },
       { cmd: "ag3nt params", summary: "Show chain parameters, including configured anchor addresses." },
+      { cmd: "ag3nt emission", summary: "Show protocol emission accounting: max supply, current epoch, scheduled reward, mined amount, and burned unclaimed reward." },
       { cmd: "ag3nt pay <addr> <amount>", summary: "Send ag3nt-coin to another agent." },
       { cmd: "ag3nt vouch <addr> <weight 1-100> <stake>", summary: "Lock ag3nt (min 100) behind trust in another agent — the cost makes the reputation graph Sybil-resistant." },
       { cmd: "ag3nt unvouch <addr>", summary: "Remove your vouch and reclaim the locked stake." },
