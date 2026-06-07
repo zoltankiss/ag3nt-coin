@@ -22,6 +22,7 @@ import { sha512 } from "@noble/hashes/sha512";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
 import { randomBytes } from "crypto";
+import { execFileSync } from "child_process";
 import { toBech32, toBase64, fromBase64 } from "@cosmjs/encoding";
 import { TxBody, AuthInfo, SignerInfo, Fee, SignDoc, TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { SignMode } from "cosmjs-types/cosmos/tx/signing/v1beta1/signing";
@@ -716,6 +717,76 @@ export function gateCommitHash(answer: string, salt: string): string {
   return bytesToHex(sha256(new TextEncoder().encode(`${answer}:${salt}`)));
 }
 
+export function validateBinaryGateAnswer(answer: string, questionCount: number): string {
+  if (!Number.isInteger(questionCount) || questionCount < 1) {
+    throw new Error("question_count must be a positive integer");
+  }
+  const parts = answer.split(",").map((p) => p.trim().toUpperCase());
+  if (parts.length !== questionCount) {
+    throw new Error(`gold_answer must contain exactly ${questionCount} comma-separated Y/N values`);
+  }
+  for (const p of parts) {
+    if (p !== "Y" && p !== "N") {
+      throw new Error("gold_answer values must be canonical Y or N");
+    }
+  }
+  return parts.join(",");
+}
+
+export function createGateTemplate(slug: string, goldAnswerIn: string, questionCountIn = 5, saltIn = "") {
+  const safeSlug = slug.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/^-+|-+$/g, "");
+  if (!safeSlug) throw new Error("slug must contain at least one filename-safe character");
+  const questionCount = Number(questionCountIn);
+  if (!Number.isInteger(questionCount) || questionCount < 3 || questionCount > 7) {
+    throw new Error("question_count must be an integer in the default beta.2 range 3..7");
+  }
+  const goldAnswer = validateBinaryGateAnswer(goldAnswerIn, questionCount);
+  const goldSalt = saltIn || randomBytes(16).toString("hex");
+  const goldCommit = gateCommitHash(goldAnswer, goldSalt);
+  const publicPath = `${safeSlug}.public-gate.md`;
+  const privatePath = `${safeSlug}.private-gate-secret.json`;
+  const questions = Array.from({ length: questionCount }, (_, i) => `${i + 1}. [Y/N] Replace with one crisp binary review question.`).join("\n");
+  const publicText = `# ${safeSlug} Review Gate\n\n` +
+    `answer_format: Y/N vector\n` +
+    `question_count: ${questionCount}\n\n` +
+    `## Scope\n\n` +
+    `Describe the patch, artifact, or review claim being tested.\n\n` +
+    `## Evidence\n\n` +
+    `- repo_url:\n` +
+    `- commit_sha:\n` +
+    `- artifact_uri:\n` +
+    `- artifact_sha256:\n\n` +
+    `## Questions\n\n${questions}\n\n` +
+    `## Reviewer Instructions\n\n` +
+    `Answer with exactly ${questionCount} comma-separated Y/N values, for example: Y,N,N,Y,N.\n` +
+    `Do not include rationale in the committed answer. Publish rationale separately after commit if useful.\n`;
+  const payloadHash = bytesToHex(sha256(new TextEncoder().encode(publicText)));
+  const privateJson = {
+    slug: safeSlug,
+    question_count: questionCount,
+    answer_format: "Y/N vector",
+    gold_answer: goldAnswer,
+    gold_salt: goldSalt,
+    gold_commit: goldCommit,
+    payload_path: publicPath,
+    payload_sha256: payloadHash,
+    private_rationale: "Write private gold rationale here. Publish only after reveal window closes.",
+    warning: "Do not publish this file before settlement. Public gate payloads must not include gold_answer or gold_salt.",
+  };
+  writeFileSync(publicPath, publicText);
+  writeFileSync(privatePath, `${JSON.stringify(privateJson, null, 2)}\n`);
+  return {
+    ok: true,
+    public_path: publicPath,
+    private_path: privatePath,
+    question_count: questionCount,
+    payload_sha256: payloadHash,
+    gold_commit: goldCommit,
+    post_command: `ag3nt gate-post <payload_uri> ${payloadHash} ${goldCommit} <drip> <max_answers>`,
+    settle_command: `ag3nt gate-settle <gate_id> ${goldAnswer} ${goldSalt}`,
+  };
+}
+
 export async function postGate(key: Key, payloadUri: string, payloadHash: string, goldCommit: string, drip: number | bigint, maxAnswers: number | bigint): Promise<{ id: string; txhash: string }> {
   assertExternallyFetchableArtifactUri(payloadUri, "payload_uri");
   const r = await signAndBroadcast(key, MSG.postGate(key.address, payloadUri, payloadHash, goldCommit, drip, maxAnswers));
@@ -844,22 +915,61 @@ export function artifactFetchUri(uri: string): string {
   return uri;
 }
 
+function parseGitHubContentUri(uri: string): { owner: string; repo: string; ref: string; path: string } | null {
+  const u = new URL(uri);
+  const parts = u.pathname.split("/").filter(Boolean);
+  if (u.hostname === "github.com" && parts.length >= 5 && parts[2] === "blob") {
+    const [owner, repo, , ref, ...pathParts] = parts;
+    return { owner, repo, ref, path: pathParts.join("/") };
+  }
+  if (u.hostname === "raw.githubusercontent.com" && parts.length >= 4) {
+    const [owner, repo, ref, ...pathParts] = parts;
+    return { owner, repo, ref, path: pathParts.join("/") };
+  }
+  return null;
+}
+
+function fetchGitHubPrivateArtifact(uri: string): { bytes: Uint8Array; fetchUri: string; accessMethod: string } | null {
+  if (process.env.AG3NT_ALLOW_GH_PRIVATE_ARTIFACT !== "1") return null;
+  const parsed = parseGitHubContentUri(uri);
+  if (!parsed) return null;
+  const encodedPath = parsed.path.split("/").map(encodeURIComponent).join("/");
+  const apiPath = `repos/${parsed.owner}/${parsed.repo}/contents/${encodedPath}?ref=${encodeURIComponent(parsed.ref)}`;
+  const content = execFileSync("gh", ["api", apiPath, "--jq", ".content"], { encoding: "utf8" });
+  const bytes = Buffer.from(content.replace(/\s+/g, ""), "base64");
+  return {
+    bytes: new Uint8Array(bytes),
+    fetchUri: `gh api ${apiPath}`,
+    accessMethod: "gh-cli",
+  };
+}
+
 export async function artifactCheck(uri: string, expectedSha256: string) {
   assertExternallyFetchableArtifactUri(uri, "artifact_uri");
   if (!isHexSHA256Local(expectedSha256)) {
     throw new Error("expected sha256 must be a hex sha256");
   }
-  const fetchUri = artifactFetchUri(uri);
-  const r = await fetch(fetchUri);
-  if (!r.ok) {
-    throw new Error(`artifact fetch failed: HTTP ${r.status} ${r.statusText} for ${fetchUri}`);
+  let fetchUri = artifactFetchUri(uri);
+  let accessMethod = "https";
+  let bytes: Uint8Array;
+  const ghArtifact = fetchGitHubPrivateArtifact(uri);
+  if (ghArtifact) {
+    bytes = ghArtifact.bytes;
+    fetchUri = ghArtifact.fetchUri;
+    accessMethod = ghArtifact.accessMethod;
+  } else {
+    const r = await fetch(fetchUri);
+    if (!r.ok) {
+      throw new Error(`artifact fetch failed: HTTP ${r.status} ${r.statusText} for ${fetchUri}`);
+    }
+    bytes = new Uint8Array(await r.arrayBuffer());
   }
-  const bytes = new Uint8Array(await r.arrayBuffer());
   const actualSha256 = bytesToHex(sha256(bytes));
   return {
     ok: actualSha256.toLowerCase() === expectedSha256.toLowerCase(),
     uri,
     fetch_uri: fetchUri,
+    access_method: accessMethod,
     expected_sha256: expectedSha256.toLowerCase(),
     actual_sha256: actualSha256,
     bytes: bytes.length,
@@ -933,6 +1043,7 @@ export function addDoc() {
       { cmd: "ag3nt bond-slash <id> [beneficiary]", summary: "Slasher only: punish a bond — pay the collateral to the beneficiary (e.g. the stranded buyer), or burn it if no beneficiary." },
       { cmd: "ag3nt bonds", summary: "List all bonds (check whether a claimant has real stake behind its claim)." },
       { cmd: "ag3nt gate-commit-hash <answer> <salt>", summary: "Compute gate commit = sha256(\"<answer>:<salt>\")." },
+      { cmd: "ag3nt gate-template <slug> <gold_answer Y,N,N,Y,N> [question_count]", summary: "Generate a beta.2-safe blind gate payload template plus private gold-answer file." },
       { cmd: "ag3nt gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers>", summary: "Anchor only: post a protocol PR-review gate. payload_hash and gold_commit are hex sha256 values." },
       { cmd: "ag3nt gates", summary: "List protocol PR-review gates." },
       { cmd: "ag3nt gate <id>", summary: "Read one protocol PR-review gate and its answers." },
@@ -942,7 +1053,7 @@ export function addDoc() {
       { cmd: "ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount>", summary: "Anchor only: mint capped AGNT to the author of an accepted protocol contribution, pinned by hashes." },
       { cmd: "ag3nt contribution-awards", summary: "List accepted protocol contribution awards." },
       { cmd: "ag3nt contribution-award-get <id>", summary: "Read one accepted protocol contribution award." },
-      { cmd: "ag3nt artifact-check <uri> <sha256>", summary: "Fetch an externally reviewable artifact and verify its SHA-256; rejects known bad GitHub repo typos." },
+      { cmd: "ag3nt artifact-check <uri> <sha256>", summary: "Fetch an externally reviewable artifact and verify its SHA-256; set AG3NT_ALLOW_GH_PRIVATE_ARTIFACT=1 to fetch private GitHub blobs through authenticated gh CLI." },
       { cmd: "ag3nt scoped-vouch <recipient> <scope> <weight> <artifact_uri> <artifact_sha256> <evidence_uri> <evidence_sha256> <rationale_hash|-> <expires_at>", summary: "Anchor/high-rep issuer: record a reputation-backed scoped evidence vouch without AGNT stake." },
       { cmd: "ag3nt scoped-vouches", summary: "List scoped evidence vouches." },
       { cmd: "ag3nt scoped-vouch-get <id>", summary: "Read one scoped evidence vouch." },

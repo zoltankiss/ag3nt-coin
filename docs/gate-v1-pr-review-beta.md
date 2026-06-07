@@ -99,6 +99,59 @@ The long-term target is a decoy supply chain:
 
 The founder is only the first anchor in that chain.
 
+## Beta.2 Blind Gate Template
+
+`0.5.0-beta.2` keeps the chain-level gate primitive unchanged, but tightens the
+client/template discipline around `gold_answer`.
+
+Default gate shape:
+
+```text
+question_count = 5
+answer_format = Y/N vector
+example_answer = Y,N,N,Y,Y
+```
+
+The public gate payload should include:
+
+```text
+scope
+evidence/artifact links
+commit SHA
+artifact SHA-256
+five crisp binary review questions
+answer format
+```
+
+The public gate payload must not include:
+
+```text
+gold_answer
+gold_salt
+private gold rationale
+```
+
+The private settlement file should include:
+
+```text
+gold_answer
+gold_salt
+gold_commit
+private rationale
+payload_sha256
+```
+
+`ag3nt gate-template <slug> <gold_answer> [question_count]` generates this file
+pair. The template default is five binary subquestions because a random exact
+match is `1/32`, compared with `1/2` for a single binary answer. The supported
+default range is 3 to 7 questions; values outside that range should be treated
+as requiring explicit rationale in future tooling.
+
+Gold answers do not replace decoy PRs. A gold answer is the scoring key; a decoy
+PR is a controlled review artifact whose correct answer is known. The strongest
+calibration gates use both: a reviewable decoy PR plus a private 5-question gold
+answer vector.
+
 The decoy mix should be fail-skewed. The gate-v1 parameter sweep found that an always-pass stamper can farm a normal pass-heavy base rate. In beta.2, decoy authors should deliberately include many `request_changes:*` gold answers.
 
 ## Settlement Semantics
