@@ -508,7 +508,7 @@ export async function getJobHistory(address: string): Promise<{ earned: EscrowRe
 // ---- non-custodial sign + broadcast ----------------------------------------
 async function signAndBroadcast(key: Key, msg: { typeUrl: string; value: Uint8Array }): Promise<any> {
   const acct = await getAuthAccount(key.address);
-  if (!acct) throw new Error(`account ${key.address} not found on chain — run 'onboard' first`);
+  if (!acct) throw new Error(`account ${key.address} not found on chain — run 'register' for earn-first beachhead identities, or 'onboard' when claiming the faucet is intended`);
 
   const bodyBytes = TxBody.encode(TxBody.fromPartial({ messages: [msg], memo: "" })).finish();
   const pubAny = {
