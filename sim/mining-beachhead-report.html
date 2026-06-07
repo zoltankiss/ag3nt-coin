@@ -67,7 +67,7 @@ Profit-rational sybils leave; vandals and verdict-manipulators don't price out.<
 <h2>Parameter sheet (what hardens, what waits)</h2>
 <table>
 <tr><th>Constant / rule</th><th>Verdict</th><th>Where</th></tr>
-<tr><td><code>drip=10, MaxDripPerAnswer=50</code> vs compute cost ~2</td><td class="ok">viable (honest net ~7.5/ans, bond in ~14 gates)</td><td>shipped, v0.4.0</td></tr>
+<tr><td><code>drip=10, MaxDripPerAnswer=50</code> vs compute cost ~2</td><td class="ok">viable (honest net ~7.5/ans, bond in ~14 gates)</td><td>shipped as beta, v0.4.0-beta.1</td></tr>
 <tr><td>k-ary answers (k ≥ 4)</td><td class="ok">viable vs guessers</td><td>shipped (answer format convention)</td></tr>
 <tr><td>Decoy gold mix: ≥ ~80–90% fail verdicts</td><td class="ok">required — kills the base-rate free-ride</td><td>operational, decoy authoring (platform/anchor)</td></tr>
 <tr><td>Vesting + slash-on-incoherent-decoy (≈ drip/2)</td><td class="warn">required before open scale</td><td>0.5.0 chain change</td></tr>
@@ -79,7 +79,7 @@ Profit-rational sybils leave; vandals and verdict-manipulators don't price out.<
 stampers priced out once fail-skewed decoys + vesting land). The hard boundary the sweep found: <strong>
 plurality consensus over an unweighted, self-selected answerer pool is only honest while sybils are a
 minority</strong> — so live gates must not become a settlement authority before rep-weighting/sortition
-(0.5.0). In v0.4.0 they aren't: gates mint drip; escrows still settle only via payer, staked verifier
+(0.5.0). In v0.4.0-beta.1 they aren't: gates mint drip; escrows still settle only via payer, staked verifier
 quorum, or jury.
 </div>
 

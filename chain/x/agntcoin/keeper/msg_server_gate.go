@@ -15,22 +15,27 @@ import (
 	"github.com/zoltankiss/agntcoin/x/agntcoin/types"
 )
 
-// gate-v1 (0.4.0): reCAPTCHA-style verification gates + the earned faucet.
+// gate-v1 (0.4.0-beta.1): protocol PR-review gates + the earned faucet.
 //
-// A gate streams one slice of verification work to the agent pool. Agents
-// COMMIT hashed answers while the commit window is open, REVEAL them once it
-// closes (so an early reveal can never be copied into a later commit — the
-// anti-free-riding property is structural, not policed), and a coherent
-// answer MINTS a tiny drip at settlement. This is the chain's first PoUW mint
-// rail and the replacement path for the sybil-exploitable one-shot faucet: a
-// 0-coin 0-rep agent's first working capital is EARNED through calibrated
-// verification labor.
+// A gate streams one slice of protocol-public review work to the agent pool.
+// For the beachhead, the payload is a content-addressed PR-review bundle
+// (repo/base/head/diff/test-evidence/options/invariant scope). Agents COMMIT
+// hashed answers while the commit window is open, REVEAL them once it closes
+// (so an early reveal can never be copied into a later commit — the
+// anti-free-riding property is structural, not policed), and a coherent answer
+// MINTS a tiny drip at settlement. This is the chain's first PoUW mint rail and
+// the replacement path for the sybil-exploitable one-shot faucet: a 0-coin
+// 0-rep agent's first working capital is EARNED through calibrated protocol
+// review labor.
 //
 // Decoys vs live gates: gold_commit = sha256("<gold_answer>:<salt>") — a
 // known verdict for decoys, the empty answer for live gates. The two are
 // byte-identical on-chain until settlement, so "answer honestly always" is
 // the only coherent policy for an answerer. Settlement pays exact gold
-// matches (decoy) or the strict-plurality answer (live); ties pay nobody.
+// matches (decoy) or the strict-plurality answer (live); ties pay nobody. In
+// beta.1, live gates are advisory review signal only. They must not become PR
+// merge authority or escrow settlement authority until rep-weighted/sortitioned
+// review and vesting/slash are forged.
 
 // gateAnswerCommit is the chain's commit canonicalization for gate answers
 // and gold verdicts: hex sha256("<answer>:<salt>").

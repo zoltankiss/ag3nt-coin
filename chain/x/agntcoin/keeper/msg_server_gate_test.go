@@ -13,7 +13,7 @@ import (
 	"github.com/zoltankiss/agntcoin/x/agntcoin/types"
 )
 
-// gate-v1 (0.4.0): reCAPTCHA-style verification gates + the earned faucet.
+// gate-v1 (0.4.0-beta.1): protocol PR-review gates + the earned faucet.
 // The scenarios these tests script:
 //
 //	G1  decoy gate happy path — a 0-coin agent's first working capital is

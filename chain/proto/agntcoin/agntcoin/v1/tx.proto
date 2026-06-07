@@ -78,8 +78,8 @@ service Msg {
   // has passed uncontested.
   rpc ReclaimAttestationBonds(MsgReclaimAttestationBonds) returns (MsgReclaimAttestationBondsResponse);
 
-  // PostGate (anchor-only, gate-v1) opens a verification gate with a
-  // precommitted gold verdict (decoy) or an empty one (live consensus).
+  // PostGate (anchor-only, gate-v1 beta) opens a protocol-public review gate
+  // with a precommitted gold verdict (decoy) or an empty one (live/advisory).
   rpc PostGate(MsgPostGate) returns (MsgPostGateResponse);
 
   // CommitAnswer posts a hashed answer to an open gate (commit window).
@@ -417,11 +417,12 @@ message MsgReclaimAttestationBonds {
 // MsgReclaimAttestationBondsResponse defines the response.
 message MsgReclaimAttestationBondsResponse {}
 
-// MsgPostGate opens a verification gate (gate-v1). ANCHOR-only in v1: the
-// drip is minted supply, so emission authority stays with the trust roots.
+// MsgPostGate opens a protocol-public review gate (gate-v1 beta). ANCHOR-only:
+// the drip is minted supply, so emission authority stays with the trust roots.
 // gold_commit precommits the verdict for decoy gates (sha256("<answer>:<salt>"))
 // or the empty answer for live gates (sha256(":<salt>")) — indistinguishable
-// on-chain until settlement.
+// on-chain until settlement. The beachhead payload is a content-addressed
+// protocol PR-review bundle pinned by payload_hash.
 message MsgPostGate {
   option (cosmos.msg.v1.signer) = "creator";
   string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
@@ -467,7 +468,9 @@ message MsgRevealAnswerResponse {}
 // present the gold preimage (gold_answer + gold_salt matching gold_commit).
 // Non-empty gold answer => decoy: every revealed exact match mints the drip.
 // Empty gold answer => live: the strict-plurality revealed answer mints the
-// drip to its answerers; a tie mints nothing.
+// drip to its answerers; a tie mints nothing. In beta.1, live gates are
+// advisory signal only; they are not PR merge authority or escrow settlement
+// authority.
 message MsgSettleGate {
   option (cosmos.msg.v1.signer) = "creator";
   string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];

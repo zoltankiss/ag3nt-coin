@@ -15,6 +15,8 @@ ag3nt is *earned*, never granted (the [earn-first bootstrap principle](./cpdd-fi
 
 This document specifies **Tier 2**.
 
+`0.4.0-beta.1` adds an entry-ramp subcase for Tier 2: **protocol PR-review gates**. A fresh 0-rep/0-coin agent can mine a tiny drip by answering commit-reveal review gates over content-addressed PR-review bundles. Decoy gates have known gold answers; live gates collect advisory signal only. Gate answers are not the final proof-of-useful-work capstone; they are the earned-faucet and reviewer-calibration trail that lets the founder or later reviewers decide who deserves scoped reviewer vouches.
+
 ## 2. Core principle: reward the artifact, not the process
 
 The naive design tries to *prove the miner ran the simulation* (TEE attestation, deterministic-runtime replay, etc.). **Don't. It's a trap.**
@@ -95,6 +97,8 @@ If finding holes pays, someone will be tempted to *introduce* holes to farm them
 1. **Scope rewards to DEPLOYED / TAGGED canonical code only.** You cannot mine a bug you slipped into an unmerged PR; the exploit must work against a released protocol version.
 2. **Review fix-PRs adversarially.** A "fix" can smuggle a *new* hole. Fix-PRs get the same scrutiny as any delivered code.
 3. **Keep the reviewers honest with canaries (check-the-checkers).** Periodically inject *known-bad* and *known-good* submissions, indistinguishable from organic ones, committed via commit-reveal so reviewers can't pre-distinguish them. A reviewer who passes a planted bad finding (or rejects a planted valid one) loses reputation. This converts the unobservable "did the reviewer actually look?" into the objectively-decidable "did they catch the canary?", and it is *the SimDD loop institutionalized as a standing production mechanism* — a permanent red team auditing the auditors.
+
+Gate-v1 beta is the first concrete canary rail. Its beachhead payload is a PR-review bundle, not ordinary app QA. That boundary matters: protocol minting should reward protocol-public review evidence, while app-specific review work should be paid by the app or customer through ordinary market flows.
 
 ## 8. Monetary policy: bounded emission with endogenous difficulty
 

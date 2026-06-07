@@ -15,9 +15,10 @@ The actual version log (what each version forged + its SHA) is in [`VERSIONS.md`
 - **Versioning began at `0.0.1`** — the *baseline* snapshot of everything built before we started versioning (native token, escrow + fair-exchange, anchor-rooted reputation + vouch, k-of-n jury, jury-bound escrow, slashable bonds). Everything before that is **unversioned history** (forge `iteration-1 … iteration-16`, left flat).
 - The policy governs changes **from the baseline forward**: the first *new primitive* cut under it (the dispute-bond) is **`0.1.0`**; a non-breaking fix to the baseline would be `0.0.2`.
 - Below `1.0.0`, expect churn — anything may change. The levels keep the history readable; they are not a compatibility guarantee yet.
+- Pre-release suffixes such as `0.4.0-beta.1` mean the primitive exists but is not yet validated enough to cut the final version. Use beta/rc labels for beachhead-facing economics where simulations or forge runs still determine constants, scope, or launch posture.
 
 ## Discipline (do this on every chain change a forge iteration will run against)
 1. Bump [`/VERSION`](../VERSION).
-2. **Tag it:** `git tag v<X.Y.Z> <sha> && git push origin v<X.Y.Z>` — so every distinct chain state is pinned + named.
+2. **Tag it:** `git tag v<X.Y.Z> <sha> && git push origin v<X.Y.Z>` (or `v<X.Y.Z-beta.N>` for pre-release validation cuts) — so every distinct chain state is pinned + named.
 3. **Log it** in [`VERSIONS.md`](VERSIONS.md): version → capability → forging iteration → SHA.
 4. Each distinct version gets its **own forge iterations dir** (apples-to-apples): `ag3nt-coin-forge/iterations/v<X.Y.Z>/<slug>/` — everything under a version dir ran against the byte-identical chain.
