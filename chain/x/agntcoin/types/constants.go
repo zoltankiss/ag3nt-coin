@@ -76,4 +76,26 @@ const (
 	DisputeStatusResolved   = "resolved"
 	DisputeResolutionAccept = "accept" // jury accepted the work → release to payee
 	DisputeResolutionReject = "reject" // jury rejected the work → refund to payer
+
+	// ---- gate-v1 (0.4.0): reCAPTCHA-style verification gates + earned faucet.
+
+	// GateCommitWindowSeconds is how long after PostGate answers may be
+	// committed. GateRevealWindowSeconds then bounds the reveal phase —
+	// reveals open ONLY once commits close (anti-copying), and settlement
+	// only once reveals close. Both bind to block time at tx inclusion.
+	GateCommitWindowSeconds int64 = 3600
+	GateRevealWindowSeconds int64 = 3600
+
+	// MaxDripPerAnswer caps the minted drip per coherent gate answer. Tiny by
+	// design: a gate answer is the earned-faucet granule (compare the old
+	// faucet's one-shot 10,000) — first working capital is accumulated through
+	// MANY calibrated answers, so mass extraction costs mass honest compute.
+	MaxDripPerAnswer uint64 = 50
+
+	// MaxGateAnswers bounds the answer set per gate (state growth + settle gas).
+	MaxGateAnswers uint64 = 1000
+
+	// Gate status values. OPEN settles exactly once into SETTLED.
+	GateStatusOpen    = "open"
+	GateStatusSettled = "settled"
 )

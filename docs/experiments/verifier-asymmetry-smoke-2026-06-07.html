@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smoke Test: "Expensive to Create, Cheap to Verify" — 2026-06-07</title>
+<style>
+  :root { --ok:#0a7d33; --bad:#c0392b; --warn:#b8860b; --ink:#1a1a2e; --mut:#667; --bg:#fafafa; --card:#fff; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); margin: 0; padding: 2rem; line-height: 1.55; }
+  main { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin-bottom: .2rem; }
+  h2 { font-size: 1.2rem; margin-top: 2.2rem; border-bottom: 2px solid #e3e3ee; padding-bottom: .3rem; }
+  .sub { color: var(--mut); margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; background: var(--card); }
+  th, td { border: 1px solid #e0e0ea; padding: .45rem .6rem; text-align: left; vertical-align: top; }
+  th { background: #eef0f7; }
+  .ok { color: var(--ok); font-weight: 600; }
+  .bad { color: var(--bad); font-weight: 600; }
+  .warn { color: var(--warn); font-weight: 600; }
+  .num { text-align: center; }
+  .big { font-size: 1.9rem; font-weight: 700; }
+  .cards { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.2rem 0; }
+  .card { background: var(--card); border: 1px solid #e0e0ea; border-radius: 10px; padding: .9rem 1.2rem; flex: 1; min-width: 180px; }
+  .card .lbl { color: var(--mut); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+  blockquote { background: #fff8f0; border-left: 4px solid var(--warn); margin: .8rem 0; padding: .6rem 1rem; font-size: .9rem; }
+  code { background: #eef0f7; padding: .1rem .3rem; border-radius: 4px; font-size: .88em; }
+  .verdict { background: #f0f7f1; border: 1px solid #bfe3c8; border-radius: 10px; padding: 1rem 1.4rem; margin: 1.4rem 0; }
+  .small { font-size: .85rem; color: var(--mut); }
+  details summary { cursor: pointer; font-weight: 600; margin: .5rem 0; }
+</style>
+</head>
+<body>
+<main>
+<h1>Smoke Test: "Expensive to Create (Opus), Cheap to Verify (Haiku)"</h1>
+<p class="sub">ag3nt-coin verifier-market hypothesis validation &middot; 2026-06-07 &middot; 41 artifacts, 123 blind verifications, 164 agent runs</p>
+
+<h2>Hypothesis under test</h2>
+<p>The verifier-release primitive (v0.3.x) is economically viable iff verification is much cheaper than creation:
+a cheap model (Haiku) acting as a staked verifier must reliably accept good work and reject bad work that an
+expensive model (Opus) produces. Two sub-claims: <strong>(H-a)</strong> typical ag3ntwork tasks are
+opus-hard (Haiku workers fail them at a meaningful rate); <strong>(H-b)</strong> they are haiku-verifiable
+against a pinned acceptance spec (the <code>acceptance_hash</code> analog).</p>
+
+<h2>Method</h2>
+<ul>
+  <li><strong>16 tasks</strong> in two waves. Wave 1: 10 objective tasks (interval merging, cron-next with the DOM/DOW OR-rule, full semver regex, SQL latest-per-key with tie-break, binary-search bug fix, constrained summary, bech32 facts, escrow threat model, JSON extraction, changelog-from-diff). Wave 2: 6 un-unit-testable creative/prose tasks (Shakespearean sonnet, AGENTCOIN acrostic, hero copy, cold email, flash fiction with banned-word constraints, persuasive demurrage paragraph).</li>
+  <li><strong>Every task ships a precommitted acceptance spec</strong> — executable test suites where possible, explicit checklist rubrics otherwise. This mirrors the chain: a deal that can't pin <em>any</em> spec can't be verifier-bound and goes to the jury tier.</li>
+  <li><strong>41 artifacts:</strong> 16 Opus-worker, 16 Haiku-worker, 9 sabotage (Opus instructed to produce polished work with one specific planted defect — the S3 "plausible garbage" attack).</li>
+  <li><strong>123 verifications:</strong> 3 independent, blind (producer never disclosed) Haiku verifier votes per artifact, each prompted as a <em>staked</em> verifier with slashing exposure, with bash access to actually run pinned test procedures. Majority verdict counted.</li>
+  <li><strong>Ground truth:</strong> gold test suites executed by the experimenter for the 6 mechanical tasks (15 artifact-runs); careful Opus adjudication against the pinned rubric for the rest. Disclosed limitation: rubric-tier gold is itself an LLM judgment — but that mirrors the chain, where the jury outranks the verifier.</li>
+</ul>
+
+<h2>Headline results</h2>
+<div class="cards">
+  <div class="card"><div class="lbl">Verifier accuracy</div><div class="big">39/41</div>vs ground truth (95%)</div>
+  <div class="card"><div class="lbl">False negatives</div><div class="big ok">0</div>good work failed: none</div>
+  <div class="card"><div class="lbl">False positives</div><div class="big warn">2/16</div>bad artifacts passed (12.5%)</div>
+  <div class="card"><div class="lbl">Sabotage caught</div><div class="big ok">9/9</div>100% of planted defects</div>
+</div>
+
+<table>
+<tr><th></th><th class="num">Gold: good</th><th class="num">Gold: bad</th></tr>
+<tr><th>Verifier majority: PASS</th><td class="num ok">25 (true accept)</td><td class="num warn">2 (false accept)</td></tr>
+<tr><th>Verifier majority: FAIL</th><td class="num ok">0 (false reject)</td><td class="num ok">14 (true reject)</td></tr>
+</table>
+
+<h2>Worker results (the "opus-hard" half)</h2>
+<table>
+<tr><th>Worker</th><th class="num">Wave 1 (objective)</th><th class="num">Wave 2 (creative)</th><th class="num">Total</th></tr>
+<tr><td>Opus</td><td class="num">9/10</td><td class="num">5/6</td><td class="num"><strong>14/16 (87.5%)</strong></td></tr>
+<tr><td>Haiku</td><td class="num">7/10</td><td class="num">4/6</td><td class="num"><strong>11/16 (68.75%)</strong></td></tr>
+</table>
+<p><strong>H-a is only weakly supported — and that's a useful surprise.</strong> Haiku workers went
+<strong>6/6 on the purely mechanical tasks</strong>, including the cron OR-rule, the full semver regex, and the
+SQL tie-break — tasks designed to be "interview-hard." The Opus/Haiku gap appears only on knowledge- and
+judgment-heavy work: Haiku's failures were a summary that inverted the challenge-window semantics, a bech32
+explainer with a wrong checksum constant, a threat model that missed one of three planted flaws, a banned-word
+slip in fiction, and a demurrage paragraph with internally inconsistent math. Opus's two failures were both
+<em>constraint busts on its own otherwise-excellent prose</em>: a 123-word summary against a 120 cap and 61-word
+hero copy against a 60 cap.</p>
+
+<h2>Verifier results (the "haiku-verifiable" half)</h2>
+<p><strong>H-b is strongly supported, with one sharply-defined blind spot.</strong></p>
+<ul>
+  <li><strong>Mechanical tier: 15/15 perfect.</strong> Verifiers actually executed the pinned test suites (visible in their transcripts), caught the sabotaged touching-interval bug, the inverted SQL tie-break, and the non-ISO date + wrong sum in the JSON task.</li>
+  <li><strong>Constraint checking on prose: flawless and strict.</strong> They failed Opus's summary for being 3 words over the cap, failed Opus's hero copy for 1 word over, caught one buried <code>wishes</code>, one mid-sentence <code>seamless</code>, the AGENTC<strong>J</strong>IN acrostic, and a broken rhyme pair. Zero vibes-based passes on checkable constraints.</li>
+  <li><strong>Zero false negatives anywhere.</strong> No honest seller would have been griefed by a verifier in this sample — the contest-window path never fires.</li>
+  <li><strong>Vote stability:</strong> 38/41 unanimous verdicts. All 3 split (2-1) verdicts occurred on judgment-heavy rubric items and the majority resolved every one correctly — small-sample support for the m-of-n / sampled-judge design (H1's 4/5 threshold).</li>
+</ul>
+
+<h2>The blind spot: fluent, confidently-wrong domain claims</h2>
+<p>Both false accepts share one signature — a factual/numeric claim stated fluently inside otherwise-good prose:</p>
+<blockquote><strong>FP-1 (t7, bech32 explainer by Haiku):</strong> "Verification works by applying the polymod
+function&hellip; <em>if the result is zero, the address is valid.</em>" — Bech32's valid constant is 1, not 0.
+All three verifiers passed it.</blockquote>
+<blockquote><strong>FP-2 (w6, demurrage paragraph by Haiku):</strong> "<em>A 5% annual decay rate (0.5% monthly)
+with a 14-month half-life</em>&hellip;" — 0.5%/month is ~6.2%/year, and 5%/year gives a ~14-<strong>year</strong>
+half-life. Two confident errors in one sentence; all three verifiers passed it.</blockquote>
+<p>Haiku-as-verifier counts, greps, and executes superbly — but it does not <em>re-derive</em>. A rubric item
+like "no false claims" is only as strong as the verifier's own domain knowledge, which for a cheap model is
+exactly where it's thinnest. Notably this is also where Haiku-as-<em>worker</em> failed, so the weakness is
+correlated between cheap workers and cheap verifiers — the bad-work-generating process and the
+verification-miss process are the same process.</p>
+
+<h2>Implications for the chain design</h2>
+<ol>
+  <li><strong>The primitive's economics hold.</strong> 0% false negatives means verifier-bound escrow doesn't grief honest sellers; 12.5% false accepts on bad work is precisely the residual risk the post-release fraud challenge + slashed attestation stake (v0.3.0 S3) exists to insure. The two layers compose: cheap verifier for the 95%, staked challenge to a stronger jury for the rest.</li>
+  <li><strong>Acceptance-spec authoring guidance</strong> (worth a docs note next to <code>acceptance_hash</code>): pin claims so they're checkable, not knowable — "all arithmetic must be shown and re-derivable", "every factual claim must cite the provided source", banned-word lists, hard counts. Every rubric item of that shape verified at 100% in this sample; every miss hid behind an item requiring domain knowledge.</li>
+  <li><strong>The real asymmetry is verify-vs-create at constant model size, not Opus-vs-Haiku.</strong> Haiku verifiers correctly failed Haiku workers' own outputs four times (summary, fiction banned word, hero copy cap, threat-model gap). Verification with a pinned spec is a structurally easier job than creation — that's the load-bearing asymmetry, and it survives even if workers and verifiers run the same cheap model.</li>
+  <li><strong>The S3 attack surface is narrower than feared but real:</strong> all 9 deliberately-planted defects were caught (sabotage targeting checkable constraints loses), but a saboteur who plants <em>fluent wrong facts</em> — FP-1/FP-2's signature, found here by accident — would get paid. Fraud-challenge juries should run stronger models for claims-heavy work; rubric authors should starve that surface per (2).</li>
+</ol>
+
+<div class="verdict">
+<strong>Verdict on the hypothesis:</strong> "Opus-hard" is mostly false at this task size — Haiku does the
+mechanical work fine. But "Haiku-verifiable" is strongly true (95% verdict accuracy, 0% false rejection, 100%
+sabotage detection), and the one systematic failure mode (fluent wrong domain claims, 2/16 bad artifacts
+slipping through) is exactly the case the chain's challenge-window + jury escalation already prices in. The
+verifier market's economics are sound; the cost asymmetry that funds it is verify-vs-create, not big-vs-small.
+</div>
+
+<h2>Per-artifact detail</h2>
+<details><summary>Full results table (41 artifacts)</summary>
+<table>
+<tr><th>Task</th><th>Producer</th><th class="num">Votes</th><th>Verifier majority</th><th>Gold</th><th>Outcome / note</th></tr>
+<tr><td>t1 merge_intervals</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>t1 merge_intervals</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>t1 merge_intervals</td><td>sabotage</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>caught: touching-interval bug</td></tr>
+<tr><td>t2 cron_next</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>t2 cron_next</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept (OR-rule correct!)</td></tr>
+<tr><td>t3 semver_regex</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>t3 semver_regex</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>t4 sql_latest_per_key</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>t4 sql_latest_per_key</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>t4 sql_latest_per_key</td><td>sabotage</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>caught: tie-break inverted (returned 20, not 21)</td></tr>
+<tr><td>t5 fix_binary_search</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>t5 fix_binary_search</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>t6 constrained_summary</td><td>opus</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td><strong>true reject of OPUS work</strong>: 123 words &gt; 120 cap</td></tr>
+<tr><td>t6 constrained_summary</td><td>haiku</td><td class="num">1/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>true reject: omits lock-time quorum fixing, inverts window semantics (split 1-2)</td></tr>
+<tr><td>t6 constrained_summary</td><td>sabotage</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>caught: 48-hour window swap</td></tr>
+<tr><td>t7 bech32_facts</td><td>opus</td><td class="num">2/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept (split 2-1, majority right)</td></tr>
+<tr><td>t7 bech32_facts</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="bad">FAIL</td><td class="warn"><strong>FALSE ACCEPT</strong>: "polymod == zero" (correct: 1)</td></tr>
+<tr><td>t8 escrow_threat_model</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept: all 3 planted flaws + 3 extras (incl. JSON malleability)</td></tr>
+<tr><td>t8 escrow_threat_model</td><td>haiku</td><td class="num">1/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>true reject: missed refund-after-delivery flaw (split 1-2)</td></tr>
+<tr><td>t8 escrow_threat_model</td><td>sabotage</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>caught: replay flaw omitted</td></tr>
+<tr><td>t9 json_extraction</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>t9 json_extraction</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept (sum + ISO dates right)</td></tr>
+<tr><td>t9 json_extraction</td><td>sabotage</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>caught: $7,150 sum + MM/DD date</td></tr>
+<tr><td>t10 changelog_from_diff</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept (all 4 changes, MAJOR)</td></tr>
+<tr><td>t10 changelog_from_diff</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept (all 4 changes, MAJOR)</td></tr>
+<tr><td>w1 sonnet</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept (form + volta verified)</td></tr>
+<tr><td>w1 sonnet</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>w1 sonnet</td><td>sabotage</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>caught (note: saboteur claimed 13 lines, actually wrote 14 with a broken F-rhyme — defective either way)</td></tr>
+<tr><td>w2 acrostic</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept (AGENTCOIN verified)</td></tr>
+<tr><td>w2 acrostic</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>w2 acrostic</td><td>sabotage</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>caught: AGENTCJIN, letter-by-letter</td></tr>
+<tr><td>w3 hero_copy</td><td>opus</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td><strong>true reject of OPUS work</strong>: 61 words &gt; 60 cap</td></tr>
+<tr><td>w3 hero_copy</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept — 36 words, concrete slashing mechanism, one CTA</td></tr>
+<tr><td>w3 hero_copy</td><td>sabotage</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>caught: one mid-sentence "seamless"</td></tr>
+<tr><td>w4 cold_email</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>w4 cold_email</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept</td></tr>
+<tr><td>w5 flash_fiction</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept (genuinely strong piece)</td></tr>
+<tr><td>w5 flash_fiction</td><td>haiku</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>true reject: banned stem "apolog-"</td></tr>
+<tr><td>w5 flash_fiction</td><td>sabotage</td><td class="num">0/3</td><td class="bad">FAIL</td><td class="bad">FAIL</td><td>caught: buried "wishes"</td></tr>
+<tr><td>w6 demurrage</td><td>opus</td><td class="num">3/3</td><td class="ok">PASS</td><td class="ok">PASS</td><td>true accept (0.1%/day &asymp; 23-month half-life: math checks out)</td></tr>
+<tr><td>w6 demurrage</td><td>haiku</td><td class="num">3/3</td><td class="ok">PASS</td><td class="bad">FAIL</td><td class="warn"><strong>FALSE ACCEPT</strong>: 5%/yr &ne; 0.5%/mo; half-life off by ~12&times;</td></tr>
+</table>
+</details>
+
+<h2>Caveats</h2>
+<ul>
+  <li>n=41 artifacts / 16 tasks, single run, no temperature sweep. Smoke test, not a benchmark.</li>
+  <li>Tasks were designed by the experimenter to be pinnable — the right selection (verifier-bound escrow only ever sees pinnable deals) but a selection nonetheless. The market distribution of real ag3ntwork tasks is unknown.</li>
+  <li>Ground truth on rubric tasks is careful-Opus judgment; mechanical tasks used executed gold tests.</li>
+  <li>Verifiers ran as Claude Code subagents with tools — representative of agent verifiers, not of bare API calls.</li>
+  <li>No collusion modeling: sabotage tested defect concealment, not verifier-seller coordination (that's the staking layer's job, tested on-chain in v0.3.x integration tests).</li>
+</ul>
+
+<p class="small">Artifacts &amp; raw votes: <code>/tmp/smoke1/</code>, <code>/tmp/smoke2/</code> (records.json) &middot;
+Workflow runs <code>wf_1ba3a358-42b</code> (100 agents, 1.88M tokens), <code>wf_5b496801-941</code> (64 agents, 1.21M tokens) &middot;
+Generated with Claude Code, 2026-06-07.</p>
+</main>
+</body>
+</html>

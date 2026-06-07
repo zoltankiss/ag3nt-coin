@@ -37,3 +37,8 @@ var (
 	BondKey      = collections.NewPrefix("bond/value/")
 	BondCountKey = collections.NewPrefix("bond/count/")
 )
+
+var (
+	GateKey      = collections.NewPrefix("gate/value/")
+	GateCountKey = collections.NewPrefix("gate/count/")
+)

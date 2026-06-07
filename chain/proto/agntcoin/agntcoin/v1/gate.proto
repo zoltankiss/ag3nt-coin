@@ -1,0 +1,72 @@
+syntax = "proto3";
+package agntcoin.agntcoin.v1;
+
+option go_package = "github.com/zoltankiss/agntcoin/x/agntcoin/types";
+
+// Gate is one reCAPTCHA-style verification gate (gate-v1, 0.4.0): a slice of
+// verification work streamed to the agent pool. Agents commit hashed answers
+// during the commit window, reveal them during the reveal window (reveals
+// only open AFTER commits close, so copying an answer is impossible by
+// construction), and coherent answers MINT a tiny drip — the EARNED FAUCET
+// and the first PoUW mint rail. A 0-coin 0-rep agent's first working capital
+// comes from calibrated verification labor, not a free drip (the old faucet's
+// sybil hole).
+//
+// DECOY vs LIVE: a decoy gate has a known gold verdict precommitted in
+// gold_commit = sha256("<gold_answer>:<salt>"); a live gate commits the empty
+// answer, sha256(":<salt>"). The two are BYTE-IDENTICAL on-chain until
+// settlement — an answerer can never tell whether it is being calibrated or
+// doing real work, so "answer honestly always" is the only coherent policy.
+// Settlement: a revealed non-empty gold answer pays exact matches (decoy);
+// an empty gold answer pays the strict-plurality answer (live consensus);
+// a tie pays nobody.
+//
+// v1 limitations (documented, deliberate):
+// - posting is ANCHOR-only: the drip is minted supply, so emission authority
+//   stays with the trust roots until the no-self-mining inequality
+//   (drip per deal < fees + capital cost of the deal) is enforced in state;
+// - participation is self-selected (any registered agent), not sortition;
+//   rep-weighted random assignment (reservoir sampling) lands with the
+//   trials module;
+// - no vesting/slash of prior drip yet: the anti-guesser teeth in v1 are
+//   k-ary answers + decoy density + pay-on-coherence-only.
+message Gate {
+  uint64 id = 1;
+  string poster = 2;
+  // payload_uri / payload_hash: where the gate's task content lives and the
+  // hex sha256 the fetched bytes must match (same evidence discipline as
+  // escrow delivery_hash — the chain pins, never stores, content).
+  string payload_uri = 3;
+  string payload_hash = 4;
+  // gold_commit: hex sha256("<gold_answer>:<salt>"). Non-empty gold_answer =
+  // decoy; empty = live. Indistinguishable until the poster reveals at settle.
+  string gold_commit = 5;
+  // drip: microcoin MINTED per coherent answer at settlement (<= MaxDripPerAnswer).
+  uint64 drip = 6;
+  uint64 max_answers = 7;
+  // commit_deadline / reveal_deadline: block time at post + the two windows.
+  // Commits land strictly before commit_deadline; reveals strictly between
+  // commit_deadline and reveal_deadline; settle at/after reveal_deadline.
+  int64 commit_deadline = 8;
+  int64 reveal_deadline = 9;
+  // status: "open" | "settled".
+  string status = 10;
+  repeated GateAnswer answers = 11;
+  // Settlement record: the revealed gold answer ("" for live gates) and the
+  // answer that paid ("" if nothing paid — tie or no coherent reveals).
+  string gold_answer = 12;
+  string consensus = 13;
+}
+
+// GateAnswer is one agent's commit-reveal answer to a gate.
+message GateAnswer {
+  string agent = 1;
+  // commit: hex sha256("<answer>:<salt>"), posted during the commit window.
+  string commit = 2;
+  // answer: the revealed plaintext ("" until revealed). k-ary by convention
+  // (e.g. "pass" / "fail:item3") — richer answers crush the guess rate.
+  string answer = 3;
+  bool revealed = 4;
+  // paid: whether this answer earned the drip at settlement.
+  bool paid = 5;
+}

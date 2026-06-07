@@ -4,28 +4,13 @@ An agent-native crypto built to power the [ADD](https://github.com/zoltankiss/ag
 
 ## Status
 
-MVP-1. Cosmos chain scaffolded via Ignite. Custom `agntcoin` module holds the agent-economy primitives. PageRank is the first JIBE (open for the human to implement).
+v0.4.x. Cosmos chain scaffolded via Ignite. Custom `agntcoin` module holds the agent-economy primitives: ledger/faucet/vouches, PageRank reputation, escrow + fair exchange, slashable bonds, dispute-bonds, staked jury, verifier-release (bonded optimistic attestation + atomic key reveal), and gates (commit-reveal verification stream + earned-faucet drip — the first PoUW mint rail). See `docs/VERSIONS.md` for the per-primitive version log.
 
-## How we build this — "jibe coding"
+## How we build this
 
-The agent vibe-codes everything that's scaffolding, boilerplate, glue, plumbing, parsing, route-wiring — the busywork. When the agent reaches an algorithmically interesting part (interview/leetcode-worthy: graph algorithms, sampling, distributed consensus, novel data structures), it **jibes** — turns the keyboard over to the human at a precise, named moment, after explaining the context.
+TDD with keeper **integration tests**: proto first (schema), then RED scenario tests that script the adversarial design arguments (S1…Sn + guard rails), then GREEN handlers. Every primitive's design review lives in its test file as executable scenarios. Economic *constants* (emission, drip, windows) additionally get parameter sweeps via simulation before they harden into genesis values (`sim/`).
 
-Named after the sailing maneuver: the boat changes direction by passing the stern through the wind. A controlled, deliberate handover.
-
-Concretely: when the agent writes a file with a stubbed function and a `// JIBE:` comment, that's the handoff. The human implements; the agent waits.
-
-### Why
-
-1. **Skill retention.** The interesting algorithmic parts are where engineering skill lives. Vibe-coding them away atrophies the skill. The boring parts are where vibe-coding is straight-up the right call — no skill is lost by letting the agent wire up a `MsgServer` handler.
-2. **Quality where it matters.** A hand-coded PageRank with the human's full attention beats a vibe-coded one written in flow.
-
-### Where the jibes are
-
-| File | Jibe | Why interview-worthy |
-|------|------|---------------------|
-| `chain/x/agntcoin/keeper/pagerank.go` | `PageRank(vouches)` | Eigenvector / power iteration on a sparse directed weighted graph; dangling-node handling |
-
-MVP-2 will add jibes for weighted jury selection (reservoir sampling) and trial state machine.
+**The "jibe" protocol is retired** (2026-06-07, by Zoltan's call). Historically, algorithmically interesting cores (PageRank, sampling) were stubbed with `// JIBE:` comments and handed to the human to implement for skill retention. That handover is cancelled: the agent implements everything, including the algorithmic cores (the anchor-rooted PageRank in `chain/x/agntcoin/keeper/pagerank.go` is already done; weighted jury sortition via reservoir sampling lands with the trials module, agent-implemented).
 
 ## Identity
 
@@ -97,7 +82,7 @@ ag3nt-coin/
         keeper.go        — Keeper struct (Account, Vouch collections)
         msg_server_*.go  — Msg handlers (filled in)
         query_*.go       — Query handlers (filled in)
-        pagerank.go      — JIBE: PageRank stub
+        pagerank.go      — anchor-rooted PageRank (vouch + job edges)
       types/             — generated proto Go types + constants.go
     config.yml           — Ignite chain config
   ts-reference/          — original Bun/TS prototype (preserved as porting oracle)
@@ -105,7 +90,7 @@ ag3nt-coin/
 
 ## ts-reference/
 
-The original TS prototype is preserved. Same SPEC. Same wire shapes. Same `pageRank` JIBE in `ts-reference/src/reputation.ts`. Useful as:
+The original TS prototype is preserved. Same SPEC. Same wire shapes. Same `pageRank` surface in `ts-reference/src/reputation.ts`. Useful as:
 - A byte-comparable oracle: implement PageRank in BOTH, compare scores on the same vouch graph
 - A faster sandbox for trying primitives before they hit Cosmos rebuilds
 
@@ -114,7 +99,7 @@ Delete it (`rm -rf ts-reference`) whenever it stops earning its keep.
 ## Roadmap
 
 - **MVP-1** (now): identity (Bech32), ledger, signed transfers, faucet, vouches, PageRank reputation
-- **MVP-2**: ADD-native adapter (Ed25519 base64 ↔ Bech32), trials module (file complaint, jury selection [next JIBE], evidence, voting, slashing), demurrage
+- **MVP-2**: ADD-native adapter (Ed25519 base64 ↔ Bech32), trials module (file complaint, jury sortition via reservoir sampling, evidence, voting, slashing), demurrage
 - **MVP-3**: compute marketplace (PoUW, FLOPs peg)
 - **v1**: multi-validator PoS testnet, public chain
 
