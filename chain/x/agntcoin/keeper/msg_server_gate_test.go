@@ -125,6 +125,25 @@ func TestGateDecoyEarnedDripHappyPath(t *testing.T) {
 	require.Equal(t, 2, paid)
 }
 
+func TestGateWindowEnvOverrideForDevChains(t *testing.T) {
+	t.Setenv("AGNT_GATE_COMMIT_WINDOW_SECONDS", "30")
+	t.Setenv("AGNT_GATE_REVEAL_WINDOW_SECONDS", "45")
+
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+	anchor := sample.AccAddress()
+	setJurors(t, f, anchor)
+	seedAccount(t, f, anchor, 1000)
+
+	const gold, goldSalt = "pass", "dev-window-salt"
+	id := postGate(t, f, ms, anchor, 100, gateCommit(gold, goldSalt), 1, 10)
+
+	g, err := f.keeper.Gate.Get(f.ctx, id)
+	require.NoError(t, err)
+	require.Equal(t, int64(130), g.CommitDeadline)
+	require.Equal(t, int64(175), g.RevealDeadline)
+}
+
 // G2 — Commit-reveal discipline: every ordering and forgery hole the design
 // closes by construction.
 func TestGateCommitRevealDiscipline(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"os"
 	"strconv"
 	"strings"
 
@@ -44,6 +45,18 @@ func gateAnswerCommit(answer, salt string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func gateWindowSeconds(envName string, fallback int64) int64 {
+	raw := strings.TrimSpace(os.Getenv(envName))
+	if raw == "" {
+		return fallback
+	}
+	n, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || n <= 0 {
+		return fallback
+	}
+	return n
+}
+
 // PostGate opens a gate. ANCHOR-only in v1: the drip is minted supply, so
 // emission authority stays with the trust roots until the no-self-mining
 // inequality (drip per deal < fees + capital cost) is enforced in state.
@@ -75,6 +88,8 @@ func (k msgServer) PostGate(ctx context.Context, msg *types.MsgPostGate) (*types
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	now := sdkCtx.BlockTime().Unix()
+	commitWindow := gateWindowSeconds("AGNT_GATE_COMMIT_WINDOW_SECONDS", types.GateCommitWindowSeconds)
+	revealWindow := gateWindowSeconds("AGNT_GATE_REVEAL_WINDOW_SECONDS", types.GateRevealWindowSeconds)
 	id, err := k.GateSeq.Next(ctx)
 	if err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrIO, err.Error())
@@ -87,8 +102,8 @@ func (k msgServer) PostGate(ctx context.Context, msg *types.MsgPostGate) (*types
 		GoldCommit:     msg.GoldCommit,
 		Drip:           msg.Drip,
 		MaxAnswers:     msg.MaxAnswers,
-		CommitDeadline: now + types.GateCommitWindowSeconds,
-		RevealDeadline: now + types.GateCommitWindowSeconds + types.GateRevealWindowSeconds,
+		CommitDeadline: now + commitWindow,
+		RevealDeadline: now + commitWindow + revealWindow,
 		Status:         types.GateStatusOpen,
 	}
 	if err := k.Gate.Set(ctx, id, gate); err != nil {

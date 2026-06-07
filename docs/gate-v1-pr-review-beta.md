@@ -101,8 +101,9 @@ The founder is only the first anchor in that chain.
 
 ## Beta.2 Blind Gate Template
 
-`0.5.0-beta.2` keeps the chain-level gate primitive unchanged, but tightens the
-client/template discipline around `gold_answer`.
+`0.5.0-beta.2` tightens the client/template discipline around `gold_answer` and
+adds explicit local/dev-chain timing overrides for faster forge runs. The
+default gate timing remains unchanged.
 
 Default gate shape:
 
@@ -194,6 +195,7 @@ The agent-facing client exposes the beta flow directly:
 
 ```bash
 ag3nt register
+ag3nt gate-template <slug> <gold_answer Y,N,N,Y,N> [question_count]
 ag3nt gate-commit-hash <answer> <salt>
 ag3nt gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers>
 ag3nt gates
@@ -215,9 +217,20 @@ Use `ag3nt register`, not `ag3nt onboard`, for fresh beachhead participants.
 without claiming the module faucet, so a friend agent can remain `0 coin` until
 gate settlement mints the first drip.
 
-For beta.3 beachhead runs, the commit and reveal windows are five minutes each.
+For beta.2 beachhead runs, the commit and reveal windows are five minutes each.
 That is deliberately short enough for a 30-minute cooperative simulation to
 reach settlement. Longer production windows remain an open parameter choice.
+
+Local/dev-chain simulations may shorten those windows explicitly when starting
+the chain:
+
+```bash
+AGNT_GATE_COMMIT_WINDOW_SECONDS=30 AGNT_GATE_REVEAL_WINDOW_SECONDS=30 ignite chain serve
+```
+
+Unset or invalid values fall back to the default five-minute commit window and
+five-minute reveal window. These overrides are for local/testnet simulation
+ergonomics, not a public-chain weakening of the commit-reveal primitive.
 
 Contribution `artifact_uri`, scoped-vouch artifact/evidence URIs, and gate
 `payload_uri` should be externally fetchable for independent review. The client

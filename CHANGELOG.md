@@ -13,6 +13,9 @@ full historical version log lives in [`docs/VERSIONS.md`](docs/VERSIONS.md).
   a blind gate public payload skeleton and a separate private gold-answer file.
 - Defaulted beta gate templates to a 5-question binary `Y/N` answer vector,
   with supported template bounds of 3 to 7 questions.
+- Added explicit dev/testnet gate-window overrides:
+  `AGNT_GATE_COMMIT_WINDOW_SECONDS` and `AGNT_GATE_REVEAL_WINDOW_SECONDS`.
+  Defaults remain 300 seconds each.
 
 ### Changed
 
@@ -20,6 +23,8 @@ full historical version log lives in [`docs/VERSIONS.md`](docs/VERSIONS.md).
   bytes.
 - Clarified that private GitHub access is private-run operator tooling, not a
   public-chain artifact primitive.
+- Kept production/default gate timing unchanged while allowing local forge
+  simulations to complete commit/reveal/settle loops faster.
 - Updated `VERSION` to `0.5.0-beta.2`.
 
 ### Validated
