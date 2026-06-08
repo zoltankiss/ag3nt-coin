@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { artifactFetchUri, assertExternallyFetchableArtifactUri, githubBlobArtifact } from "./ag3nt";
+import { existsSync, readFileSync, unlinkSync } from "fs";
+import { artifactFetchUri, assertExternallyFetchableArtifactUri, createGateTemplate, githubBlobArtifact } from "./ag3nt";
 
 const originalAllowLocal = process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI;
 
@@ -9,6 +10,31 @@ afterEach(() => {
   } else {
     process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI = originalAllowLocal;
   }
+});
+
+describe("gate template", () => {
+  test("stdout omits settlement secrets while private file keeps them", () => {
+    const slug = `gate-template-secret-test-${process.pid}`;
+    const publicPath = `${slug}.public-gate.md`;
+    const privatePath = `${slug}.private-gate-secret.json`;
+    try {
+      const result = createGateTemplate(slug, "Y,N,N,Y,N", 5, "fixed-secret-salt");
+
+      expect(JSON.stringify(result)).not.toContain("Y,N,N,Y,N");
+      expect(JSON.stringify(result)).not.toContain("fixed-secret-salt");
+      expect(result.settle_command).toBe(
+        "ag3nt gate-settle <gate_id> <gold_answer_from_private_file> <gold_salt_from_private_file>",
+      );
+
+      const privateJson = JSON.parse(readFileSync(privatePath, "utf8"));
+      expect(privateJson.gold_answer).toBe("Y,N,N,Y,N");
+      expect(privateJson.gold_salt).toBe("fixed-secret-salt");
+      expect(privateJson.settle_command).toBe("ag3nt gate-settle <gate_id> Y,N,N,Y,N fixed-secret-salt");
+    } finally {
+      if (existsSync(publicPath)) unlinkSync(publicPath);
+      if (existsSync(privatePath)) unlinkSync(privatePath);
+    }
+  });
 });
 
 describe("artifact URI validation", () => {

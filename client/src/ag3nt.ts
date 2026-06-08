@@ -753,6 +753,7 @@ export function createGateTemplate(slug: string, goldAnswerIn: string, questionC
     gold_commit: goldCommit,
     payload_path: publicPath,
     payload_sha256: payloadHash,
+    settle_command: `ag3nt gate-settle <gate_id> ${goldAnswer} ${goldSalt}`,
     private_rationale: "Write private gold rationale here. Publish only after reveal window closes.",
     warning: "Do not publish this file before settlement. Public gate payloads must not include gold_answer or gold_salt.",
   };
@@ -766,7 +767,7 @@ export function createGateTemplate(slug: string, goldAnswerIn: string, questionC
     payload_sha256: payloadHash,
     gold_commit: goldCommit,
     post_command: `ag3nt gate-post <payload_uri> ${payloadHash} ${goldCommit} <drip> <max_answers>`,
-    settle_command: `ag3nt gate-settle <gate_id> ${goldAnswer} ${goldSalt}`,
+    settle_command: "ag3nt gate-settle <gate_id> <gold_answer_from_private_file> <gold_salt_from_private_file>",
   };
 }
 
