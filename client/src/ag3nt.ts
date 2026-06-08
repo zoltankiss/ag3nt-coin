@@ -213,9 +213,9 @@ const MSG = {
     typeUrl: "/agntcoin.agntcoin.v1.MsgSettleGate",
     value: new Uint8Array([...strField(1, creator), ...u64Field(2, gateId), ...strField(3, goldAnswer), ...strField(4, goldSalt)]),
   }),
-  awardContribution: (creator: string, recipient: string, repoUrl: string, prUrl: string, commitSha: string, artifactUri: string, artifactSha256: string, evidenceSha256: string, scope: string, rationaleHash: string, amount: number | bigint) => ({
+  awardContribution: (creator: string, recipient: string, repoUrl: string, prUrl: string, commitSha: string, artifactUri: string, artifactSha256: string, evidenceSha256: string, scope: string, rationaleHash: string, amount: number | bigint, contributor: string, founderAuthored: boolean, reviewEvidenceUri: string) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgAwardContribution",
-    value: new Uint8Array([...strField(1, creator), ...strField(2, recipient), ...strField(3, repoUrl), ...strField(4, prUrl), ...strField(5, commitSha), ...strField(6, artifactUri), ...strField(7, artifactSha256), ...strField(8, evidenceSha256), ...strField(9, scope), ...strField(10, rationaleHash), ...u64Field(11, amount)]),
+    value: new Uint8Array([...strField(1, creator), ...strField(2, recipient), ...strField(3, repoUrl), ...strField(4, prUrl), ...strField(5, commitSha), ...strField(6, artifactUri), ...strField(7, artifactSha256), ...strField(8, evidenceSha256), ...strField(9, scope), ...strField(10, rationaleHash), ...u64Field(11, amount), ...strField(12, contributor), ...boolField(13, founderAuthored), ...strField(14, reviewEvidenceUri)]),
   }),
   castScopedEvidenceVouch: (creator: string, recipient: string, scope: string, weight: number | bigint, artifactUri: string, artifactSha256: string, evidenceUri: string, evidenceSha256: string, rationaleHash: string, expiresAt: number | bigint) => ({
     typeUrl: "/agntcoin.agntcoin.v1.MsgCastScopedEvidenceVouch",
@@ -357,6 +357,9 @@ export type ContributionAwardRecord = {
   scope: string;
   rationale_hash: string;
   amount: string;
+  contributor: string;
+  founder_authored: boolean;
+  review_evidence_uri: string;
 };
 
 export type GateAnswerRecord = {
@@ -481,6 +484,9 @@ function toContributionAward(a: any): ContributionAwardRecord {
     scope: a.scope ?? "",
     rationale_hash: a.rationale_hash ?? a.rationaleHash ?? "",
     amount: String(a.amount ?? "0"),
+    contributor: a.contributor ?? "",
+    founder_authored: !!(a.founder_authored ?? a.founderAuthored),
+    review_evidence_uri: a.review_evidence_uri ?? a.reviewEvidenceUri ?? "",
   };
 }
 
@@ -791,11 +797,28 @@ export async function settleGate(key: Key, gateId: number | bigint | string, gol
   return signAndBroadcast(key, MSG.settleGate(key.address, BigInt(gateId), goldAnswer, goldSalt));
 }
 
-export function assertContributionAwardRecipient(anchorAddress: string, recipient: string, allowSelfAward = false) {
+export function assertContributionAwardRecipient(
+  anchorAddress: string,
+  recipient: string,
+  contributorAddress: string,
+  allowSelfAward = false,
+  reviewEvidenceUri = "",
+) {
+  if (!contributorAddress) {
+    throw new Error("contribution-award requires --contributor-address <addr> to bind the award recipient to reviewed evidence");
+  }
+  if (recipient !== contributorAddress) {
+    throw new Error(
+      `contribution-award recipient ${recipient} does not match reviewed contributor ${contributorAddress}`,
+    );
+  }
   if (recipient === anchorAddress && !allowSelfAward) {
     throw new Error(
-      "contribution-award recipient matches the signing anchor; pass --allow-self-award only for independently reviewed founder-authored work",
+      "contribution-award recipient matches the signing anchor; pass --founder-authored only for independently reviewed founder-authored work",
     );
+  }
+  if (recipient === anchorAddress && !reviewEvidenceUri) {
+    throw new Error("founder-authored contribution-award requires --review-evidence-uri <uri>");
   }
 }
 
@@ -811,10 +834,11 @@ export async function awardContribution(
   scope: string,
   rationaleHash: string,
   amount: number | bigint,
-  options: { allowSelfAward?: boolean } = {},
+  options: { founderAuthored?: boolean; contributorAddress?: string; reviewEvidenceUri?: string } = {},
 ): Promise<{ id: string; txhash: string }> {
-  assertContributionAwardRecipient(key.address, recipient, !!options.allowSelfAward);
+  assertContributionAwardRecipient(key.address, recipient, options.contributorAddress || "", !!options.founderAuthored, options.reviewEvidenceUri || "");
   assertExternallyFetchableArtifactUri(artifactUri, "artifact_uri");
+  if (options.reviewEvidenceUri) assertExternallyFetchableArtifactUri(options.reviewEvidenceUri, "review_evidence_uri");
   const r = await signAndBroadcast(key, MSG.awardContribution(
     key.address,
     recipient,
@@ -827,6 +851,9 @@ export async function awardContribution(
     scope,
     rationaleHash,
     amount,
+    options.contributorAddress || "",
+    !!options.founderAuthored,
+    options.reviewEvidenceUri || "",
   ));
   const id = eventAttr(r, "agntcoin_contribution_awarded", "id");
   if (!id) throw new Error("contribution awarded but could not determine its id");
@@ -1069,7 +1096,7 @@ export function addDoc() {
       { cmd: "ag3nt gate-commit <gate_id> <commit>", summary: "Commit a hashed gate answer during the commit window." },
       { cmd: "ag3nt gate-reveal <gate_id> <answer> <salt>", summary: "Reveal a committed gate answer after the commit window opens." },
       { cmd: "ag3nt gate-settle <gate_id> <gold_answer> <gold_salt>", summary: "Settle a gate after reveal deadline and mint drip to coherent answers." },
-      { cmd: "ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> [--allow-self-award]", summary: "Anchor only: mint capped AGNT to the author of an accepted protocol contribution, pinned by hashes. Self-awards require the explicit flag for independently reviewed founder-authored work." },
+      { cmd: "ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> --contributor-address <addr> [--founder-authored --review-evidence-uri <uri>]", summary: "Anchor only: mint capped AGNT to the author of an accepted protocol contribution, pinned by hashes. Recipient must equal contributor; founder-authored awards require explicit review evidence." },
       { cmd: "ag3nt contribution-awards", summary: "List accepted protocol contribution awards." },
       { cmd: "ag3nt contribution-award-get <id>", summary: "Read one accepted protocol contribution award." },
       { cmd: "ag3nt artifact-check <uri> <sha256>", summary: "Fetch an externally reviewable artifact and verify its SHA-256; rejects known bad GitHub repo typos." },

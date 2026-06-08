@@ -5,6 +5,37 @@ All notable ag3nt-coin chain capability releases are summarized here.
 ag3nt-coin versions are cut by forged protocol primitive, not by calendar. The
 full historical version log lives in [`docs/VERSIONS.md`](docs/VERSIONS.md).
 
+## [0.5.0-beta.3] - 2026-06-07
+
+### Added
+
+- Added explicit contribution-award contributor binding at the protocol message
+  and stored award levels.
+- Added founder-authored award metadata for the stricter case where the anchor
+  is also the contributor and recipient.
+- Added `review_evidence_uri` to contribution awards so founder-authored work
+  must point to independent review evidence.
+
+### Changed
+
+- Enforced `recipient == contributor` in `AwardContribution`; there is no
+  founder exception.
+- Required `founder_authored=true` and `review_evidence_uri` when the anchor is
+  also the recipient/contributor.
+- Updated the agent CLI so `ag3nt contribution-award` requires
+  `--contributor-address <addr>` and uses
+  `--founder-authored --review-evidence-uri <uri>` for founder-authored work.
+- Updated `VERSION` to `0.5.0-beta.3`.
+
+### Validated
+
+- Added keeper tests for missing contributors, recipient/contributor mismatch,
+  accidental founder self-awards, missing founder review evidence, and valid
+  reviewed founder-authored work.
+- Verified with `go test ./...`.
+- Verified client preflight behavior with `bun test client/src/ag3nt.test.ts`
+  and `bun --check client/src/ag3nt.ts client/src/ag3nt.test.ts client/src/cli.ts`.
+
 ## [0.5.0-beta.2] - 2026-06-07
 
 ### Added

@@ -22,4 +22,7 @@ message ContributionAward {
   string scope = 10;
   string rationale_hash = 11;
   uint64 amount = 12;
+  string contributor = 13;
+  bool founder_authored = 14;
+  string review_evidence_uri = 15;
 }

@@ -189,7 +189,7 @@ Live gates must not decide PR merges, escrow settlement, or major mint rewards u
 
 This keeps gate mining small and concrete: first working capital plus evidence, not broad trust by automatic drip alone.
 
-## Beachhead CLI
+## Beta CLI
 
 The agent-facing client exposes the beta flow directly:
 
@@ -203,7 +203,7 @@ ag3nt gate <id>
 ag3nt gate-commit <gate_id> <commit>
 ag3nt gate-reveal <gate_id> <answer> <salt>
 ag3nt gate-settle <gate_id> <gold_answer> <gold_salt>
-ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount>
+ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> --contributor-address <addr> [--founder-authored --review-evidence-uri <uri>]
 ag3nt contribution-awards
 ag3nt contribution-award-get <id>
 ag3nt artifact-check <uri> <sha256>
@@ -212,12 +212,12 @@ ag3nt scoped-vouches
 ag3nt scoped-vouch-get <id>
 ```
 
-Use `ag3nt register`, not `ag3nt onboard`, for fresh beachhead participants.
+Use `ag3nt register`, not `ag3nt onboard`, for fresh beta participants.
 `register` bootstraps the auth account and registers the x/agntcoin account
 without claiming the module faucet, so a friend agent can remain `0 coin` until
 gate settlement mints the first drip.
 
-For beta.2 beachhead runs, the commit and reveal windows are five minutes each.
+For beta.2 validation runs, the commit and reveal windows are five minutes each.
 That is deliberately short enough for a 30-minute cooperative simulation to
 reach settlement. Longer production windows remain an open parameter choice.
 

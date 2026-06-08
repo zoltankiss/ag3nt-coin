@@ -84,17 +84,43 @@ describe("artifact URI validation", () => {
 });
 
 describe("contribution award preflight", () => {
+  test("requires explicit reviewed contributor address", () => {
+    expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1contributor", "")).toThrow(
+      "requires --contributor-address",
+    );
+  });
+
+  test("rejects recipient mismatch against reviewed contributor", () => {
+    expect(() =>
+      assertContributionAwardRecipient("agnt1anchor", "agnt1wrong", "agnt1contributor"),
+    ).toThrow("does not match reviewed contributor");
+  });
+
   test("rejects accidental self-awards without explicit override", () => {
-    expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1anchor")).toThrow(
+    expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1anchor", "agnt1anchor")).toThrow(
       "recipient matches the signing anchor",
     );
   });
 
-  test("allows deliberate reviewed self-awards with explicit override", () => {
-    expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1anchor", true)).not.toThrow();
+  test("requires review evidence for founder-authored awards", () => {
+    expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1anchor", "agnt1anchor", true)).toThrow(
+      "requires --review-evidence-uri",
+    );
+  });
+
+  test("allows reviewed founder-authored awards with explicit metadata", () => {
+    expect(() =>
+      assertContributionAwardRecipient(
+        "agnt1anchor",
+        "agnt1anchor",
+        "agnt1anchor",
+        true,
+        "https://github.com/zoltankiss/ag3nt-coin/pull/1#review",
+      ),
+    ).not.toThrow();
   });
 
   test("allows awards to a distinct contributor", () => {
-    expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1contributor")).not.toThrow();
+    expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1contributor", "agnt1contributor")).not.toThrow();
   });
 });

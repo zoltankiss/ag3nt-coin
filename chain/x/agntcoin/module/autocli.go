@@ -238,9 +238,9 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				},
 				{
 					RpcMethod:      "AwardContribution",
-					Use:            "award-contribution [recipient] [repo-url] [pr-url] [commit-sha] [artifact-uri] [artifact-sha256] [evidence-sha256] [scope] [rationale-hash] [amount]",
-					Short:          "Anchor: mint capped AGNT to an accepted protocol contribution author",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "recipient"}, {ProtoField: "repo_url"}, {ProtoField: "pr_url"}, {ProtoField: "commit_sha"}, {ProtoField: "artifact_uri"}, {ProtoField: "artifact_sha256"}, {ProtoField: "evidence_sha256"}, {ProtoField: "scope"}, {ProtoField: "rationale_hash"}, {ProtoField: "amount"}},
+					Use:            "award-contribution [recipient] [repo-url] [pr-url] [commit-sha] [artifact-uri] [artifact-sha256] [evidence-sha256] [scope] [rationale-hash] [amount] [contributor] [founder-authored] [review-evidence-uri]",
+					Short:          "Anchor: mint capped AGNT to an accepted protocol contribution author; recipient must match contributor",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "recipient"}, {ProtoField: "repo_url"}, {ProtoField: "pr_url"}, {ProtoField: "commit_sha"}, {ProtoField: "artifact_uri"}, {ProtoField: "artifact_sha256"}, {ProtoField: "evidence_sha256"}, {ProtoField: "scope"}, {ProtoField: "rationale_hash"}, {ProtoField: "amount"}, {ProtoField: "contributor"}, {ProtoField: "founder_authored"}, {ProtoField: "review_evidence_uri"}},
 				},
 				{
 					RpcMethod:      "CastScopedEvidenceVouch",

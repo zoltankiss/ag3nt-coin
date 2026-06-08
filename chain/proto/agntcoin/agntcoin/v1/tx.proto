@@ -506,6 +506,9 @@ message MsgAwardContribution {
   string scope = 9;
   string rationale_hash = 10;
   uint64 amount = 11;
+  string contributor = 12 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bool founder_authored = 13;
+  string review_evidence_uri = 14;
 }
 
 // MsgAwardContributionResponse returns the new contribution award id.
