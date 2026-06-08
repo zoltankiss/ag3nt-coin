@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, unlinkSync } from "fs";
-import { artifactFetchUri, assertContributionAwardRecipient, assertExternallyFetchableArtifactUri, createGateTemplate, githubBlobArtifact } from "./ag3nt";
+import { createHash } from "crypto";
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+import { artifactCheck, artifactFetchUri, assertContributionAwardRecipient, assertExternallyFetchableArtifactUri, contributionAwardResult, createGateTemplate, githubBlobArtifact } from "./ag3nt";
 
 const originalAllowLocal = process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI;
 
@@ -35,6 +38,38 @@ describe("gate template", () => {
       if (existsSync(privatePath)) unlinkSync(privatePath);
     }
   });
+
+  test("rejects gold answer with the wrong question count before writing files", () => {
+    const slug = `gate-template-count-test-${process.pid}`;
+    const publicPath = `${slug}.public-gate.md`;
+    const privatePath = `${slug}.private-gate-secret.json`;
+    try {
+      expect(() => createGateTemplate(slug, "Y,N,N,Y", 5, "fixed-secret-salt")).toThrow(
+        "gold_answer must contain exactly 5 comma-separated Y/N values",
+      );
+      expect(existsSync(publicPath)).toBe(false);
+      expect(existsSync(privatePath)).toBe(false);
+    } finally {
+      if (existsSync(publicPath)) unlinkSync(publicPath);
+      if (existsSync(privatePath)) unlinkSync(privatePath);
+    }
+  });
+
+  test("rejects non-binary gold answer values before writing files", () => {
+    const slug = `gate-template-binary-test-${process.pid}`;
+    const publicPath = `${slug}.public-gate.md`;
+    const privatePath = `${slug}.private-gate-secret.json`;
+    try {
+      expect(() => createGateTemplate(slug, "Y,N,maybe,Y,N", 5, "fixed-secret-salt")).toThrow(
+        "gold_answer values must be canonical Y or N",
+      );
+      expect(existsSync(publicPath)).toBe(false);
+      expect(existsSync(privatePath)).toBe(false);
+    } finally {
+      if (existsSync(publicPath)) unlinkSync(publicPath);
+      if (existsSync(privatePath)) unlinkSync(privatePath);
+    }
+  });
 });
 
 describe("artifact URI validation", () => {
@@ -63,6 +98,30 @@ describe("artifact URI validation", () => {
     expect(artifactFetchUri("http://127.0.0.1:4312/artifacts/payload.json")).toBe(
       "http://127.0.0.1:4312/artifacts/payload.json",
     );
+  });
+
+  test("local artifact override reports local_http access method", async () => {
+    process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI = "1";
+    const body = "local smoke-test artifact\n";
+    const expectedSha256 = createHash("sha256").update(body).digest("hex");
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch() {
+        return new Response(body);
+      },
+    });
+
+    try {
+      const uri = `http://127.0.0.1:${server.port}/artifacts/payload.txt`;
+      const result = await artifactCheck(uri, expectedSha256);
+
+      expect(result.ok).toBe(true);
+      expect(result.fetch_uri).toBe(uri);
+      expect(result.access_method).toBe("local_http");
+    } finally {
+      server.stop(true);
+    }
   });
 
   test("github blob artifact parser preserves pinned ref and path", () => {
@@ -108,6 +167,18 @@ describe("contribution award preflight", () => {
     );
   });
 
+  test("rejects founder-authored metadata on non-anchor awards", () => {
+    expect(() =>
+      assertContributionAwardRecipient(
+        "agnt1anchor",
+        "agnt1contributor",
+        "agnt1contributor",
+        true,
+        "https://github.com/zoltankiss/ag3nt-coin/pull/1#review",
+      ),
+    ).toThrow("founder-authored contribution-award requires recipient to match the signing anchor");
+  });
+
   test("allows reviewed founder-authored awards with explicit metadata", () => {
     expect(() =>
       assertContributionAwardRecipient(
@@ -122,5 +193,73 @@ describe("contribution award preflight", () => {
 
   test("allows awards to a distinct contributor", () => {
     expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1contributor", "agnt1contributor")).not.toThrow();
+  });
+
+  test("success output includes recipient binding metadata", () => {
+    expect(
+      contributionAwardResult(
+        { id: "7", txhash: "ABC" },
+        "agnt1anchor",
+        "agnt1contributor",
+        "3",
+        "agnt1contributor",
+      ),
+    ).toEqual({
+      ok: true,
+      id: "7",
+      anchor: "agnt1anchor",
+      recipient: "agnt1contributor",
+      contributor: "agnt1contributor",
+      recipient_binding: true,
+      founder_authored: false,
+      review_evidence_uri: "",
+      amount: "3",
+      txhash: "ABC",
+    });
+  });
+
+  test("success output preserves founder-authored review metadata", () => {
+    expect(
+      contributionAwardResult(
+        { id: "8", txhash: "DEF" },
+        "agnt1anchor",
+        "agnt1anchor",
+        "5",
+        "agnt1anchor",
+        true,
+        "https://github.com/zoltankiss/ag3nt-coin/pull/1#review",
+      ),
+    ).toMatchObject({
+      contributor: "agnt1anchor",
+      recipient_binding: true,
+      founder_authored: true,
+      review_evidence_uri: "https://github.com/zoltankiss/ag3nt-coin/pull/1#review",
+    });
+  });
+});
+
+describe("cli command dispatch", () => {
+  test("unknown commands fail explicitly", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "ag3nt-cli-unknown-"));
+    try {
+      const proc = Bun.spawn(["bun", "src/cli.ts", "contribution-awardsz"], {
+        cwd: import.meta.dir.replace(/\/src$/, ""),
+        env: { ...process.env, AG3NT_KEY: join(dir, "key.json") },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const [stdout, stderr, exitCode] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ]);
+
+      expect(exitCode).toBe(1);
+      expect(stdout).toBe("");
+      expect(stderr).toContain("unknown command 'contribution-awardsz'");
+      expect(stderr).toContain("contribution-awards");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
