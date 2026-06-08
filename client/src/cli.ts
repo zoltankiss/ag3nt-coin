@@ -5,6 +5,7 @@ import { loadOrCreateKey, registerOnly, pay, vouch, unvouch, lockEscrow, release
 const [cmd, ...args] = process.argv.slice(2);
 const key = await loadOrCreateKey();
 const out = (o: any) => console.log(JSON.stringify(o, (_, v) => (typeof v === "bigint" ? v.toString() : v), 2));
+const COMMANDS_HELP = "commands: whoami | discover | register | params | emission | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> <stake> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | gate-commit-hash <answer> <salt> | gate-template <slug> <gold_answer Y,N,N,Y,N> [question_count] | gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers> | gates | gate <id> | gate-commit <gate_id> <commit> | gate-reveal <gate_id> <answer> <salt> | gate-settle <gate_id> <gold_answer> <gold_salt> | contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> --contributor-address <addr> [--founder-authored --review-evidence-uri <uri>] | contribution-awards | contribution-award-get <id> | artifact-check <uri> <sha256> | scoped-vouch <recipient> <scope> <weight> <artifact_uri> <artifact_sha256> <evidence_uri> <evidence_sha256> <rationale_hash|-> <expires_at> | scoped-vouches | scoped-vouch-get <id> | request <METHOD> <url> [body] | sign <METHOD> <path> [body]";
 
 try {
   switch (cmd) {
@@ -233,7 +234,11 @@ try {
       out(await signRequestHeaders(key, method, path, rest.join(" "))); break;
     }
     default:
-      console.log("commands: whoami | discover | register | params | emission | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> <stake> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | gate-commit-hash <answer> <salt> | gate-template <slug> <gold_answer Y,N,N,Y,N> [question_count] | gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers> | gates | gate <id> | gate-commit <gate_id> <commit> | gate-reveal <gate_id> <answer> <salt> | gate-settle <gate_id> <gold_answer> <gold_salt> | contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> --contributor-address <addr> [--founder-authored --review-evidence-uri <uri>] | contribution-awards | contribution-award-get <id> | artifact-check <uri> <sha256> | scoped-vouch <recipient> <scope> <weight> <artifact_uri> <artifact_sha256> <evidence_uri> <evidence_sha256> <rationale_hash|-> <expires_at> | scoped-vouches | scoped-vouch-get <id> | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
+      if (!cmd) {
+        console.log(COMMANDS_HELP);
+        break;
+      }
+      throw new Error(`unknown command '${cmd}'. ${COMMANDS_HELP}`);
   }
 } catch (e: any) {
   console.error("error:", e.message);

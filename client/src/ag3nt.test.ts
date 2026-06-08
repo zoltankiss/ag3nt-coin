@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createHash } from "crypto";
-import { existsSync, readFileSync, unlinkSync } from "fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import { artifactCheck, artifactFetchUri, assertContributionAwardRecipient, assertExternallyFetchableArtifactUri, contributionAwardResult, createGateTemplate, githubBlobArtifact } from "./ag3nt";
 
 const originalAllowLocal = process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI;
@@ -233,5 +235,31 @@ describe("contribution award preflight", () => {
       founder_authored: true,
       review_evidence_uri: "https://github.com/zoltankiss/ag3nt-coin/pull/1#review",
     });
+  });
+});
+
+describe("cli command dispatch", () => {
+  test("unknown commands fail explicitly", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "ag3nt-cli-unknown-"));
+    try {
+      const proc = Bun.spawn(["bun", "src/cli.ts", "contribution-awardsz"], {
+        cwd: import.meta.dir.replace(/\/src$/, ""),
+        env: { ...process.env, AG3NT_KEY: join(dir, "key.json") },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const [stdout, stderr, exitCode] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ]);
+
+      expect(exitCode).toBe(1);
+      expect(stdout).toBe("");
+      expect(stderr).toContain("unknown command 'contribution-awardsz'");
+      expect(stderr).toContain("contribution-awards");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
