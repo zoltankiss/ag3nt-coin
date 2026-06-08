@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, unlinkSync } from "fs";
-import { artifactFetchUri, assertContributionAwardRecipient, assertExternallyFetchableArtifactUri, createGateTemplate, githubBlobArtifact } from "./ag3nt";
+import { artifactFetchUri, assertContributionAwardRecipient, assertExternallyFetchableArtifactUri, contributionAwardResult, createGateTemplate, githubBlobArtifact } from "./ag3nt";
 
 const originalAllowLocal = process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI;
 
@@ -30,6 +30,38 @@ describe("gate template", () => {
       expect(privateJson.gold_answer).toBe("Y,N,N,Y,N");
       expect(privateJson.gold_salt).toBe("fixed-secret-salt");
       expect(privateJson.settle_command).toBe("ag3nt gate-settle <gate_id> Y,N,N,Y,N fixed-secret-salt");
+    } finally {
+      if (existsSync(publicPath)) unlinkSync(publicPath);
+      if (existsSync(privatePath)) unlinkSync(privatePath);
+    }
+  });
+
+  test("rejects gold answer with the wrong question count before writing files", () => {
+    const slug = `gate-template-count-test-${process.pid}`;
+    const publicPath = `${slug}.public-gate.md`;
+    const privatePath = `${slug}.private-gate-secret.json`;
+    try {
+      expect(() => createGateTemplate(slug, "Y,N,N,Y", 5, "fixed-secret-salt")).toThrow(
+        "gold_answer must contain exactly 5 comma-separated Y/N values",
+      );
+      expect(existsSync(publicPath)).toBe(false);
+      expect(existsSync(privatePath)).toBe(false);
+    } finally {
+      if (existsSync(publicPath)) unlinkSync(publicPath);
+      if (existsSync(privatePath)) unlinkSync(privatePath);
+    }
+  });
+
+  test("rejects non-binary gold answer values before writing files", () => {
+    const slug = `gate-template-binary-test-${process.pid}`;
+    const publicPath = `${slug}.public-gate.md`;
+    const privatePath = `${slug}.private-gate-secret.json`;
+    try {
+      expect(() => createGateTemplate(slug, "Y,N,maybe,Y,N", 5, "fixed-secret-salt")).toThrow(
+        "gold_answer values must be canonical Y or N",
+      );
+      expect(existsSync(publicPath)).toBe(false);
+      expect(existsSync(privatePath)).toBe(false);
     } finally {
       if (existsSync(publicPath)) unlinkSync(publicPath);
       if (existsSync(privatePath)) unlinkSync(privatePath);
@@ -122,5 +154,47 @@ describe("contribution award preflight", () => {
 
   test("allows awards to a distinct contributor", () => {
     expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1contributor", "agnt1contributor")).not.toThrow();
+  });
+
+  test("success output includes recipient binding metadata", () => {
+    expect(
+      contributionAwardResult(
+        { id: "7", txhash: "ABC" },
+        "agnt1anchor",
+        "agnt1contributor",
+        "3",
+        "agnt1contributor",
+      ),
+    ).toEqual({
+      ok: true,
+      id: "7",
+      anchor: "agnt1anchor",
+      recipient: "agnt1contributor",
+      contributor: "agnt1contributor",
+      recipient_binding: true,
+      founder_authored: false,
+      review_evidence_uri: "",
+      amount: "3",
+      txhash: "ABC",
+    });
+  });
+
+  test("success output preserves founder-authored review metadata", () => {
+    expect(
+      contributionAwardResult(
+        { id: "8", txhash: "DEF" },
+        "agnt1anchor",
+        "agnt1anchor",
+        "5",
+        "agnt1anchor",
+        true,
+        "https://github.com/zoltankiss/ag3nt-coin/pull/1#review",
+      ),
+    ).toMatchObject({
+      contributor: "agnt1anchor",
+      recipient_binding: true,
+      founder_authored: true,
+      review_evidence_uri: "https://github.com/zoltankiss/ag3nt-coin/pull/1#review",
+    });
   });
 });

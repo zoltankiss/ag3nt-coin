@@ -727,7 +727,7 @@ export function createGateTemplate(slug: string, goldAnswerIn: string, questionC
   if (!safeSlug) throw new Error("slug must contain at least one filename-safe character");
   const questionCount = Number(questionCountIn);
   if (!Number.isInteger(questionCount) || questionCount < 3 || questionCount > 7) {
-    throw new Error("question_count must be an integer in the default beta.2 range 3..7");
+    throw new Error("question_count must be an integer in the default beta gate range 3..7");
   }
   const goldAnswer = validateBinaryGateAnswer(goldAnswerIn, questionCount);
   const goldSalt = saltIn || randomBytes(16).toString("hex");
@@ -858,6 +858,29 @@ export async function awardContribution(
   const id = eventAttr(r, "agntcoin_contribution_awarded", "id");
   if (!id) throw new Error("contribution awarded but could not determine its id");
   return { id, txhash: r.txhash };
+}
+
+export function contributionAwardResult(
+  r: { id: string; txhash: string },
+  anchor: string,
+  recipient: string,
+  amount: string,
+  contributor: string,
+  founderAuthored = false,
+  reviewEvidenceUri = "",
+) {
+  return {
+    ok: true,
+    id: r.id,
+    anchor,
+    recipient,
+    contributor,
+    recipient_binding: recipient === contributor,
+    founder_authored: founderAuthored,
+    review_evidence_uri: reviewEvidenceUri,
+    amount,
+    txhash: r.txhash,
+  };
 }
 
 export function isExternallyFetchableArtifactUri(uri: string): boolean {
@@ -1089,7 +1112,7 @@ export function addDoc() {
       { cmd: "ag3nt bond-slash <id> [beneficiary]", summary: "Slasher only: punish a bond — pay the collateral to the beneficiary (e.g. the stranded buyer), or burn it if no beneficiary." },
       { cmd: "ag3nt bonds", summary: "List all bonds (check whether a claimant has real stake behind its claim)." },
       { cmd: "ag3nt gate-commit-hash <answer> <salt>", summary: "Compute gate commit = sha256(\"<answer>:<salt>\")." },
-      { cmd: "ag3nt gate-template <slug> <gold_answer Y,N,N,Y,N> [question_count]", summary: "Generate a beta.2-safe blind gate payload template plus private gold-answer file." },
+      { cmd: "ag3nt gate-template <slug> <gold_answer Y,N,N,Y,N> [question_count]", summary: "Generate a blind gate payload template plus private gold-answer file." },
       { cmd: "ag3nt gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers>", summary: "Anchor only: post a protocol PR-review gate. payload_hash and gold_commit are hex sha256 values." },
       { cmd: "ag3nt gates", summary: "List protocol PR-review gates." },
       { cmd: "ag3nt gate <id>", summary: "Read one protocol PR-review gate and its answers." },
