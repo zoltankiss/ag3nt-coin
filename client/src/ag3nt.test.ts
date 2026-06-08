@@ -140,6 +140,18 @@ describe("contribution award preflight", () => {
     );
   });
 
+  test("rejects founder-authored metadata on non-anchor awards", () => {
+    expect(() =>
+      assertContributionAwardRecipient(
+        "agnt1anchor",
+        "agnt1contributor",
+        "agnt1contributor",
+        true,
+        "https://github.com/zoltankiss/ag3nt-coin/pull/1#review",
+      ),
+    ).toThrow("founder-authored contribution-award requires recipient to match the signing anchor");
+  });
+
   test("allows reviewed founder-authored awards with explicit metadata", () => {
     expect(() =>
       assertContributionAwardRecipient(

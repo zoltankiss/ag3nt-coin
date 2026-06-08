@@ -812,6 +812,9 @@ export function assertContributionAwardRecipient(
       `contribution-award recipient ${recipient} does not match reviewed contributor ${contributorAddress}`,
     );
   }
+  if (allowSelfAward && recipient !== anchorAddress) {
+    throw new Error("founder-authored contribution-award requires recipient to match the signing anchor");
+  }
   if (recipient === anchorAddress && !allowSelfAward) {
     throw new Error(
       "contribution-award recipient matches the signing anchor; pass --founder-authored only for independently reviewed founder-authored work",
