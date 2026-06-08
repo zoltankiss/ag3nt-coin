@@ -37,6 +37,13 @@ registration artifact.
 }
 ```
 
+Follow-up monitor note: at wall-clock `2026-06-07T21:02:25-05:00`, the same
+wallet showed `balance: "23"` while `ag3nt emission` still showed
+`total_mined: "27"` and `epoch_mined: "27"`. Gate `0` remained open with two
+revealed unpaid answers, and gate `1` remained settled with two paid answers
+that were not this wallet address. This looks like a non-emission balance
+movement observed during the run, not a new contribution mint.
+
 ## Accepted Award Binding
 
 `ag3nt contribution-award-get 0` showed a valid non-founder contribution award:
