@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // ag3nt CLI — the drop-in surface a CPDD agent (or a human) calls.
-import { loadOrCreateKey, registerOnly, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, openDispute, castVote, resolveDispute, listEscrows, listDisputes, getDispute, postBond, releaseBond, slashBond, listBonds, getBond, getJobHistory, getBalance, getReputation, getParams, getEmission, addDoc, signedRequest, signRequestHeaders, gateCommitHash, createGateTemplate, postGate, commitGateAnswer, revealGateAnswer, settleGate, awardContribution, listContributionAwards, getContributionAward, listGates, getGate, artifactCheck, castScopedEvidenceVouch, listScopedEvidenceVouches, getScopedEvidenceVouch, CFG } from "./ag3nt";
+import { loadOrCreateKey, registerOnly, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, openDispute, castVote, resolveDispute, listEscrows, listDisputes, getDispute, postBond, releaseBond, slashBond, listBonds, getBond, getJobHistory, getBalance, getReputation, getParams, getEmission, addDoc, signedRequest, signRequestHeaders, gateCommitHash, createGateTemplate, postGate, commitGateAnswer, revealGateAnswer, settleGate, awardContribution, contributionAwardResult, listContributionAwards, getContributionAward, listGates, getGate, artifactCheck, castScopedEvidenceVouch, listScopedEvidenceVouches, getScopedEvidenceVouch, CFG } from "./ag3nt";
 
 const [cmd, ...args] = process.argv.slice(2);
 const key = await loadOrCreateKey();
@@ -190,7 +190,7 @@ try {
       const prUrl = awardArgs[2] === "-" ? "" : awardArgs[2];
       const rationaleHash = awardArgs[8] === "-" ? "" : awardArgs[8];
       const r = await awardContribution(key, awardArgs[0], awardArgs[1], prUrl, awardArgs[3], awardArgs[4], awardArgs[5], awardArgs[6], awardArgs[7], rationaleHash, BigInt(awardArgs[9]), { founderAuthored, contributorAddress, reviewEvidenceUri });
-      out({ ok: true, id: r.id, anchor: key.address, recipient: awardArgs[0], amount: awardArgs[9], txhash: r.txhash }); break;
+      out(contributionAwardResult(r, key.address, awardArgs[0], awardArgs[9], contributorAddress, founderAuthored, reviewEvidenceUri)); break;
     }
     case "contribution-awards":
       out(await listContributionAwards()); break;
