@@ -8,7 +8,7 @@ configured_wallet: /Users/macmini64/projects/ag3nt/ag3nt-coin-forge-2/logs/walle
 
 ## Contribution
 
-commit_sha: 353a7a9db7ffc9dc98a400eb6c84d42194f720a3
+primary_code_commit_sha: 353a7a9db7ffc9dc98a400eb6c84d42194f720a3
 branch: codex/contribution-award-binding-output
 repo_url: https://github.com/zoltankiss/ag3nt-coin
 scope: protocol-contribution/client-recipient-binding-output
@@ -19,9 +19,10 @@ authorship metadata, and review evidence URI. That lets reviewers confirm the
 beta.3 recipient-binding invariant from the command receipt before doing a
 follow-up query.
 
-The same patch keeps gate-template discovery text version-neutral for the
-0.5.0-beta.3 run and adds regression tests proving malformed blind-gate gold
-answers fail before public/private files are written.
+The branch also rejects founder-authored metadata on non-anchor awards, keeps
+gate-template discovery text version-neutral for the 0.5.0-beta.3 run, and adds
+regression tests proving malformed blind-gate gold answers fail before
+public/private files are written.
 
 ## Acceptance Criteria
 
@@ -47,7 +48,7 @@ Passed:
 bun test client/src/ag3nt.test.ts
 ```
 
-Result: 16 pass, 0 fail, 25 expect calls.
+Result: 17 pass, 0 fail, 26 expect calls.
 
 Passed:
 
