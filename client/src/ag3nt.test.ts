@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { createHash } from "crypto";
 import { existsSync, readFileSync, unlinkSync } from "fs";
-import { artifactFetchUri, assertContributionAwardRecipient, assertExternallyFetchableArtifactUri, contributionAwardResult, createGateTemplate, githubBlobArtifact } from "./ag3nt";
+import { artifactCheck, artifactFetchUri, assertContributionAwardRecipient, assertExternallyFetchableArtifactUri, contributionAwardResult, createGateTemplate, githubBlobArtifact } from "./ag3nt";
 
 const originalAllowLocal = process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI;
 
@@ -95,6 +96,30 @@ describe("artifact URI validation", () => {
     expect(artifactFetchUri("http://127.0.0.1:4312/artifacts/payload.json")).toBe(
       "http://127.0.0.1:4312/artifacts/payload.json",
     );
+  });
+
+  test("local artifact override reports local_http access method", async () => {
+    process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI = "1";
+    const body = "local smoke-test artifact\n";
+    const expectedSha256 = createHash("sha256").update(body).digest("hex");
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch() {
+        return new Response(body);
+      },
+    });
+
+    try {
+      const uri = `http://127.0.0.1:${server.port}/artifacts/payload.txt`;
+      const result = await artifactCheck(uri, expectedSha256);
+
+      expect(result.ok).toBe(true);
+      expect(result.fetch_uri).toBe(uri);
+      expect(result.access_method).toBe("local_http");
+    } finally {
+      server.stop(true);
+    }
   });
 
   test("github blob artifact parser preserves pinned ref and path", () => {

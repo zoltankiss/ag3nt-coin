@@ -962,6 +962,14 @@ export function artifactFetchUri(uri: string): string {
   return uri;
 }
 
+export function artifactAccessMethod(fetchUri: string): "https" | "local_http" {
+  const u = new URL(fetchUri);
+  if (u.protocol === "http:" && process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI === "1") {
+    return "local_http";
+  }
+  return "https";
+}
+
 export type GitHubBlobArtifact = {
   owner: string;
   repo: string;
@@ -1042,7 +1050,7 @@ export async function artifactCheck(uri: string, expectedSha256: string) {
     ok: actualSha256.toLowerCase() === expectedSha256.toLowerCase(),
     uri,
     fetch_uri: fetchUri,
-    access_method: "https",
+    access_method: artifactAccessMethod(fetchUri),
     expected_sha256: expectedSha256.toLowerCase(),
     actual_sha256: actualSha256,
     bytes: bytes.length,
