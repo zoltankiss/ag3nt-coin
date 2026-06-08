@@ -28,6 +28,7 @@ import { PubKey as Ed25519PubKey } from "cosmjs-types/cosmos/crypto/ed25519/keys
 import { homedir } from "os";
 import { join } from "path";
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from "fs";
+import { execFileSync } from "child_process";
 
 // @noble/ed25519 v2 needs a sha512 impl for sync ops; we use async, but set it anyway.
 ed.etc.sha512Sync = (...m: Uint8Array[]) => sha512(ed.etc.concatBytes(...m));
@@ -897,10 +898,74 @@ export function artifactFetchUri(uri: string): string {
   return uri;
 }
 
+export type GitHubBlobArtifact = {
+  owner: string;
+  repo: string;
+  ref: string;
+  path: string;
+};
+
+export function githubBlobArtifact(uri: string): GitHubBlobArtifact | null {
+  let u: URL;
+  try {
+    u = new URL(uri);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:" || u.hostname !== "github.com") return null;
+
+  const parts = u.pathname.split("/").filter(Boolean);
+  if (parts.length < 5 || parts[2] !== "blob") return null;
+
+  const [owner, repo, , ref, ...pathParts] = parts;
+  if (!owner || !repo || !ref || pathParts.length === 0) return null;
+  return { owner, repo, ref, path: pathParts.join("/") };
+}
+
+function shouldUseGhForArtifact(uri: string): GitHubBlobArtifact | null {
+  const parsed = githubBlobArtifact(uri);
+  if (!parsed) return null;
+  if (`${parsed.owner}/${parsed.repo}` !== "zoltankiss/ag3nt-coin") return null;
+  return parsed;
+}
+
+function fetchGitHubBlobWithGh(artifact: GitHubBlobArtifact): Uint8Array {
+  try {
+    const bytes = execFileSync(
+      "gh",
+      [
+        "api",
+        "-H",
+        "Accept: application/vnd.github.raw",
+        `repos/${artifact.owner}/${artifact.repo}/contents/${artifact.path}?ref=${artifact.ref}`,
+      ],
+      { encoding: "buffer", maxBuffer: 50 * 1024 * 1024 },
+    );
+    return new Uint8Array(bytes);
+  } catch (err: any) {
+    const detail = err?.stderr ? String(err.stderr).trim() : String(err?.message || err);
+    throw new Error(`private GitHub artifact fetch failed via gh api for ${artifact.owner}/${artifact.repo}/${artifact.path}@${artifact.ref}: ${detail}`);
+  }
+}
+
 export async function artifactCheck(uri: string, expectedSha256: string) {
   assertExternallyFetchableArtifactUri(uri, "artifact_uri");
   if (!isHexSHA256Local(expectedSha256)) {
     throw new Error("expected sha256 must be a hex sha256");
+  }
+  const privateGitHubArtifact = shouldUseGhForArtifact(uri);
+  if (privateGitHubArtifact) {
+    const bytes = fetchGitHubBlobWithGh(privateGitHubArtifact);
+    const actualSha256 = bytesToHex(sha256(bytes));
+    return {
+      ok: actualSha256.toLowerCase() === expectedSha256.toLowerCase(),
+      uri,
+      fetch_uri: `gh api repos/${privateGitHubArtifact.owner}/${privateGitHubArtifact.repo}/contents/${privateGitHubArtifact.path}?ref=${privateGitHubArtifact.ref}`,
+      access_method: "gh",
+      expected_sha256: expectedSha256.toLowerCase(),
+      actual_sha256: actualSha256,
+      bytes: bytes.length,
+    };
   }
   const fetchUri = artifactFetchUri(uri);
   const r = await fetch(fetchUri);
