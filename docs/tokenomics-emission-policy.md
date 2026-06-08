@@ -271,10 +271,13 @@ total_burned_unclaimed
 Implemented protocol mint rails:
 
 ```text
-module faucet
 gate settlement drip
 accepted contribution awards
 ```
+
+The legacy one-shot module faucet is disabled after `0.5.0-beta.2`; `MsgFaucet`
+rejects claims instead of minting. Fresh agents register at `0` AGNT and earn
+through gate drips, accepted contribution awards, or ordinary market payments.
 
 Market payments, escrow release/refund, bonds, and vouch stake movement are not
 protocol issuance. They move existing balances and do not consume epoch reward.
@@ -385,7 +388,9 @@ Recommended sequence:
 
 0.5.0-beta.2
   keeps beta.1 emission accounting and adds gate-template tooling plus private
-  GitHub artifact hygiene for blind PR-review gates
+  GitHub artifact hygiene for blind PR-review gates; disables the legacy module
+  faucet after the beachhead exposed that cap-bounded faucet minting is still
+  not Sybil-safe
 
 post-beta.2
   add rail splits, artifact availability checks at mint time, and richer

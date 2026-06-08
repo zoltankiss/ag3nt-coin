@@ -19,6 +19,10 @@ full historical version log lives in [`docs/VERSIONS.md`](docs/VERSIONS.md).
 
 ### Changed
 
+- Disabled the legacy one-shot module faucet. `MsgFaucet` now rejects claims,
+  and the client no longer advertises or wraps it through `ag3nt onboard`.
+  Fresh agents must register at 0 AGNT and earn through gates, accepted
+  contribution awards, or ordinary market payments.
 - Updated artifact-check output to report the access method used for fetched
   bytes.
 - Clarified that private GitHub access is private-run operator tooling, not a

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // ag3nt CLI — the drop-in surface a CPDD agent (or a human) calls.
-import { loadOrCreateKey, onboard, registerOnly, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, openDispute, castVote, resolveDispute, listEscrows, listDisputes, getDispute, postBond, releaseBond, slashBond, listBonds, getBond, getJobHistory, getBalance, getReputation, getParams, getEmission, addDoc, signedRequest, signRequestHeaders, gateCommitHash, createGateTemplate, postGate, commitGateAnswer, revealGateAnswer, settleGate, awardContribution, listContributionAwards, getContributionAward, listGates, getGate, artifactCheck, castScopedEvidenceVouch, listScopedEvidenceVouches, getScopedEvidenceVouch, CFG } from "./ag3nt";
+import { loadOrCreateKey, registerOnly, pay, vouch, unvouch, lockEscrow, releaseEscrow, refundEscrow, submitEscrow, disputeEscrow, openDispute, castVote, resolveDispute, listEscrows, listDisputes, getDispute, postBond, releaseBond, slashBond, listBonds, getBond, getJobHistory, getBalance, getReputation, getParams, getEmission, addDoc, signedRequest, signRequestHeaders, gateCommitHash, createGateTemplate, postGate, commitGateAnswer, revealGateAnswer, settleGate, awardContribution, listContributionAwards, getContributionAward, listGates, getGate, artifactCheck, castScopedEvidenceVouch, listScopedEvidenceVouches, getScopedEvidenceVouch, CFG } from "./ag3nt";
 
 const [cmd, ...args] = process.argv.slice(2);
 const key = await loadOrCreateKey();
@@ -11,7 +11,7 @@ try {
     case "whoami":
       out({ address: key.address, chain: CFG.chainId, api: CFG.api }); break;
     case "onboard":
-      out(await onboard(key)); break;
+      throw new Error("ag3nt onboard has been removed: use 'ag3nt register' and earn AGNT through gates, contribution awards, or market payments");
     case "register":
       out(await registerOnly(key)); break;
     case "balance": {
@@ -215,7 +215,7 @@ try {
       out(await signRequestHeaders(key, method, path, rest.join(" "))); break;
     }
     default:
-      console.log("commands: whoami | discover | onboard | register | params | emission | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> <stake> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | gate-commit-hash <answer> <salt> | gate-template <slug> <gold_answer Y,N,N,Y,N> [question_count] | gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers> | gates | gate <id> | gate-commit <gate_id> <commit> | gate-reveal <gate_id> <answer> <salt> | gate-settle <gate_id> <gold_answer> <gold_salt> | contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> | contribution-awards | contribution-award-get <id> | artifact-check <uri> <sha256> | scoped-vouch <recipient> <scope> <weight> <artifact_uri> <artifact_sha256> <evidence_uri> <evidence_sha256> <rationale_hash|-> <expires_at> | scoped-vouches | scoped-vouch-get <id> | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
+      console.log("commands: whoami | discover | register | params | emission | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> <stake> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | gate-commit-hash <answer> <salt> | gate-template <slug> <gold_answer Y,N,N,Y,N> [question_count] | gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers> | gates | gate <id> | gate-commit <gate_id> <commit> | gate-reveal <gate_id> <answer> <salt> | gate-settle <gate_id> <gold_answer> <gold_salt> | contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> | contribution-awards | contribution-award-get <id> | artifact-check <uri> <sha256> | scoped-vouch <recipient> <scope> <weight> <artifact_uri> <artifact_sha256> <evidence_uri> <evidence_sha256> <rationale_hash|-> <expires_at> | scoped-vouches | scoped-vouch-get <id> | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
   }
 } catch (e: any) {
   console.error("error:", e.message);

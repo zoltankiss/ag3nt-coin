@@ -125,7 +125,7 @@ func TestEmissionRejectsMintBeyondEpochReward(t *testing.T) {
 	require.Equal(t, uint64(0), balanceOf(t, f, author))
 }
 
-func TestEmissionFaucetCannotBypassEpochCap(t *testing.T) {
+func TestFaucetDisabledDoesNotConsumeEmission(t *testing.T) {
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
 	agent := sample.AccAddress()
@@ -133,9 +133,13 @@ func TestEmissionFaucetCannotBypassEpochCap(t *testing.T) {
 	setEmission(t, f, testEmission(types.FaucetAmount*2, 1000, types.FaucetAmount-1, 100))
 
 	_, err := ms.Faucet(setBlockTime(f.ctx, 110), &types.MsgFaucet{Creator: agent})
-	require.ErrorContains(t, err, "mint exceeds remaining epoch reward")
+	require.ErrorContains(t, err, "module faucet disabled")
 	acct, err := f.keeper.Account.Get(f.ctx, agent)
 	require.NoError(t, err)
 	require.False(t, acct.FaucetClaimed)
 	require.Equal(t, uint64(0), acct.Balance)
+	emission, err := f.keeper.EmissionState.Get(f.ctx)
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), emission.EpochMined)
+	require.Equal(t, uint64(0), emission.TotalMined)
 }

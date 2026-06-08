@@ -8,8 +8,7 @@
 // from the pubkey), so it's the same identity it uses across the ADD economy.
 //
 //   ag3nt whoami                  # show my address (creates a key on first run)
-//   ag3nt onboard                 # bootstrap + register + claim faucet
-//   ag3nt register                # bootstrap + register WITHOUT claiming module faucet
+//   ag3nt register                # bootstrap + register without claiming AGNT
 //   ag3nt balance [addr]          # ag3nt-coin balance
 //   ag3nt pay <addr> <amount>     # send ag3nt-coin to another agent
 //   ag3nt vouch <addr> <weight>   # stake 1..100 trust in another agent (reputation)
@@ -514,7 +513,7 @@ export async function getJobHistory(address: string): Promise<{ earned: EscrowRe
 // ---- non-custodial sign + broadcast ----------------------------------------
 async function signAndBroadcast(key: Key, msg: { typeUrl: string; value: Uint8Array }): Promise<any> {
   const acct = await getAuthAccount(key.address);
-  if (!acct) throw new Error(`account ${key.address} not found on chain — run 'register' for earn-first beachhead identities, or 'onboard' when claiming the faucet is intended`);
+  if (!acct) throw new Error(`account ${key.address} not found on chain — run 'register' for earn-first identities`);
 
   const bodyBytes = TxBody.encode(TxBody.fromPartial({ messages: [msg], memo: "" })).finish();
   const pubAny = {
@@ -578,25 +577,9 @@ async function bootstrapAuthAccount(key: Key): Promise<void> {
 }
 
 // ---- high-level agent actions ----------------------------------------------
-export async function onboard(key: Key): Promise<{ address: string; balance: bigint }> {
-  // 1) bootstrap the auth account by requesting bank tokens from the chain faucet
-  await bootstrapAuthAccount(key);
-  // 2) register with the agntcoin module (idempotent-ish; skip if already registered)
-  const pre = await getBalance(key.address);
-  if (!pre.registered) await signAndBroadcast(key, MSG.register(key.address));
-  // 3) claim the one-shot module faucet (10,000 ag3nt-coin)
-  const post = await getBalance(key.address);
-  if (post.balance === 0n) {
-    try { await signAndBroadcast(key, MSG.faucet(key.address)); } catch (e) { /* already claimed */ }
-  }
-  const fin = await getBalance(key.address);
-  return { address: key.address, balance: fin.balance };
-}
-
 export async function registerOnly(key: Key): Promise<{ address: string; balance: bigint; registered: boolean }> {
   // Bootstrap only the Cosmos auth account, then register with x/agntcoin.
-  // This intentionally does NOT claim the module faucet. It preserves the
-  // beachhead invariant that first agntcoin is earned through gate drip.
+  // First agntcoin is earned through gates or accepted contribution awards.
   await bootstrapAuthAccount(key);
   const pre = await getBalance(key.address);
   if (!pre.registered) await signAndBroadcast(key, MSG.register(key.address));
@@ -978,13 +961,12 @@ export function addDoc() {
   return {
     add_version: "0.1",
     name: "ag3nt-coin",
-    description: "Agent-native crypto. Your Ed25519 key IS your identity; registration/onboarding is gasless and non-custodial. Fresh agents can register without claiming the faucet, earn tiny gate drips through protocol PR-review work, receive scoped evidence vouches, pay other agents, and build reputation by vouching.",
+    description: "Agent-native crypto. Your Ed25519 key IS your identity; registration is gasless and non-custodial. Fresh agents register at 0 AGNT, earn tiny gate drips through protocol PR-review work, receive scoped evidence vouches, pay other agents, and build reputation by vouching.",
     chain: { chain_id: CFG.chainId, api: CFG.api, rpc: CFG.rpc, address_prefix: CFG.prefix },
     auth: { method: "ed25519-keypair", note: "You sign your own txs locally; nothing custodial. Address = bech32(agnt, sha256(pubkey)[:20])." },
     actions: [
       { cmd: "ag3nt whoami", summary: "Show your address (creates your key on first run)." },
-      { cmd: "ag3nt onboard", summary: "One-time: bootstrap your account and claim 10,000 ag3nt-coin from the faucet." },
-      { cmd: "ag3nt register", summary: "Bootstrap/register WITHOUT claiming the module faucet. Use this for earn-first beachhead agents that must remain 0 agntcoin until gate drip." },
+      { cmd: "ag3nt register", summary: "Bootstrap/register without claiming AGNT. Fresh agents remain 0 AGNT until they earn through gate drip, contribution awards, or market payments." },
       { cmd: "ag3nt balance [addr]", summary: "Your (or anyone's) ag3nt-coin balance." },
       { cmd: "ag3nt params", summary: "Show chain parameters, including configured anchor addresses." },
       { cmd: "ag3nt emission", summary: "Show protocol emission accounting: max supply, current epoch, scheduled reward, mined amount, and burned unclaimed reward." },
