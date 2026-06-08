@@ -791,6 +791,14 @@ export async function settleGate(key: Key, gateId: number | bigint | string, gol
   return signAndBroadcast(key, MSG.settleGate(key.address, BigInt(gateId), goldAnswer, goldSalt));
 }
 
+export function assertContributionAwardRecipient(anchorAddress: string, recipient: string, allowSelfAward = false) {
+  if (recipient === anchorAddress && !allowSelfAward) {
+    throw new Error(
+      "contribution-award recipient matches the signing anchor; pass --allow-self-award only for independently reviewed founder-authored work",
+    );
+  }
+}
+
 export async function awardContribution(
   key: Key,
   recipient: string,
@@ -803,7 +811,9 @@ export async function awardContribution(
   scope: string,
   rationaleHash: string,
   amount: number | bigint,
+  options: { allowSelfAward?: boolean } = {},
 ): Promise<{ id: string; txhash: string }> {
+  assertContributionAwardRecipient(key.address, recipient, !!options.allowSelfAward);
   assertExternallyFetchableArtifactUri(artifactUri, "artifact_uri");
   const r = await signAndBroadcast(key, MSG.awardContribution(
     key.address,
@@ -1059,7 +1069,7 @@ export function addDoc() {
       { cmd: "ag3nt gate-commit <gate_id> <commit>", summary: "Commit a hashed gate answer during the commit window." },
       { cmd: "ag3nt gate-reveal <gate_id> <answer> <salt>", summary: "Reveal a committed gate answer after the commit window opens." },
       { cmd: "ag3nt gate-settle <gate_id> <gold_answer> <gold_salt>", summary: "Settle a gate after reveal deadline and mint drip to coherent answers." },
-      { cmd: "ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount>", summary: "Anchor only: mint capped AGNT to the author of an accepted protocol contribution, pinned by hashes." },
+      { cmd: "ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> [--allow-self-award]", summary: "Anchor only: mint capped AGNT to the author of an accepted protocol contribution, pinned by hashes. Self-awards require the explicit flag for independently reviewed founder-authored work." },
       { cmd: "ag3nt contribution-awards", summary: "List accepted protocol contribution awards." },
       { cmd: "ag3nt contribution-award-get <id>", summary: "Read one accepted protocol contribution award." },
       { cmd: "ag3nt artifact-check <uri> <sha256>", summary: "Fetch an externally reviewable artifact and verify its SHA-256; rejects known bad GitHub repo typos." },

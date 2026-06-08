@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, unlinkSync } from "fs";
-import { artifactFetchUri, assertExternallyFetchableArtifactUri, createGateTemplate, githubBlobArtifact } from "./ag3nt";
+import { artifactFetchUri, assertContributionAwardRecipient, assertExternallyFetchableArtifactUri, createGateTemplate, githubBlobArtifact } from "./ag3nt";
 
 const originalAllowLocal = process.env.AG3NT_ALLOW_LOCAL_ARTIFACT_URI;
 
@@ -80,5 +80,21 @@ describe("artifact URI validation", () => {
 
   test("github blob artifact parser ignores non-blob github URLs", () => {
     expect(githubBlobArtifact("https://github.com/zoltankiss/ag3nt-coin/pull/12")).toBeNull();
+  });
+});
+
+describe("contribution award preflight", () => {
+  test("rejects accidental self-awards without explicit override", () => {
+    expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1anchor")).toThrow(
+      "recipient matches the signing anchor",
+    );
+  });
+
+  test("allows deliberate reviewed self-awards with explicit override", () => {
+    expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1anchor", true)).not.toThrow();
+  });
+
+  test("allows awards to a distinct contributor", () => {
+    expect(() => assertContributionAwardRecipient("agnt1anchor", "agnt1contributor")).not.toThrow();
   });
 });

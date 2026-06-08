@@ -169,10 +169,13 @@ try {
     }
     case "contribution-award": {
       if (args.length < 10) throw new Error("usage: ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount>");
-      const prUrl = args[2] === "-" ? "" : args[2];
-      const rationaleHash = args[8] === "-" ? "" : args[8];
-      const r = await awardContribution(key, args[0], args[1], prUrl, args[3], args[4], args[5], args[6], args[7], rationaleHash, BigInt(args[9]));
-      out({ ok: true, id: r.id, anchor: key.address, recipient: args[0], amount: args[9], txhash: r.txhash }); break;
+      const allowSelfAward = args.includes("--allow-self-award");
+      const awardArgs = args.filter((arg) => arg !== "--allow-self-award");
+      if (awardArgs.length < 10) throw new Error("usage: ag3nt contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> [--allow-self-award]");
+      const prUrl = awardArgs[2] === "-" ? "" : awardArgs[2];
+      const rationaleHash = awardArgs[8] === "-" ? "" : awardArgs[8];
+      const r = await awardContribution(key, awardArgs[0], awardArgs[1], prUrl, awardArgs[3], awardArgs[4], awardArgs[5], awardArgs[6], awardArgs[7], rationaleHash, BigInt(awardArgs[9]), { allowSelfAward });
+      out({ ok: true, id: r.id, anchor: key.address, recipient: awardArgs[0], amount: awardArgs[9], txhash: r.txhash }); break;
     }
     case "contribution-awards":
       out(await listContributionAwards()); break;
@@ -215,7 +218,7 @@ try {
       out(await signRequestHeaders(key, method, path, rest.join(" "))); break;
     }
     default:
-      console.log("commands: whoami | discover | register | params | emission | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> <stake> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | gate-commit-hash <answer> <salt> | gate-template <slug> <gold_answer Y,N,N,Y,N> [question_count] | gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers> | gates | gate <id> | gate-commit <gate_id> <commit> | gate-reveal <gate_id> <answer> <salt> | gate-settle <gate_id> <gold_answer> <gold_salt> | contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> | contribution-awards | contribution-award-get <id> | artifact-check <uri> <sha256> | scoped-vouch <recipient> <scope> <weight> <artifact_uri> <artifact_sha256> <evidence_uri> <evidence_sha256> <rationale_hash|-> <expires_at> | scoped-vouches | scoped-vouch-get <id> | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
+      console.log("commands: whoami | discover | register | params | emission | balance [addr] | pay <addr> <amount> | vouch <addr> <weight> <stake> | unvouch <addr> | escrow-lock <payee> <amount> <ref> [disputeSeconds] [--jury-bound] | escrow-release <id> | escrow-refund <id> | escrows | dispute-open <escrow_id> <bond> [reason] | vote <dispute_id> <accept|reject> <stake> | resolve <dispute_id> | disputes [open] | dispute <id> | bond-post <amount> <purpose> <slasher> [ref] | bond-release <id> | bond-slash <id> [beneficiary] | bonds [active] | bond <id> | jobs [addr] | reputation [addr] | gate-commit-hash <answer> <salt> | gate-template <slug> <gold_answer Y,N,N,Y,N> [question_count] | gate-post <payload_uri> <payload_hash> <gold_commit> <drip> <max_answers> | gates | gate <id> | gate-commit <gate_id> <commit> | gate-reveal <gate_id> <answer> <salt> | gate-settle <gate_id> <gold_answer> <gold_salt> | contribution-award <recipient> <repo_url> <pr_url|-> <commit_sha> <artifact_uri> <artifact_sha256> <evidence_sha256> <scope> <rationale_hash|-> <amount> [--allow-self-award] | contribution-awards | contribution-award-get <id> | artifact-check <uri> <sha256> | scoped-vouch <recipient> <scope> <weight> <artifact_uri> <artifact_sha256> <evidence_uri> <evidence_sha256> <rationale_hash|-> <expires_at> | scoped-vouches | scoped-vouch-get <id> | request <METHOD> <url> [body] | sign <METHOD> <path> [body]");
   }
 } catch (e: any) {
   console.error("error:", e.message);
