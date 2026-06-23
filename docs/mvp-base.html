@@ -339,8 +339,8 @@ th {
   <thead><tr><th>Role</th><th>Identity</th><th>What it does</th></tr></thead>
   <tbody>
     <tr><td><strong>Agent A</strong> (buyer)</td><td>Tixswarm backend</td><td>Has long descriptions, wants short titles. Holds <code>ag3nt</code>, posts paid jobs.</td></tr>
-    <tr><td><strong>Agent B</strong> (worker)</td><td><code>hermes</code> on macmini64</td><td>Has a Claude Pro subscription (marginal cost ~$0). Watches the chain, claims jobs, returns titles, earns <code>ag3nt</code>.</td></tr>
-    <tr><td><strong>Agent B<sub>2</sub></strong> (competitor)</td><td><code>hermes</code> on macmini24</td><td>Same as above, different wallet. Adds the "two competing workers" dynamic that turns a payment demo into a market demo.</td></tr>
+    <tr><td><strong>Agent B</strong> (worker)</td><td><code>hermes</code> on node A</td><td>Has a Claude Pro subscription (marginal cost ~$0). Watches the chain, claims jobs, returns titles, earns <code>ag3nt</code>.</td></tr>
+    <tr><td><strong>Agent B<sub>2</sub></strong> (competitor)</td><td><code>hermes</code> on node B</td><td>Same as above, different wallet. Adds the "two competing workers" dynamic that turns a payment demo into a market demo.</td></tr>
     <tr><td><strong>The chain</strong></td><td>Base Sepolia</td><td>Holds the <code>ag3nt</code> token contract and the <code>JobEscrow</code> contract. Provides settlement, transparency, and verifiable history.</td></tr>
   </tbody>
 </table>
@@ -422,12 +422,12 @@ th {
   </div>
   <div class="actor-card">
     <h4>Hermes-64</h4>
-    <div class="role">macmini64 .env</div>
+    <div class="role">node A .env</div>
     Agent B. Claims jobs, submits results, accumulates ag3nt.
   </div>
   <div class="actor-card">
     <h4>Hermes-24</h4>
-    <div class="role">macmini24 .env</div>
+    <div class="role">node B .env</div>
     Agent B<sub>2</sub>. Same as Hermes-64; competes for jobs.
   </div>
 </div>
@@ -497,13 +497,13 @@ escrow.watchEvent.JobPosted({}, {
     <!-- Hermes 64 -->
     <rect class="actor" x="540" y="20" width="170" height="80"/>
     <text class="lbl" x="625" y="46" text-anchor="middle">Hermes (Agent B)</text>
-    <text class="sub" x="625" y="64" text-anchor="middle">macmini64 · Node daemon</text>
+    <text class="sub" x="625" y="64" text-anchor="middle">node A · Node daemon</text>
     <text class="sub" x="625" y="80" text-anchor="middle">watches + claims jobs</text>
 
     <!-- Hermes 24 -->
     <rect class="actor" x="540" y="120" width="170" height="80"/>
     <text class="lbl" x="625" y="146" text-anchor="middle">Hermes (Agent B₂)</text>
-    <text class="sub" x="625" y="164" text-anchor="middle">macmini24 · Node daemon</text>
+    <text class="sub" x="625" y="164" text-anchor="middle">node B · Node daemon</text>
     <text class="sub" x="625" y="180" text-anchor="middle">competing worker</text>
 
     <!-- Claude -->
@@ -786,7 +786,7 @@ function runClaude(prompt: string): Promise&lt;string&gt; {
 
 <div class="callout warn">
   <h4>Lambda doesn't watch websockets</h4>
-  <p>Tixswarm's API is on Lambda (per your <code>deploy-spa-lambda-supabase</code> pattern). Lambda can <em>post</em> to the chain (a short request) but can't <em>listen</em> for events long-term. Cleanest fix: run the event-listening sidecar on macmini64 alongside Hermes. The sidecar writes incoming job-submission events to the tixswarm Supabase DB, and the Lambda frontend reads from there. This is a small but real piece of infra — call it ~30 minutes inside the day's budget.</p>
+  <p>Tixswarm's API is on Lambda (per your <code>deploy-spa-lambda-supabase</code> pattern). Lambda can <em>post</em> to the chain (a short request) but can't <em>listen</em> for events long-term. Cleanest fix: run the event-listening sidecar on node A alongside Hermes. The sidecar writes incoming job-submission events to the tixswarm Supabase DB, and the Lambda frontend reads from there. This is a small but real piece of infra — call it ~30 minutes inside the day's budget.</p>
 </div>
 
 <h2 id="flow">End-to-End Flow</h2>
@@ -822,7 +822,7 @@ function runClaude(prompt: string): Promise&lt;string&gt; {
   <text class="colSub" x="400" y="42">Base Sepolia</text>
   <rect class="colBox" x="500" y="10" width="120" height="38"/>
   <text class="col"    x="560" y="28">Hermes (B)</text>
-  <text class="colSub" x="560" y="42">macmini64</text>
+  <text class="colSub" x="560" y="42">node A</text>
   <rect class="colBox" x="660" y="10" width="120" height="38"/>
   <text class="col"    x="720" y="28">Claude</text>
   <text class="colSub" x="720" y="42">--headless</text>
@@ -973,12 +973,12 @@ function runClaude(prompt: string): Promise&lt;string&gt; {
   <tbody>
     <tr>
       <td><span class="pill day1">Day 1</span> MVP</td>
-      <td>Two contracts on Sepolia + Hermes on macmini64 + Tixswarm integration</td>
+      <td>Two contracts on Sepolia + Hermes on node A + Tixswarm integration</td>
       <td>One ticket → one title → 10 ag3nt moves on-chain, end-to-end.</td>
     </tr>
     <tr>
       <td><span class="pill week1">Week 1</span> Hardening</td>
-      <td>Hermes on macmini24 (second worker); optimistic UI in Tixswarm; reorg-safe Hermes; <code>slither</code> audit pass; private RPC (Alchemy or QuickNode).</td>
+      <td>Hermes on node B (second worker); optimistic UI in Tixswarm; reorg-safe Hermes; <code>slither</code> audit pass; private RPC (Alchemy or QuickNode).</td>
       <td>Two competing workers; UI feels instant; contracts safe enough to consider mainnet.</td>
     </tr>
     <tr>

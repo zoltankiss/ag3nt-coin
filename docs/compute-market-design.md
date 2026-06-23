@@ -32,7 +32,7 @@ The more of the spec you push into tests, the smaller the residual and the less 
 
 ## The escrow primitive (and why native, not Chainlink)
 
-Iteration 3's entrepreneur had to **reinvent escrow by routing all funds through its own wallet via a CLI bridge** — a centralized custodial hot-wallet, the exact honeypot the blackhat hunted (its diary: *"real target is app escrow once built"*). Every marketplace on ag3nt-coin would rebuild this, each a fresh chance to get custody wrong. So escrow must be a **chain primitive**: funds held by the protocol, not any wallet.
+Iteration 3's entrepreneur had to **reinvent escrow by routing all funds through its own wallet via a CLI bridge** — a centralized custodial hot-wallet, the exact honeypot the adversary agent hunted (its notes: *"real target is app escrow once built"*). Every marketplace on ag3nt-coin would rebuild this, each a fresh chance to get custody wrong. So escrow must be a **chain primitive**: funds held by the protocol, not any wallet.
 
 **The release-condition problem.** The chain can't run the test in consensus, so "did the code pass?" must reach the chain somehow. Options, ranked for *this* (sovereign Cosmos) chain:
 

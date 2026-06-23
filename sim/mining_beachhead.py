@@ -2,14 +2,14 @@
 """mining_beachhead.py — gate-v1 parameter Monte Carlo (the "mining beachhead").
 
 Rung 2 of the validation ladder (rung 1 = keeper integration tests, rung 3 =
-CPDD forge iterations with real LLM agents). This sweeps gate-v1's economic
+end-to-end runs with real LLM agents). This sweeps gate-v1's economic
 constants over populations of pure-policy agents to find the viable region
 BEFORE the constants harden into genesis values.
 
 Policies (no LLMs — policies are probability tables):
   honest   — does the verification work; answers the true verdict with
-             accuracy ACC (0.95: the measured haiku-verifier accuracy from
-             docs/experiments/verifier-asymmetry-smoke-2026-06-07.html),
+             accuracy ACC (0.95: a representative cheap-verifier accuracy
+             from earlier smoke tests),
              pays COST_HONEST microcoin-equivalent compute per answer
   stamper  — the lazy sybil: always answers "pass", ~zero cost
   guesser  — uniform random over the k-ary answer space, ~zero cost

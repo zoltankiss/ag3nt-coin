@@ -137,12 +137,12 @@ export async function generateTitle(description: string): Promise&lt;string&gt; 
     <!-- Hermes 64 -->
     <rect class="actor" x="620" y="24" width="176" height="76" rx="8"/>
     <text class="l" x="632" y="48">Hermes-64</text>
-    <text class="s" x="632" y="66">macmini64 · Bun daemon</text>
+    <text class="s" x="632" y="66">node A · Bun daemon</text>
     <text class="s" x="632" y="84">watches + claims jobs</text>
     <!-- Hermes 24 -->
     <rect class="actor" x="620" y="118" width="176" height="64" rx="8"/>
     <text class="l" x="632" y="142">Hermes-24</text>
-    <text class="s" x="632" y="160">macmini24 · competing worker</text>
+    <text class="s" x="632" y="160">node B · competing worker</text>
     <!-- Claude -->
     <rect class="ext" x="620" y="208" width="176" height="60" rx="8"/>
     <text class="l" x="632" y="232">Claude</text>
@@ -190,8 +190,8 @@ watch JobPosted →
     <tr><th>Wallet</th><th>Lives</th><th>Role</th><th>Needs ETH?</th></tr>
     <tr><td>Deployer</td><td>this MacBook <code>.env</code></td><td>deploys contracts; initial 1M ag3nt holder</td><td><span class="pill warn">yes — funded by you</span></td></tr>
     <tr><td>Agent A</td><td>this MacBook <code>.env</code></td><td>buyer; posts jobs (gets ag3nt from deployer)</td><td>a little (gas to post)</td></tr>
-    <tr><td>Hermes-64</td><td>macmini64 <code>.env</code></td><td>worker</td><td>a little (gas to claim/submit)</td></tr>
-    <tr><td>Hermes-24</td><td>macmini24 <code>.env</code></td><td>competing worker</td><td>a little</td></tr>
+    <tr><td>Hermes-64</td><td>node A <code>.env</code></td><td>worker</td><td>a little (gas to claim/submit)</td></tr>
+    <tr><td>Hermes-24</td><td>node B <code>.env</code></td><td>competing worker</td><td>a little</td></tr>
   </table>
 
   <!-- ───────────────────────────── BLOCKER ───────────────────────────── -->
@@ -230,7 +230,7 @@ watch JobPosted →
   </div></div>
   <div class="step"><div class="n">6</div><div class="body">
     <h3>Ship Hermes to the Mac minis <span class="pill warn">light touch</span></h3>
-    <p>rsync the daemon to macmini64 + macmini24, each with its own funded key, run as a launchd service. Now two real machines compete for jobs over the public testnet. <strong>That's the shipped MVP.</strong></p>
+    <p>rsync the daemon to node A + node B, each with its own funded key, run as a launchd service. Now two real machines compete for jobs over the public testnet. <strong>That's the shipped MVP.</strong></p>
   </div></div>
   <div class="step"><div class="n">7</div><div class="body">
     <h3>Real consumer <span class="pill neu">later</span></h3>

@@ -1,9 +1,11 @@
 import type { AgentId, Vouch } from "./types.ts";
 
 /**
- * JIBE — handoff for the human.
- *
  * Compute PageRank scores for the directed weighted vouch graph.
+ *
+ * Note: in this retired TS prototype the body is a uniform-score placeholder.
+ * The production implementation lives in the Cosmos module at
+ * chain/x/agntcoin/keeper/pagerank.go (anchor-rooted PageRank).
  *
  * Input:
  *   - `vouches`: array of edges, where `from` vouches for `to` with `weight` in [1..100].
@@ -31,8 +33,8 @@ import type { AgentId, Vouch } from "./types.ts";
  * Suggested signature kept here so callers compile. Replace the body.
  */
 export function pageRank(vouches: Vouch[]): Map<AgentId, number> {
-  // JIBE: implement me. See notes above.
-  // Until implemented, return uniform scores so the API doesn't crash.
+  // Prototype placeholder: return uniform scores so the API doesn't crash.
+  // The real anchor-rooted PageRank is implemented in the Go keeper.
   const nodes = new Set<AgentId>();
   for (const v of vouches) {
     nodes.add(v.from);

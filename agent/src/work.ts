@@ -1,7 +1,7 @@
 /// The "do the work" step for the worker, pluggable so the chain logic in
 /// worker.ts stays runtime-agnostic. This implementation shells out to the
-/// local `claude` CLI in headless mode. The OpenClaw skill will provide its own
-/// DoWork that uses OpenClaw's Claude access instead — same signature.
+/// local `claude` CLI in headless mode. A hosted agent runtime can provide its
+/// own DoWork that uses the host's model access instead — same signature.
 
 export type DoWork = (body: string) => Promise<string>;
 

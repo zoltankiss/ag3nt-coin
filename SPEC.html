@@ -75,7 +75,6 @@
   .pill.no{background:var(--pill-no);color:#ffd0ce}
   .pill.partial{background:var(--pill-partial);color:#ffe1a8}
   .pill.na{background:var(--pill-na);color:#c2cad6}
-  .pill.jibe{background:#3a2660;color:#dbc4ff}
   .pill.live{background:#1f6a3a;color:#caffd8}
   .pill.stub{background:#7a5a18;color:#ffe1a8}
   .pill.todo{background:#7a2126;color:#ffd0ce}
@@ -112,7 +111,7 @@
     <li><a href="#queries">Queries</a></li>
     <li><a href="#state">State</a></li>
     <li><a href="#genesis">Genesis</a></li>
-    <li><a href="#pagerank">PageRank (JIBE)</a></li>
+    <li><a href="#pagerank">PageRank reputation</a></li>
     <li><a href="#api">API surface</a></li>
     <li><a href="#divergences">Divergences from TS prototype</a></li>
     <li><a href="#openq">Open questions</a></li>
@@ -134,7 +133,7 @@
   <div class="sub">A sovereign appchain for agents, by agents. Cosmos SDK + CometBFT. MVP-1.</div>
   <div class="badges">
     <span class="pill live">MVP-1 live (local dev)</span>
-    <span class="pill stub">PageRank: stub (JIBE)</span>
+    <span class="pill live">PageRank: implemented</span>
     <span class="pill na">Single validator</span>
   </div>
 </header>
@@ -444,17 +443,17 @@
 </section>
 
 <section id="pagerank">
-  <h2><span class="num">10</span>PageRank <span class="pill jibe" style="margin-left:8px">JIBE</span></h2>
+  <h2><span class="num">10</span>PageRank <span class="pill live" style="margin-left:8px">implemented</span></h2>
   <p>Reputation is a pure function of the vouch graph, computed on each query —
     not stored. The query handler walks <code>Vouch</code>, calls
     <code>PageRank(vouches)</code>, and returns the requested address's score.</p>
 
-  <div class="panel warn">
-    <div class="label">Status: stub</div>
-    <code>chain/x/agntcoin/keeper/pagerank.go</code> currently returns a uniform
-    distribution (<code>1/N</code> per node). The chain queries cleanly, but scores
-    carry no signal. Full power-iteration / weighted PageRank is the
-    <strong>first jibe</strong> — to be hand-implemented.
+  <div class="panel">
+    <div class="label">Status: implemented</div>
+    <code>chain/x/agntcoin/keeper/pagerank.go</code> implements anchor-rooted,
+    weighted power-iteration PageRank over the vouch (and job) graph. Rooting the
+    teleport set at a trusted anchor set means a clique can't mint reputation for
+    itself. The query handler returns the score string directly.
   </div>
 
   <h3>Contract</h3>
@@ -467,7 +466,7 @@
     <li><strong>Convention:</strong> scores sum to 1.0 across all nodes.</li>
   </ul>
 
-  <h3>Hints (from the JIBE comment)</h3>
+  <h3>Algorithm notes</h3>
   <ul>
     <li>Standard PageRank with damping <code>d ≈ 0.85</code>:
       <code>r_{k+1} = d·M·r_k + (1−d)/N</code>.</li>
@@ -602,8 +601,8 @@
     forward-looking design. Headline items:</p>
   <ul>
     <li><strong>MVP-2:</strong> ADD-native adapter (Ed25519 base64 ↔ Bech32);
-      <code>x/trials</code> module (file complaint, weighted-reservoir jury selection
-      [<em>second jibe</em>], evidence, voting, slashing); demurrage on idle balances;
+      <code>x/trials</code> module (file complaint, weighted-reservoir jury selection,
+      evidence, voting, slashing); demurrage on idle balances;
       <code>/.well-known/add.json</code>.</li>
     <li><strong>MVP-3:</strong> compute marketplace, proof-of-useful-work,
       FLOPs-pegged coin emission.</li>

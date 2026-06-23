@@ -290,8 +290,8 @@ ag3nt emission
 
 ## Beta.2 Beachhead Evidence Checklist
 
-For beta.2 forge runs, public artifacts should make emission changes
-independently reviewable without relying on private diary notes. Every accepted
+For beta.2 runs, public artifacts should make emission changes
+independently reviewable without relying on private run notes. Every accepted
 contribution award, gate drip, or faucet test should include:
 
 ```text

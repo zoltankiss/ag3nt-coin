@@ -77,7 +77,6 @@
   .pill.no{background:var(--pill-no);color:#ffd0ce}
   .pill.partial{background:var(--pill-partial);color:#ffe1a8}
   .pill.na{background:var(--pill-na);color:#c2cad6}
-  .pill.jibe{background:#3a2660;color:#dbc4ff}
 
   details{margin:10px 0;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
   summary{padding:10px 14px;cursor:pointer;color:var(--muted);font-size:13px;
@@ -152,7 +151,7 @@
   <div class="badges">
     <span class="pill no">Architecture: changed</span>
     <span class="pill partial">Primitives: preserved</span>
-    <span class="pill jibe">PageRank: stub</span>
+    <span class="pill partial">PageRank: implemented</span>
   </div>
 </header>
 
@@ -205,11 +204,11 @@
     Bundled with the Ed25519↔Bech32 adapter for MVP-2.
   </div>
 
-  <div class="panel bad">
-    <div class="label">3 · PageRank is a uniform stub</div>
-    <code>chain/x/agntcoin/keeper/pagerank.go</code> currently returns <code>1/N</code> for each
-    node. Reputation queries succeed but carry no signal. This is the first declared JIBE — it's
-    waiting on a hand-coded implementation, not broken.
+  <div class="panel">
+    <div class="label">3 · PageRank reputation</div>
+    <code>chain/x/agntcoin/keeper/pagerank.go</code> implements anchor-rooted weighted
+    power-iteration PageRank over the vouch graph (an earlier scaffold returned a uniform
+    <code>1/N</code> placeholder). Reputation queries now carry real signal.
   </div>
 
   <div class="panel warn">
@@ -468,7 +467,7 @@ q.k.Vouch.Walk(ctx, <span class="kw">nil</span>, <span class="kw">func</span>(_ 
     vouches = <span class="kw">append</span>(vouches, v)
     <span class="kw">return</span> <span class="kw">false</span>, <span class="kw">nil</span>
 })
-scores := <span class="fn">PageRank</span>(vouches)        <span class="com">// JIBE — uniform stub</span>
+scores := <span class="fn">PageRank</span>(vouches)        <span class="com">// anchor-rooted weighted PageRank</span>
 score, ok := scores[req.Address]
 <span class="kw">return</span> &amp;types.<span class="ty">QueryReputationResponse</span>{
     Score: strconv.<span class="fn">FormatFloat</span>(score, <span class="str">'f'</span>, -<span class="num">1</span>, <span class="num">64</span>),
@@ -582,7 +581,7 @@ score, ok := scores[req.Address]
     <li>Decide what to do with <code>Account.nonce</code> (delete or repurpose).</li>
     <li>Ed25519↔Bech32 adapter for ADD-native callers.</li>
     <li><code>/.well-known/add.json</code> discovery (sidecar or mux extension).</li>
-    <li>Hand-implement PageRank (the JIBE).</li>
+    <li>Implement anchor-rooted weighted PageRank (done — see <code>keeper/pagerank.go</code>).</li>
   </ul>
 </section>
 

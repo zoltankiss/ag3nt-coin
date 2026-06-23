@@ -10,7 +10,7 @@ const POSTED = 1; // JobEscrow.State.Posted
 /// them, fulfills the work via the injected `doWork`, and submits the result.
 /// Crash-safe and idempotent: all decisions are re-derived from on-chain state,
 /// so a restart never double-claims or loses a job. The same function powers the
-/// standalone dev runner (hermes.ts) and, later, the OpenClaw skill.
+/// standalone dev runner (hermes.ts) and, later, a hosted agent runtime.
 export async function runWorker(doWork: DoWork): Promise<void> {
   const wallet = walletFor(hermesKey());
   const me = wallet.account.address;

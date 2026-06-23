@@ -67,7 +67,6 @@
   .panel.warn{border-color:#553c1a;background:#241a0d}
   .panel.bad{border-color:#5a1d22;background:#231114}
   .panel.info{border-color:#1f3a5c;background:#0d1a2a}
-  .panel.jibe{border-color:#4a2c7a;background:#1c1230}
   .panel.idea{border-color:#3a4250;background:var(--panel2)}
   .panel .label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
     color:var(--muted);margin-bottom:6px}
@@ -82,7 +81,6 @@
 
   .pill{display:inline-block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
     padding:2px 9px;border-radius:999px;font-weight:600;line-height:1.7}
-  .pill.jibe{background:#3a2660;color:#dbc4ff}
   .pill.new{background:#1f5a3a;color:#caffd8}
   .pill.changes{background:#7a5a18;color:#ffe1a8}
   .pill.idea{background:#3a4250;color:#c2cad6}
@@ -127,7 +125,7 @@
     <li><a href="#add-adapter">ADD adapter</a></li>
     <li><a href="#discovery">Discovery</a></li>
     <li><a href="#trials">Trials module</a></li>
-    <li><a href="#jury-jibe">Jury selection (JIBE)</a></li>
+    <li><a href="#jury-selection">Jury selection</a></li>
     <li><a href="#demurrage">Demurrage</a></li>
     <li><a href="#nonce-decision">Nonce decision</a></li>
   </ol>
@@ -155,7 +153,6 @@
   <h1>Proposed future state</h1>
   <div class="sub">What MVP-2, MVP-3, and v1 should look like. Provisional, opinion-shaped, designed to be argued with.</div>
   <div class="badges">
-    <span class="pill jibe">2 declared jibes</span>
     <span class="pill new">3 new modules</span>
     <span class="pill changes">demurrage rewrites incentives</span>
   </div>
@@ -184,11 +181,11 @@
     <div class="what">
       <div class="h">Primitives on Cosmos <span class="pill new" style="margin-left:6px">shipped</span></div>
       <div class="d">Single-validator dev chain. Register, faucet, transfer, vouch.
-        PageRank reputation (currently uniform stub — first JIBE pending).</div>
+        Anchor-rooted PageRank reputation (implemented).</div>
     </div>
     <div class="when">MVP-2</div>
     <div class="what">
-      <div class="h">Trust + cost + ADD-native <span class="pill jibe" style="margin-left:6px">jibe #2</span></div>
+      <div class="h">Trust + cost + ADD-native</div>
       <div class="d">Ed25519↔Bech32 adapter, <code>/.well-known/add.json</code> discovery,
         <code>x/trials</code> module with weighted-reservoir jury selection, demurrage on
         idle balances.</div>
@@ -273,7 +270,7 @@
   <ul>
     <li><strong>Sidecar, not in-process.</strong> The Cosmos node stays pristine —
       adapter outages don't take down consensus, and the adapter can be upgraded
-      independently. It can run on macmini64 next to the validator.</li>
+      independently. It can run on node A next to the validator.</li>
     <li><strong>Stateless.</strong> No DB. The adapter does pure translation; all state
       lives on the chain.</li>
     <li><strong>Signing options.</strong> Either (a) the adapter holds a sponsor key and
@@ -388,13 +385,13 @@
 }</code></pre>
 </section>
 
-<section id="jury-jibe">
-  <h3>Jury selection <span class="pill jibe" style="margin-left:6px">JIBE #2</span></h3>
+<section id="jury-selection">
+  <h3>Jury selection</h3>
   <p>Pick <em>k</em> jurors from the population of registered agents, weighted by reputation
     score, without replacement, with a single pass over the population.</p>
 
-  <div class="panel jibe">
-    <div class="label">Why this is a jibe</div>
+  <div class="panel info">
+    <div class="label">Algorithm note</div>
     Weighted reservoir sampling without replacement (the A-Res / A-ExpJ algorithms) is
     classic interview-worthy territory: clever use of order statistics on exponentials,
     streaming-friendly, one pass. The boring version (compute CDF, binary search, repeat
@@ -415,7 +412,7 @@
       excluding plaintiff and defendant.</li>
     <li><strong>Edge case:</strong> if <code>|candidates| &lt; k</code>, fall back to
       "select all of them" (don't error — small early populations are common).</li>
-    <li><strong>Hint for the jiber:</strong> Algorithm A-Res (Efraimidis–Spirakis) — for
+    <li><strong>Implementation hint:</strong> Algorithm A-Res (Efraimidis–Spirakis) — for
       each candidate <em>i</em>, compute key <em>u_i^(1/w_i)</em>, keep the top-k by key.
       One pass, O(n log k) with a min-heap of size k.</li>
   </ul>
@@ -639,7 +636,7 @@
       are a security liability we don't need yet.</li>
     <li><strong>Hosted indexer:</strong> not part of the chain, but worth scaffolding —
       most consumer-facing UX needs a chain indexer (PostgreSQL-backed projection of chain
-      events). Could run on macmini64 alongside the validator until it outgrows it.</li>
+      events). Could run on node A alongside the validator until it outgrows it.</li>
   </ul>
 </section>
 

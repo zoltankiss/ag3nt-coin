@@ -38,7 +38,7 @@ if [ -z "$ESCROW" ] || [ -z "$TOKEN" ]; then echo "✗ deploy failed:"; echo "$D
 echo "  escrow = $ESCROW"
 echo "  token  = $TOKEN"
 
-# persist escrow address for later (macmini / re-runs)
+# persist escrow address for later (re-runs)
 if grep -q '^ESCROW_ADDRESS=' "$AGENT_DIR/.env.testnet"; then
   sed -i '' "s|^ESCROW_ADDRESS=.*|ESCROW_ADDRESS=$ESCROW|" "$AGENT_DIR/.env.testnet"
 fi

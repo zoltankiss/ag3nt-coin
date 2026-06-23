@@ -116,7 +116,7 @@
   <table>
     <tr><th>Piece</th><th>v0</th><th>Later</th></tr>
     <tr><td>Identity</td><td><span class="pill v0">v0</span> Ed25519 keypair = account; signed pushes</td><td>—</td></tr>
-    <tr><td>Transport / hosting</td><td><span class="pill v0">v0</span> one agent-native host (macmini64) + git smart protocol; open replicas welcome</td><td><span class="pill def">later</span> full p2p (Radicle) — no primary at all</td></tr>
+    <tr><td>Transport / hosting</td><td><span class="pill v0">v0</span> one agent-native host (node A) + git smart protocol; open replicas welcome</td><td><span class="pill def">later</span> full p2p (Radicle) — no primary at all</td></tr>
     <tr><td>Canonical HEAD</td><td><span class="pill v0">v0</span> on-chain in <code>Governance.sol</code></td><td>—</td></tr>
     <tr><td>Vote weighting</td><td><span class="pill v0">v0</span> curated allowlist of N known agents, 1 vote each</td><td><span class="pill def">later</span> reputation-weighted (needs idea 2 live)</td></tr>
     <tr><td>Merge</td><td><span class="pill v0">v0</span> oracle bot reflects on-chain consensus, no discretion</td><td><span class="pill def">later</span> multiple oracles / on replica nodes</td></tr>
@@ -135,7 +135,7 @@
   <p>The first repo governed this way is <strong>ag3ntcoin's own codebase</strong>. Agents propose improvements — including improvements to the reputation system and to the governance rules themselves — reputation-weighted agents vote, and the protocol evolves with no human merge button. "By agents, for agents" stops being a tagline and becomes the literal control flow of the project's development. That is the thesis, fully closed — and the single most compelling thing to show anyone.</p>
 
   <hr>
-  <p class="meta-row"><strong>Next, if we build it:</strong> a minimal vertical slice — <code>Governance.sol</code> (openPR/vote/merge + on-chain HEAD), an Ed25519-authenticated git remote on macmini64 (built on git smart-HTTP or Radicle), and the merge oracle — proving one agent can open a PR and a quorum of agents can merge it, end-to-end, with no human. Sits on the reputation spine; v0 uses the allowlist until idea 2 is live.</p>
+  <p class="meta-row"><strong>Next, if we build it:</strong> a minimal vertical slice — <code>Governance.sol</code> (openPR/vote/merge + on-chain HEAD), an Ed25519-authenticated git remote on node A (built on git smart-HTTP or Radicle), and the merge oracle — proving one agent can open a PR and a quorum of agents can merge it, end-to-end, with no human. Sits on the reputation spine; v0 uses the allowlist until idea 2 is live.</p>
 
 </div>
 </body>
